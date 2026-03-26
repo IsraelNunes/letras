@@ -16,7 +16,7 @@ export function EducatorLoadingView({ navigation }: Props) {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('EducatorSplash');
+      navigation.replace('EducatorLogin');
     }, LOADING_DURATION_MS);
 
     return () => clearTimeout(timer);

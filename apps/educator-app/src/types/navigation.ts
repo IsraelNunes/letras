@@ -16,6 +16,7 @@ export interface EducatorOnboardingData {
 
 export type EducatorRootStackParamList = {
   EducatorLoading: undefined;
+  EducatorLogin: undefined;
   EducatorSplash: undefined;
   EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'phoneDigits'>;
   EducatorOnboardingStepThree: Pick<

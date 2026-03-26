@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { EducatorLoadingView } from '../views/EducatorLoadingView';
+import { EducatorLoginView } from '../views/EducatorLoginView';
 import { EducatorSplashView } from '../views/EducatorSplashView';
 import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTwoView';
 import { EducatorOnboardingStepThreeView } from '../views/EducatorOnboardingStepThreeView';
@@ -16,6 +17,14 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorLoading"
         component={EducatorLoadingView}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="EducatorLogin"
+        component={EducatorLoginView}
         options={{
           headerShown: false,
           gestureEnabled: false,
