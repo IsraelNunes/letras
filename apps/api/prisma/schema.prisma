@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionRole {
+  LEARNER
+  EDUCATOR
+}
+
+enum ActivityType {
+  READING
+  WRITING
+  MATCHING
+  SPEAKING
+}
+
+enum CompletionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Educator {
+  id        String           @id @default(cuid())
+  name      String
+  email     String?          @unique
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  learners  LearnerProfile[]
+}
+
+model LearnerProfile {
+  id           String         @id @default(cuid())
+  displayName  String
+  notes        String?
+  educatorId   String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  educator     Educator?      @relation(fields: [educatorId], references: [id], onDelete: SetNull)
+  learnerThemes LearnerTheme[]
+  session      LearnerSession?
+  completions  Completion[]
+
+  @@index([educatorId])
+}
+
+model Theme {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  learnerProfiles LearnerTheme[]
+  learningUnits LearningUnit[]
+}
+
+model LearnerTheme {
+  learnerProfileId String
+  themeId          String
+  assignedAt       DateTime      @default(now())
+
+  learnerProfile   LearnerProfile @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+  theme            Theme          @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@id([learnerProfileId, themeId])
+  @@index([themeId])
+}
+
+model LearningUnit {
+  id          String      @id @default(cuid())
+  themeId     String
+  title       String
+  description String?
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  theme       Theme       @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  activities  Activity[]
+
+  @@index([themeId, order])
+}
+
+model Activity {
+  id             String       @id @default(cuid())
+  learningUnitId String
+  prompt         String
+  content        Json?
+  order          Int          @default(0)
+  type           ActivityType @default(READING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  learningUnit   LearningUnit @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  completions    Completion[]
+
+  @@index([learningUnitId, order])
+}
+
+model LearnerSession {
+  id               String       @id @default(cuid())
+  learnerProfileId String       @unique
+  deviceId         String
+  role             SessionRole  @default(LEARNER)
+  connectedAt      DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  learnerProfile   LearnerProfile @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+  sessionState     SessionState?
+}
+
+model SessionState {
+  id                String         @id @default(cuid())
+  sessionId         String         @unique
+  currentView       String         @default("home")
+  currentActivityId String?
+  statePayload      Json?
+  isLocked          Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  session           LearnerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Completion {
+  id               String           @id @default(cuid())
+  learnerProfileId String
+  activityId       String
+  status           CompletionStatus @default(IN_PROGRESS)
+  score            Float?
+  elapsedSeconds   Int?
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  learnerProfile   LearnerProfile   @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+  activity         Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@unique([learnerProfileId, activityId])
+  @@index([activityId])
+}

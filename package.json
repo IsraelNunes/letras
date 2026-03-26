@@ -1,0 +1,17 @@
+{
+  "name": "letras",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.5.2",
+  "scripts": {
+    "postinstall": "pnpm --filter api prisma:generate",
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "build:shared": "pnpm --filter @letras/shared-types build && pnpm --filter @letras/shared-utils build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter api prisma:generate",
+    "db:migrate": "pnpm --filter api prisma:migrate",
+    "db:seed": "pnpm --filter api prisma:seed"
+  }
+}
