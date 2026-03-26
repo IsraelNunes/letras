@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CompletionStatus, TrackProgressDto } from './dto/track-progress.dto';
 
@@ -6,7 +6,26 @@ import { CompletionStatus, TrackProgressDto } from './dto/track-progress.dto';
 export class ProgressService {
   constructor(private readonly prisma: PrismaService) {}
 
-  trackProgress(dto: TrackProgressDto) {
+  async trackProgress(dto: TrackProgressDto) {
+    const [learnerProfile, activity] = await Promise.all([
+      this.prisma.learnerProfile.findUnique({
+        where: { id: dto.learnerProfileId },
+        select: { id: true },
+      }),
+      this.prisma.activity.findUnique({
+        where: { id: dto.activityId },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!learnerProfile) {
+      throw new NotFoundException(`LearnerProfile ${dto.learnerProfileId} nao encontrado.`);
+    }
+
+    if (!activity) {
+      throw new NotFoundException(`Activity ${dto.activityId} nao encontrada.`);
+    }
+
     const completedAt = dto.status === CompletionStatus.COMPLETED ? new Date() : null;
 
     return this.prisma.completion.upsert({

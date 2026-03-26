@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AssignThemeDto } from './dto/assign-theme.dto';
 import { CreateLearnerProfileDto } from './dto/create-learner-profile.dto';
@@ -18,15 +18,23 @@ export class LearnerService {
   }
 
   async assignTheme(learnerProfileId: string, dto: AssignThemeDto) {
-    await this.prisma.learnerProfile.findUniqueOrThrow({
+    const learnerProfile = await this.prisma.learnerProfile.findUnique({
       where: { id: learnerProfileId },
       select: { id: true },
     });
 
-    await this.prisma.theme.findUniqueOrThrow({
+    if (!learnerProfile) {
+      throw new NotFoundException(`LearnerProfile ${learnerProfileId} nao encontrado.`);
+    }
+
+    const theme = await this.prisma.theme.findUnique({
       where: { id: dto.themeId },
       select: { id: true },
     });
+
+    if (!theme) {
+      throw new NotFoundException(`Theme ${dto.themeId} nao encontrado.`);
+    }
 
     return this.prisma.learnerTheme.upsert({
       where: {

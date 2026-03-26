@@ -1,4 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { EducatorSplashView } from '../views/EducatorSplashView';
+import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTwoView';
 import { EducatorDashboardView } from '../views/EducatorDashboardView';
 import { EducatorRootStackParamList } from '../types';
 
@@ -6,7 +8,22 @@ const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
 
 export function EducatorNavigator() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator initialRouteName="EducatorSplash">
+      <Stack.Screen
+        name="EducatorSplash"
+        component={EducatorSplashView}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
+        name="EducatorOnboardingStepTwo"
+        component={EducatorOnboardingStepTwoView}
+        options={{
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="EducatorDashboard"
         component={EducatorDashboardView}

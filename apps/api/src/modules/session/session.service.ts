@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SessionRole } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateLearnerSessionDto, SessionParticipantRole } from './dto/create-learner-session.dto';
@@ -65,10 +65,14 @@ export class SessionService {
   }
 
   async updateState(learnerProfileId: string, dto: UpdateSessionStateDto) {
-    const session = await this.prisma.learnerSession.findUniqueOrThrow({
+    const session = await this.prisma.learnerSession.findUnique({
       where: { learnerProfileId },
       select: { id: true },
     });
+
+    if (!session) {
+      throw new NotFoundException(`Sessao do learnerProfile ${learnerProfileId} nao encontrada.`);
+    }
 
     const statePayload = dto.statePayload as Prisma.InputJsonValue | undefined;
 
@@ -92,10 +96,14 @@ export class SessionService {
   }
 
   async setLockState(learnerProfileId: string, isLocked: boolean) {
-    const session = await this.prisma.learnerSession.findUniqueOrThrow({
+    const session = await this.prisma.learnerSession.findUnique({
       where: { learnerProfileId },
       select: { id: true },
     });
+
+    if (!session) {
+      throw new NotFoundException(`Sessao do learnerProfile ${learnerProfileId} nao encontrada.`);
+    }
 
     return this.prisma.sessionState.upsert({
       where: {
