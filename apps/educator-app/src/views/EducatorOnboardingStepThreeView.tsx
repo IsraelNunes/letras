@@ -14,6 +14,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRootStackParamList } from '../types';
+import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepThree'>;
 
@@ -168,6 +169,47 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           <Text style={styles.advanceLabel}>AVANCAR</Text>
         </Pressable>
       </ScrollView>
+      <EducatorBottomMenu
+        active="acompanhar"
+        onInicioPress={() => navigation.navigate('EducatorSplash')}
+        onTutorialPress={() =>
+          navigation.navigate('EducatorOnboardingStepTwo', {
+            cpf: route.params.cpf,
+            phoneDigits: route.params.phoneDigits,
+          })
+        }
+        onAcompanharPress={() =>
+          navigation.navigate('EducatorOnboardingStepThree', {
+            cpf: route.params.cpf,
+            phoneDigits: route.params.phoneDigits,
+            fullName: route.params.fullName,
+            birthDate: route.params.birthDate,
+            uf: route.params.uf,
+            city: route.params.city,
+            photoUri: route.params.photoUri,
+          })
+        }
+        onPontuacaoPress={
+          canProceed
+            ? () =>
+                navigation.navigate('EducatorOnboardingConfirm', {
+                  cpf: route.params.cpf,
+                  phoneDigits: route.params.phoneDigits,
+                  fullName: route.params.fullName,
+                  birthDate: route.params.birthDate,
+                  uf: route.params.uf,
+                  city: route.params.city,
+                  photoUri: route.params.photoUri,
+                  educationLevel,
+                  trainingArea: trainingArea.trim(),
+                  linkedin: linkedin.trim(),
+                  facebook: facebook.trim(),
+                  instagram: instagram.trim(),
+                  xHandle: xHandle.trim(),
+                })
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -181,7 +223,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 52,
+    paddingBottom: 130,
     backgroundColor: '#ededed',
   },
   header: {

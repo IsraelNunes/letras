@@ -18,6 +18,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
 import { EducatorRootStackParamList } from '../types';
+import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepTwo'>;
 
@@ -383,6 +384,30 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           <Text style={styles.advanceLabel}>AVANCAR</Text>
         </Pressable>
       </ScrollView>
+      <EducatorBottomMenu
+        active="tutorial"
+        onInicioPress={() => navigation.navigate('EducatorSplash')}
+        onTutorialPress={() =>
+          navigation.navigate('EducatorOnboardingStepTwo', {
+            cpf: route.params.cpf,
+            phoneDigits: route.params.phoneDigits,
+          })
+        }
+        onAcompanharPress={
+          canProceed
+            ? () =>
+                navigation.navigate('EducatorOnboardingStepThree', {
+                  cpf: route.params.cpf,
+                  phoneDigits: route.params.phoneDigits,
+                  fullName: fullName.trim(),
+                  birthDate,
+                  uf,
+                  city: city.trim(),
+                  photoUri,
+                })
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -396,7 +421,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 50,
+    paddingBottom: 130,
     backgroundColor: '#ededed',
   },
   header: {

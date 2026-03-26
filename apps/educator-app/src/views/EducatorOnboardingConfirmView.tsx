@@ -12,6 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRootStackParamList } from '../types';
+import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingConfirm'>;
 
@@ -87,6 +88,28 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
           </Pressable>
         </View>
       </ScrollView>
+      <EducatorBottomMenu
+        active="pontuacao"
+        onInicioPress={() => navigation.navigate('EducatorSplash')}
+        onTutorialPress={() =>
+          navigation.navigate('EducatorOnboardingStepTwo', {
+            cpf: data.cpf,
+            phoneDigits: data.phoneDigits,
+          })
+        }
+        onAcompanharPress={() =>
+          navigation.navigate('EducatorOnboardingStepThree', {
+            cpf: data.cpf,
+            phoneDigits: data.phoneDigits,
+            fullName: data.fullName,
+            birthDate: data.birthDate,
+            uf: data.uf,
+            city: data.city,
+            photoUri: data.photoUri,
+          })
+        }
+        onPontuacaoPress={() => navigation.navigate('EducatorOnboardingConfirm', data)}
+      />
     </SafeAreaView>
   );
 }
@@ -100,7 +123,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 52,
+    paddingBottom: 130,
     backgroundColor: '#ededed',
   },
   header: {

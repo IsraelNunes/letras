@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { EducatorLoadingView } from '../views/EducatorLoadingView';
 import { EducatorSplashView } from '../views/EducatorSplashView';
 import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTwoView';
 import { EducatorOnboardingStepThreeView } from '../views/EducatorOnboardingStepThreeView';
@@ -10,7 +11,15 @@ const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
 
 export function EducatorNavigator() {
   return (
-    <Stack.Navigator initialRouteName="EducatorSplash">
+    <Stack.Navigator initialRouteName="EducatorLoading">
+      <Stack.Screen
+        name="EducatorLoading"
+        component={EducatorLoadingView}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen
         name="EducatorSplash"
         component={EducatorSplashView}
