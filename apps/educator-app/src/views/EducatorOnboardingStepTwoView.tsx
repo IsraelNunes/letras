@@ -61,7 +61,7 @@ function isValidDate(value: string) {
   return date <= new Date();
 }
 
-export function EducatorOnboardingStepTwoView({ navigation }: Props) {
+export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const repository = useMemo(() => new EducatorRepositoryImpl(), []);
 
   const [fullName, setFullName] = useState('');
@@ -363,7 +363,17 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
         <Pressable
           style={[styles.advanceButton, !canProceed ? styles.advanceButtonDisabled : null]}
           disabled={!canProceed}
-          onPress={() => navigation.replace('EducatorDashboard')}
+          onPress={() =>
+            navigation.navigate('EducatorOnboardingStepThree', {
+              cpf: route.params.cpf,
+              phoneDigits: route.params.phoneDigits,
+              fullName: fullName.trim(),
+              birthDate,
+              uf,
+              city: city.trim(),
+              photoUri,
+            })
+          }
         >
           {forwardUri ? (
             <SvgUri uri={forwardUri} width={64} height={40} />

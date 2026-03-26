@@ -105,7 +105,12 @@ export function EducatorSplashView({ navigation }: Props) {
         <Pressable
           style={[styles.advanceButton, !canProceed ? styles.advanceButtonDisabled : null]}
           disabled={!canProceed}
-          onPress={() => navigation.navigate('EducatorOnboardingStepTwo')}
+          onPress={() =>
+            navigation.navigate('EducatorOnboardingStepTwo', {
+              cpf,
+              phoneDigits,
+            })
+          }
         >
           {forwardUri ? (
             <SvgUri uri={forwardUri} width={64} height={40} />

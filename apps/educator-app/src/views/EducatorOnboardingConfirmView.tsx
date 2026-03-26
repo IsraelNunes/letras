@@ -1,0 +1,182 @@
+import { useAssets } from 'expo-asset';
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { SvgUri } from 'react-native-svg';
+import { EducatorRootStackParamList } from '../types';
+
+type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingConfirm'>;
+
+function formatPhoneFromDigits(digits: string) {
+  const onlyDigits = digits.replace(/\D/g, '').slice(0, 11);
+  if (onlyDigits.length !== 11) return digits;
+  return `(${onlyDigits.slice(0, 2)}) ${onlyDigits.slice(2, 7)}-${onlyDigits.slice(7)}`;
+}
+
+export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
+  const [assets] = useAssets([
+    require('../../assets/Logo-LETRAS.svg'),
+    require('../../assets/voltar.svg'),
+    require('../../assets/confirmar.svg'),
+  ]);
+
+  const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
+  const backUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
+  const confirmUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
+
+  const data = route.params;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.logoWrap}>
+            {logoUri ? (
+              <SvgUri uri={logoUri} width={84} height={50} />
+            ) : (
+              <ActivityIndicator size="small" color="#111827" />
+            )}
+          </View>
+
+          <Pressable style={styles.notificationButton} onPress={() => {}}>
+            <Image source={require('../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>1</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <View style={styles.body}>
+          <Text style={styles.infoLine}>Celular: {formatPhoneFromDigits(data.phoneDigits)}</Text>
+          <Text style={styles.infoLine}>Nome completo: {data.fullName}</Text>
+          <Text style={styles.infoLine}>CPF ou Passaporte: {data.cpf}</Text>
+          <Text style={styles.infoLine}>Data de Nascimento: {data.birthDate}</Text>
+          <Text style={styles.infoLine}>Cidade: {data.city}</Text>
+          <Text style={styles.infoLine}>UF: {data.uf}</Text>
+        </View>
+
+        <View style={styles.actions}>
+          <Pressable style={styles.actionButton} onPress={() => navigation.goBack()}>
+            {backUri ? (
+              <View style={styles.backIconCrop}>
+                <SvgUri uri={backUri} width={58} height={65} />
+              </View>
+            ) : (
+              <ActivityIndicator size="small" color="#20385f" />
+            )}
+            <Text style={styles.actionLabel}>VOLTAR</Text>
+          </Pressable>
+
+          <Pressable style={styles.actionButton} onPress={() => navigation.replace('EducatorDashboard')}>
+            {confirmUri ? (
+              <View style={styles.confirmIconCrop}>
+                <SvgUri uri={confirmUri} width={72} height={62} />
+              </View>
+            ) : (
+              <ActivityIndicator size="small" color="#101010" />
+            )}
+            <Text style={styles.actionLabel}>CONFIRMAR</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#ededed',
+  },
+  container: {
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 52,
+    backgroundColor: '#ededed',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  logoWrap: {
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  notificationButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationIcon: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+  },
+  badge: {
+    position: 'absolute',
+    right: 1,
+    top: 2,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  body: {
+    marginTop: 40,
+    gap: 4,
+  },
+  infoLine: {
+    fontSize: 15,
+    lineHeight: 26,
+    color: '#141414',
+  },
+  actions: {
+    marginTop: 56,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 56,
+  },
+  actionButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 90,
+  },
+  backIconCrop: {
+    width: 58,
+    height: 42,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  confirmIconCrop: {
+    width: 58,
+    height: 42,
+    overflow: 'hidden',
+    alignItems: 'center',
+  },
+  actionLabel: {
+    fontSize: 15,
+    color: '#101010',
+    letterSpacing: 0.2,
+    fontWeight: '500',
+  },
+});
