@@ -67,7 +67,10 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [uf, setUf] = useState('');
+  const [isUfSelectOpen, setIsUfSelectOpen] = useState(false);
   const [city, setCity] = useState('');
+  const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
+  const [isCityAutocompleteOpen, setIsCityAutocompleteOpen] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const [ufs, setUfs] = useState<ReferenceUf[]>([]);
@@ -112,7 +115,18 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
     };
   }, [repository]);
 
-  const isUfValid = useMemo(() => ufs.some((item) => item.code === uf), [ufs, uf]);
+  const sortedUfs = useMemo(
+    () =>
+      [...ufs].sort((a, b) =>
+        a.name.localeCompare(b.name, 'pt-BR', {
+          sensitivity: 'base',
+        }),
+      ),
+    [ufs],
+  );
+
+  const isUfValid = useMemo(() => sortedUfs.some((item) => item.code === uf), [sortedUfs, uf]);
+  const selectedUf = useMemo(() => sortedUfs.find((item) => item.code === uf) ?? null, [sortedUfs, uf]);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,6 +134,7 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
     const loadCities = async () => {
       if (!isUfValid) {
         setCities([]);
+        setSelectedCityId(null);
         return;
       }
 
@@ -161,11 +176,9 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
   const isFullNameValid = useMemo(() => fullName.trim().split(/\s+/).length >= 2, [fullName]);
   const isBirthDateValid = useMemo(() => isValidDate(birthDate), [birthDate]);
   const isCityValid = useMemo(() => {
-    if (!isUfValid) return false;
-    const normalized = normalizeText(city);
-    if (!normalized) return false;
-    return cities.some((item) => normalizeText(item.name) === normalized);
-  }, [cities, city, isUfValid]);
+    if (!isUfValid || !selectedCityId) return false;
+    return cities.some((item) => item.id === selectedCityId && normalizeText(item.name) === normalizeText(city));
+  }, [cities, city, isUfValid, selectedCityId]);
 
   const hasPhoto = Boolean(photoUri);
   const canProceed = isFullNameValid && isBirthDateValid && isUfValid && isCityValid && hasPhoto;
@@ -255,45 +268,83 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
           />
 
           <Text style={styles.label}>UF *</Text>
-          <View style={styles.ufRow}>
-            <TextInput
-              value={uf}
-              onChangeText={(text) => {
-                const nextUf = text.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
-                setUf(nextUf);
-                setCity('');
-              }}
-              style={[styles.ufInput, uf.length > 0 && !isUfValid ? styles.inputInvalid : null]}
-              placeholder="UF"
-              placeholderTextColor="#7a7a7a"
-              autoCapitalize="characters"
-              maxLength={2}
-            />
-            <Text style={styles.ufArrow}>▼</Text>
-          </View>
+          <Pressable
+            style={[styles.ufRow, uf.length > 0 && !isUfValid ? styles.inputInvalid : null]}
+            onPress={() => setIsUfSelectOpen((prev) => !prev)}
+          >
+            <Text style={[styles.ufValue, !selectedUf ? styles.ufPlaceholder : null]}>
+              {selectedUf ? `${selectedUf.name} (${selectedUf.code})` : 'Selecione o estado'}
+            </Text>
+            <Text style={styles.ufArrow}>{isUfSelectOpen ? '▲' : '▼'}</Text>
+          </Pressable>
+
+          {isUfSelectOpen ? (
+            <View style={styles.ufList}>
+              <ScrollView nestedScrollEnabled style={styles.ufListScroll}>
+                {sortedUfs.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    style={styles.ufListItem}
+                    onPress={() => {
+                      setUf(item.code);
+                      setCity('');
+                      setSelectedCityId(null);
+                      setIsUfSelectOpen(false);
+                      setIsCityAutocompleteOpen(false);
+                    }}
+                  >
+                    <Text style={styles.ufListItemText}>
+                      {item.name} ({item.code})
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           {isLoadingUfs ? <Text style={styles.helperText}>Carregando UFs...</Text> : null}
 
           <Text style={styles.label}>Cidade: *</Text>
           <TextInput
             value={city}
-            onChangeText={setCity}
+            onChangeText={(text) => {
+              setCity(text);
+              setSelectedCityId(null);
+              setIsCityAutocompleteOpen(true);
+            }}
             style={[styles.input, city.length > 0 && !isCityValid ? styles.inputInvalid : null]}
             placeholder={isUfValid ? 'Digite a cidade' : 'Selecione uma UF primeiro'}
             placeholderTextColor="#8f8f8f"
             editable={isUfValid && !isLoadingCities}
+            onFocus={() => {
+              if (isUfValid) {
+                setIsCityAutocompleteOpen(true);
+              }
+            }}
           />
 
           {isLoadingCities ? <Text style={styles.helperText}>Carregando cidades...</Text> : null}
 
-          {!isLoadingCities && isUfValid && filteredCities.length > 0 ? (
+          {!isLoadingCities && isUfValid && isCityAutocompleteOpen && filteredCities.length > 0 ? (
             <View style={styles.cityList}>
               {filteredCities.map((item) => (
-                <Pressable key={item.id} style={styles.cityListItem} onPress={() => setCity(item.name)}>
+                <Pressable
+                  key={item.id}
+                  style={styles.cityListItem}
+                  onPress={() => {
+                    setCity(item.name);
+                    setSelectedCityId(item.id);
+                    setIsCityAutocompleteOpen(false);
+                  }}
+                >
                   <Text style={styles.cityListItemText}>{item.name}</Text>
                 </Pressable>
               ))}
             </View>
+          ) : null}
+
+          {!isLoadingCities && isUfValid && isCityAutocompleteOpen && filteredCities.length === 0 && city.length > 0 ? (
+            <Text style={styles.helperText}>Nenhuma cidade encontrada para esse termo.</Text>
           ) : null}
 
           {referenceError ? <Text style={styles.errorText}>{referenceError}</Text> : null}
@@ -411,26 +462,49 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   ufRow: {
-    width: 70,
-    height: 32,
+    width: 220,
+    height: 38,
     borderRadius: 2,
     backgroundColor: '#e4e4e4',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 6,
+    paddingHorizontal: 10,
   },
-  ufInput: {
+  ufValue: {
     flex: 1,
     color: '#111111',
     fontSize: 14,
     fontWeight: '600',
-    paddingVertical: 0,
+  },
+  ufPlaceholder: {
+    color: '#6b7280',
+    fontWeight: '500',
   },
   ufArrow: {
     fontSize: 12,
     color: '#8d8d8d',
     marginLeft: 6,
+  },
+  ufList: {
+    borderWidth: 1,
+    borderColor: '#d6d6d6',
+    backgroundColor: '#f3f3f3',
+    borderRadius: 4,
+    maxHeight: 220,
+  },
+  ufListScroll: {
+    maxHeight: 220,
+  },
+  ufListItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e7e7',
+  },
+  ufListItemText: {
+    color: '#0f172a',
+    fontSize: 14,
   },
   helperText: {
     color: '#475569',

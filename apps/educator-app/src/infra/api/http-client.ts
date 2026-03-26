@@ -1,5 +1,7 @@
 import { API_BASE_URL } from '@letras/shared-utils';
 
+const REQUEST_TIMEOUT_MS = 10000;
+
 class HttpClient {
   constructor(private readonly baseUrl: string) {}
 
@@ -24,7 +26,29 @@ class HttpClient {
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, init);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let response: Response;
+
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if ((error as { name?: string }).name === 'AbortError') {
+        throw new Error(
+          `Timeout ao chamar ${path}. Verifique EXPO_PUBLIC_API_URL e se a API está acessível.`,
+        );
+      }
+
+      throw new Error(
+        `Falha de conexão com ${path}. Verifique EXPO_PUBLIC_API_URL e se a API está rodando.`,
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const text = await response.text();
