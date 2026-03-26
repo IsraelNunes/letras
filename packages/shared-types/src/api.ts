@@ -38,3 +38,15 @@ export interface TrackProgressRequest {
   score?: number;
   elapsedSeconds?: number;
 }
+
+export interface ReferenceUf {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface ReferenceCity {
+  id: number;
+  uf: string;
+  name: string;
+}

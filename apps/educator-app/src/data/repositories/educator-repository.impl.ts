@@ -2,6 +2,8 @@ import {
   AssignThemeRequest,
   CreateLearnerProfileRequest,
   LearnerProfile,
+  ReferenceCity,
+  ReferenceUf,
   SetLockRequest,
   Theme,
 } from '@letras/shared-types';
@@ -20,6 +22,14 @@ export class EducatorRepositoryImpl implements EducatorRepository {
 
   fetchThemes(): Promise<Theme[]> {
     return httpClient.get<Theme[]>('/themes');
+  }
+
+  fetchUfs(): Promise<ReferenceUf[]> {
+    return httpClient.get<ReferenceUf[]>('/reference/ufs');
+  }
+
+  fetchCitiesByUf(uf: string): Promise<ReferenceCity[]> {
+    return httpClient.get<ReferenceCity[]>(`/reference/ufs/${uf}/cities`);
   }
 
   async assignTheme(learnerProfileId: string, themeId: string): Promise<void> {

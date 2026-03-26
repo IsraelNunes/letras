@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { ReferenceCity, ReferenceUf } from '@letras/shared-types';
 import { useAssets } from 'expo-asset';
 import * as ImagePicker from 'expo-image-picker';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,42 +16,21 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
 import { EducatorRootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepTwo'>;
 
-const UF_OPTIONS = [
-  'AC',
-  'AL',
-  'AP',
-  'AM',
-  'BA',
-  'CE',
-  'DF',
-  'ES',
-  'GO',
-  'MA',
-  'MT',
-  'MS',
-  'MG',
-  'PA',
-  'PB',
-  'PR',
-  'PE',
-  'PI',
-  'RJ',
-  'RN',
-  'RS',
-  'RO',
-  'RR',
-  'SC',
-  'SP',
-  'SE',
-  'TO',
-] as const;
-
 function normalizeDigits(value: string) {
   return value.replace(/\D/g, '');
+}
+
+function normalizeText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
 function maskDate(value: string) {
@@ -74,24 +54,27 @@ function isValidDate(value: string) {
   if (month < 1 || month > 12) return false;
 
   const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
     return false;
   }
 
-  const now = new Date();
-  return date <= now;
+  return date <= new Date();
 }
 
 export function EducatorOnboardingStepTwoView({ navigation }: Props) {
+  const repository = useMemo(() => new EducatorRepositoryImpl(), []);
+
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [uf, setUf] = useState('');
   const [city, setCity] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  const [ufs, setUfs] = useState<ReferenceUf[]>([]);
+  const [cities, setCities] = useState<ReferenceCity[]>([]);
+  const [isLoadingUfs, setIsLoadingUfs] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
 
   const [assets] = useAssets([
     require('../../assets/Logo-LETRAS.svg'),
@@ -100,10 +83,90 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
   const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUfs = async () => {
+      try {
+        setIsLoadingUfs(true);
+        setReferenceError(null);
+        const fetchedUfs = await repository.fetchUfs();
+        if (isMounted) {
+          setUfs(fetchedUfs);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setReferenceError(error instanceof Error ? error.message : 'Erro ao carregar UFs.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingUfs(false);
+        }
+      }
+    };
+
+    void loadUfs();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repository]);
+
+  const isUfValid = useMemo(() => ufs.some((item) => item.code === uf), [ufs, uf]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCities = async () => {
+      if (!isUfValid) {
+        setCities([]);
+        return;
+      }
+
+      try {
+        setIsLoadingCities(true);
+        setReferenceError(null);
+        const fetchedCities = await repository.fetchCitiesByUf(uf);
+        if (isMounted) {
+          setCities(fetchedCities);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setReferenceError(error instanceof Error ? error.message : 'Erro ao carregar cidades.');
+          setCities([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingCities(false);
+        }
+      }
+    };
+
+    void loadCities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isUfValid, repository, uf]);
+
+  const filteredCities = useMemo(() => {
+    if (!isUfValid) return [];
+
+    const query = normalizeText(city);
+    if (!query) return cities.slice(0, 8);
+
+    return cities.filter((item) => normalizeText(item.name).includes(query)).slice(0, 8);
+  }, [cities, city, isUfValid]);
+
   const isFullNameValid = useMemo(() => fullName.trim().split(/\s+/).length >= 2, [fullName]);
   const isBirthDateValid = useMemo(() => isValidDate(birthDate), [birthDate]);
-  const isUfValid = useMemo(() => UF_OPTIONS.includes(uf as (typeof UF_OPTIONS)[number]), [uf]);
-  const isCityValid = useMemo(() => city.trim().length >= 2, [city]);
+  const isCityValid = useMemo(() => {
+    if (!isUfValid) return false;
+    const normalized = normalizeText(city);
+    if (!normalized) return false;
+    return cities.some((item) => normalizeText(item.name) === normalized);
+  }, [cities, city, isUfValid]);
+
   const hasPhoto = Boolean(photoUri);
   const canProceed = isFullNameValid && isBirthDateValid && isUfValid && isCityValid && hasPhoto;
 
@@ -195,7 +258,11 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
           <View style={styles.ufRow}>
             <TextInput
               value={uf}
-              onChangeText={(text) => setUf(text.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2))}
+              onChangeText={(text) => {
+                const nextUf = text.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+                setUf(nextUf);
+                setCity('');
+              }}
               style={[styles.ufInput, uf.length > 0 && !isUfValid ? styles.inputInvalid : null]}
               placeholder="UF"
               placeholderTextColor="#7a7a7a"
@@ -205,21 +272,35 @@ export function EducatorOnboardingStepTwoView({ navigation }: Props) {
             <Text style={styles.ufArrow}>▼</Text>
           </View>
 
+          {isLoadingUfs ? <Text style={styles.helperText}>Carregando UFs...</Text> : null}
+
           <Text style={styles.label}>Cidade: *</Text>
           <TextInput
             value={city}
             onChangeText={setCity}
             style={[styles.input, city.length > 0 && !isCityValid ? styles.inputInvalid : null]}
-            placeholder=""
+            placeholder={isUfValid ? 'Digite a cidade' : 'Selecione uma UF primeiro'}
             placeholderTextColor="#8f8f8f"
+            editable={isUfValid && !isLoadingCities}
           />
+
+          {isLoadingCities ? <Text style={styles.helperText}>Carregando cidades...</Text> : null}
+
+          {!isLoadingCities && isUfValid && filteredCities.length > 0 ? (
+            <View style={styles.cityList}>
+              {filteredCities.map((item) => (
+                <Pressable key={item.id} style={styles.cityListItem} onPress={() => setCity(item.name)}>
+                  <Text style={styles.cityListItemText}>{item.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {referenceError ? <Text style={styles.errorText}>{referenceError}</Text> : null}
 
           <Text style={styles.photoLabel}>Faca o upload ou tire uma foto sua.</Text>
 
-          <Pressable
-            style={[styles.photoBox, hasPhoto ? styles.photoBoxSelected : null]}
-            onPress={openPhotoChooser}
-          >
+          <Pressable style={[styles.photoBox, hasPhoto ? styles.photoBoxSelected : null]} onPress={openPhotoChooser}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.photoPreview} />
             ) : (
@@ -351,6 +432,28 @@ const styles = StyleSheet.create({
     color: '#8d8d8d',
     marginLeft: 6,
   },
+  helperText: {
+    color: '#475569',
+    fontSize: 12,
+    marginTop: -4,
+  },
+  cityList: {
+    backgroundColor: '#f3f3f3',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    maxHeight: 180,
+  },
+  cityListItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e7e7',
+  },
+  cityListItemText: {
+    color: '#0f172a',
+    fontSize: 14,
+  },
   photoLabel: {
     marginTop: 6,
     fontSize: 16,
@@ -383,6 +486,11 @@ const styles = StyleSheet.create({
   inputInvalid: {
     borderWidth: 1,
     borderColor: '#b91c1c',
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 12,
+    marginTop: -2,
   },
   advanceButton: {
     marginTop: 40,
