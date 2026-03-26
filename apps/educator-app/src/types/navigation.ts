@@ -23,5 +23,6 @@ export type EducatorRootStackParamList = {
     'cpf' | 'phoneDigits' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
   >;
   EducatorOnboardingConfirm: EducatorOnboardingData;
+  EducatorLearningMode: EducatorOnboardingData;
   EducatorDashboard: undefined;
 };

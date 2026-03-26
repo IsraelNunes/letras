@@ -76,7 +76,10 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
             <Text style={styles.actionLabel}>VOLTAR</Text>
           </Pressable>
 
-          <Pressable style={styles.actionButton} onPress={() => navigation.replace('EducatorDashboard')}>
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => navigation.replace('EducatorLearningMode', data)}
+          >
             {confirmUri ? (
               <View style={styles.confirmIconCrop}>
                 <SvgUri uri={confirmUri} width={72} height={62} />

@@ -4,6 +4,7 @@ import { EducatorSplashView } from '../views/EducatorSplashView';
 import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTwoView';
 import { EducatorOnboardingStepThreeView } from '../views/EducatorOnboardingStepThreeView';
 import { EducatorOnboardingConfirmView } from '../views/EducatorOnboardingConfirmView';
+import { EducatorLearningModeView } from '../views/EducatorLearningModeView';
 import { EducatorDashboardView } from '../views/EducatorDashboardView';
 import { EducatorRootStackParamList } from '../types';
 
@@ -45,6 +46,13 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorOnboardingConfirm"
         component={EducatorOnboardingConfirmView}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="EducatorLearningMode"
+        component={EducatorLearningModeView}
         options={{
           headerShown: false,
         }}
