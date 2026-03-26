@@ -163,6 +163,8 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
         onTutorialPress={() =>
           navigation.navigate('EducatorOnboardingStepTwo', {
             cpf: route.params.cpf,
+            email: route.params.email,
+            password: route.params.password,
             phoneDigits: route.params.phoneDigits,
           })
         }

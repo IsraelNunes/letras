@@ -30,6 +30,10 @@ function sanitizePhone(value: string) {
   return normalizeDigits(value).slice(0, 11);
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 function formatBrazilPhone(digits: string) {
   const ddd = digits.slice(0, 2);
   const firstBlock = digits.slice(2, 7);
@@ -39,6 +43,8 @@ function formatBrazilPhone(digits: string) {
 
 export function EducatorSplashView({ navigation }: Props) {
   const [cpf, setCpf] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [assets] = useAssets([
     require('../../assets/Logo-LETRAS.svg'),
@@ -49,12 +55,14 @@ export function EducatorSplashView({ navigation }: Props) {
   const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   const isCpfValid = useMemo(() => cpf.length === 11, [cpf]);
+  const isEmailValid = useMemo(() => isValidEmail(email), [email]);
+  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
   const isPhoneValid = useMemo(() => phoneDigits.length === 11, [phoneDigits]);
   const phoneValue = useMemo(
     () => (phoneDigits.length === 11 ? formatBrazilPhone(phoneDigits) : phoneDigits),
     [phoneDigits],
   );
-  const canProceed = isCpfValid && isPhoneValid;
+  const canProceed = isCpfValid && isEmailValid && isPasswordValid && isPhoneValid;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -92,6 +100,30 @@ export function EducatorSplashView({ navigation }: Props) {
             placeholderTextColor="#8f8f8f"
           />
 
+          <Text style={styles.label}>Informe seu email: *</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            style={[styles.input, email.length > 0 && !isEmailValid ? styles.inputInvalid : null]}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="exemplo@dominio.com"
+            placeholderTextColor="#8f8f8f"
+          />
+
+          <Text style={styles.label}>Crie sua senha: *</Text>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            style={[styles.input, password.length > 0 && !isPasswordValid ? styles.inputInvalid : null]}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Minimo 6 caracteres"
+            placeholderTextColor="#8f8f8f"
+          />
+
           <Text style={styles.label}>Insira o numero do celular que voce utilizara para alfabetizar e transformar vidas. *</Text>
           <TextInput
             value={phoneValue}
@@ -109,6 +141,8 @@ export function EducatorSplashView({ navigation }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingStepTwo', {
               cpf,
+              email: email.trim(),
+              password: password.trim(),
               phoneDigits,
             })
           }
@@ -129,6 +163,8 @@ export function EducatorSplashView({ navigation }: Props) {
             ? () =>
                 navigation.navigate('EducatorOnboardingStepTwo', {
                   cpf,
+                  email: email.trim(),
+                  password: password.trim(),
                   phoneDigits,
                 })
             : undefined

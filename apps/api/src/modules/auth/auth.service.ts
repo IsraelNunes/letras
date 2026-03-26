@@ -51,7 +51,10 @@ export class AuthService {
       }
     }
 
-    const password = this.resolveRegistrationPassword(dto, normalizedCpf, normalizedPhone);
+    const password = dto.password.trim();
+    if (password.length < 6) {
+      throw new BadRequestException('Senha deve ter no minimo 6 caracteres.');
+    }
 
     const educator = await this.prisma.educator.create({
       data: {
@@ -148,27 +151,6 @@ export class AuthService {
       expiresAt: expiresAt.toISOString(),
       educator: this.toEducatorPayload(educator),
     };
-  }
-
-  private resolveRegistrationPassword(
-    dto: RegisterEducatorDto,
-    normalizedCpf: string | null,
-    normalizedPhone: string | null,
-  ): string {
-    const explicitPassword = dto.password?.trim();
-    if (explicitPassword && explicitPassword.length >= 6) {
-      return explicitPassword;
-    }
-
-    if (normalizedCpf && normalizedCpf.length >= 6) {
-      return normalizedCpf.slice(-6);
-    }
-
-    if (normalizedPhone && normalizedPhone.length >= 6) {
-      return normalizedPhone.slice(-6);
-    }
-
-    throw new BadRequestException('Nao foi possivel definir senha inicial. Informe uma senha com no minimo 6 caracteres.');
   }
 
   private toEducatorPayload(educator: Educator): AuthPayload['educator'] {

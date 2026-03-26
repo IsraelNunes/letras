@@ -367,6 +367,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingStepThree', {
               cpf: route.params.cpf,
+              email: route.params.email,
+              password: route.params.password,
               phoneDigits: route.params.phoneDigits,
               fullName: fullName.trim(),
               birthDate,
@@ -390,6 +392,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
         onTutorialPress={() =>
           navigation.navigate('EducatorOnboardingStepTwo', {
             cpf: route.params.cpf,
+            email: route.params.email,
+            password: route.params.password,
             phoneDigits: route.params.phoneDigits,
           })
         }
@@ -398,6 +402,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
             ? () =>
                 navigation.navigate('EducatorOnboardingStepThree', {
                   cpf: route.params.cpf,
+                  email: route.params.email,
+                  password: route.params.password,
                   phoneDigits: route.params.phoneDigits,
                   fullName: fullName.trim(),
                   birthDate,

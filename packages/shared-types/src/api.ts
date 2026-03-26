@@ -41,6 +41,7 @@ export interface TrackProgressRequest {
 
 export interface RegisterEducatorRequest {
   fullName: string;
+  password: string;
   cpf?: string;
   email?: string;
   phoneDigits?: string;
@@ -54,7 +55,6 @@ export interface RegisterEducatorRequest {
   facebook?: string;
   instagram?: string;
   xHandle?: string;
-  password?: string;
 }
 
 export interface LoginEducatorRequest {

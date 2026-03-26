@@ -1,5 +1,7 @@
 export interface EducatorOnboardingData {
   cpf: string;
+  email: string;
+  password: string;
   phoneDigits: string;
   fullName: string;
   birthDate: string;
@@ -18,10 +20,10 @@ export type EducatorRootStackParamList = {
   EducatorLoading: undefined;
   EducatorLogin: undefined;
   EducatorSplash: undefined;
-  EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'phoneDigits'>;
+  EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'email' | 'password' | 'phoneDigits'>;
   EducatorOnboardingStepThree: Pick<
     EducatorOnboardingData,
-    'cpf' | 'phoneDigits' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
+    'cpf' | 'email' | 'password' | 'phoneDigits' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
   >;
   EducatorOnboardingConfirm: EducatorOnboardingData;
   EducatorLearningMode: EducatorOnboardingData;

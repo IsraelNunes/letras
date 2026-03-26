@@ -53,6 +53,8 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
       const auth = await repository.registerEducator({
         fullName: data.fullName,
         cpf: data.cpf,
+        email: data.email,
+        password: data.password,
         phoneDigits: data.phoneDigits,
         birthDate: data.birthDate,
         uf: data.uf,
@@ -107,6 +109,7 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
           <Text style={styles.infoLine}>Celular: {formatPhoneFromDigits(data.phoneDigits)}</Text>
           <Text style={styles.infoLine}>Nome completo: {data.fullName}</Text>
           <Text style={styles.infoLine}>CPF ou Passaporte: {data.cpf}</Text>
+          <Text style={styles.infoLine}>Email: {data.email}</Text>
           <Text style={styles.infoLine}>Data de Nascimento: {data.birthDate}</Text>
           <Text style={styles.infoLine}>Cidade: {data.city}</Text>
           <Text style={styles.infoLine}>UF: {data.uf}</Text>
@@ -148,12 +151,16 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
         onTutorialPress={() =>
           navigation.navigate('EducatorOnboardingStepTwo', {
             cpf: data.cpf,
+            email: data.email,
+            password: data.password,
             phoneDigits: data.phoneDigits,
           })
         }
         onAcompanharPress={() =>
           navigation.navigate('EducatorOnboardingStepThree', {
             cpf: data.cpf,
+            email: data.email,
+            password: data.password,
             phoneDigits: data.phoneDigits,
             fullName: data.fullName,
             birthDate: data.birthDate,

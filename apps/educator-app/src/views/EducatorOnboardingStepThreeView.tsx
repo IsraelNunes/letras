@@ -146,6 +146,8 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingConfirm', {
               cpf: route.params.cpf,
+              email: route.params.email,
+              password: route.params.password,
               phoneDigits: route.params.phoneDigits,
               fullName: route.params.fullName,
               birthDate: route.params.birthDate,
@@ -175,12 +177,16 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
         onTutorialPress={() =>
           navigation.navigate('EducatorOnboardingStepTwo', {
             cpf: route.params.cpf,
+            email: route.params.email,
+            password: route.params.password,
             phoneDigits: route.params.phoneDigits,
           })
         }
         onAcompanharPress={() =>
           navigation.navigate('EducatorOnboardingStepThree', {
             cpf: route.params.cpf,
+            email: route.params.email,
+            password: route.params.password,
             phoneDigits: route.params.phoneDigits,
             fullName: route.params.fullName,
             birthDate: route.params.birthDate,
@@ -194,6 +200,8 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
             ? () =>
                 navigation.navigate('EducatorOnboardingConfirm', {
                   cpf: route.params.cpf,
+                  email: route.params.email,
+                  password: route.params.password,
                   phoneDigits: route.params.phoneDigits,
                   fullName: route.params.fullName,
                   birthDate: route.params.birthDate,
