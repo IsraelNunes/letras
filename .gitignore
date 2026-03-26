@@ -3,6 +3,7 @@ node_modules
 .env
 .env.*
 !.env.example
+!apps/api/.env.supabase.example
 
 # Expo / React Native
 .expo

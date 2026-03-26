@@ -61,7 +61,22 @@ A configuracao atual usa host `localhost` porta `5433`.
 
 ### Opcao B: Supabase Postgres
 
-Edite `apps/api/.env` com sua `DATABASE_URL`.
+1. No painel do Supabase, abra `Project Settings -> Database -> Connection string`.
+2. Copie duas URLs:
+   - Pooler (`port 6543`) para `DATABASE_URL`
+   - Direct (`port 5432`) para `DIRECT_URL`
+3. Edite `apps/api/.env`:
+
+```bash
+PORT=3000
+DATABASE_URL="postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1"
+DIRECT_URL="postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres"
+CORS_ORIGIN="*"
+```
+
+Observacao:
+- `DATABASE_URL` (pooler) e usada pela API em runtime.
+- `DIRECT_URL` e usada pelo Prisma para migracoes/seed.
 
 ## Variaveis de ambiente
 
@@ -69,6 +84,12 @@ Arquivo da API:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
+```
+
+Se for usar Supabase, voce pode iniciar do template:
+
+```bash
+cp apps/api/.env.supabase.example apps/api/.env
 ```
 
 Arquivo opcional para variaveis mobile no root:
@@ -83,6 +104,12 @@ cp .env.example .env
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
+```
+
+Para validar conexao com Supabase:
+
+```bash
+curl http://localhost:3000/health/db
 ```
 
 ## Subir a API
