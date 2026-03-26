@@ -3,7 +3,13 @@ import { API_BASE_URL } from '@letras/shared-utils';
 const REQUEST_TIMEOUT_MS = 10000;
 
 class HttpClient {
+  private authToken: string | null = null;
+
   constructor(private readonly baseUrl: string) {}
+
+  setAuthToken(token: string | null) {
+    this.authToken = token;
+  }
 
   async get<T>(path: string): Promise<T> {
     return this.request<T>(path, { method: 'GET' });
@@ -28,12 +34,18 @@ class HttpClient {
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const headers = new Headers(init.headers);
+
+    if (this.authToken) {
+      headers.set('Authorization', `Bearer ${this.authToken}`);
+    }
 
     let response: Response;
 
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
         ...init,
+        headers,
         signal: controller.signal,
       });
     } catch (error) {

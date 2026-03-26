@@ -124,6 +124,13 @@ Health check:
 curl http://localhost:3000/health
 ```
 
+Auth (educador):
+
+- `POST /auth/educators/register`
+- `POST /auth/educators/login`
+- `GET /auth/educators/me` (Bearer token)
+- `POST /auth/educators/logout` (Bearer token)
+
 ## Subir os apps
 
 ### API URL por ambiente
@@ -146,7 +153,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 pnpm --filter learner-app start
 
 ## Fluxo recomendado de uso
 
-1. Abra o app do educador.
+1. Abra o app do educador e faca login.
 2. Crie um `LearnerProfile`.
 3. Carregue e atribua tema ao aprendiz.
 4. Entre na sessao realtime (`learnerProfileId`).
@@ -169,6 +176,14 @@ Esse script valida:
 - eventos realtime (`help_requested`, `help_received`, `lock_set`, `lock_release`, `locked_changed`)
 
 ## Solucao de problemas
+
+### Credenciais seed do educador
+
+Depois de aplicar schema/migracoes e rodar seed:
+
+- Email: `educadora@letras.app`
+- CPF: `11111111111`
+- Senha: `123456`
 
 ### 1) API com varios erros de Prisma apos reinstalar
 

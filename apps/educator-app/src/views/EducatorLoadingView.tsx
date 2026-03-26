@@ -3,6 +3,9 @@ import { useAssets } from 'expo-asset';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
+import { httpClient } from '../infra/api/http-client';
+import { EducatorStorage } from '../infra/storage/educator-storage';
 import { EducatorRootStackParamList } from '../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
@@ -15,8 +18,32 @@ export function EducatorLoadingView({ navigation }: Props) {
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   useEffect(() => {
+    const repository = new EducatorRepositoryImpl();
+
     const timer = setTimeout(() => {
-      navigation.replace('EducatorLogin');
+      void (async () => {
+        const token = await EducatorStorage.getAuthToken();
+        const expiresAt = await EducatorStorage.getAuthSessionExpiry();
+
+        if (!token || !expiresAt || new Date(expiresAt).getTime() <= Date.now()) {
+          await EducatorStorage.clearAuthSession();
+          httpClient.setAuthToken(null);
+          navigation.replace('EducatorLogin');
+          return;
+        }
+
+        httpClient.setAuthToken(token);
+
+        try {
+          const me = await repository.fetchCurrentEducator();
+          await EducatorStorage.saveAuthSession(token, me.expiresAt, me.educator);
+          navigation.replace('EducatorDashboard');
+        } catch {
+          await EducatorStorage.clearAuthSession();
+          httpClient.setAuthToken(null);
+          navigation.replace('EducatorLogin');
+        }
+      })();
     }, LOADING_DURATION_MS);
 
     return () => clearTimeout(timer);

@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
   Button,
@@ -9,18 +11,39 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
+import { httpClient } from '../infra/api/http-client';
+import { EducatorStorage } from '../infra/storage/educator-storage';
+import { EducatorRootStackParamList } from '../types';
 import { useEducatorDashboardViewModel } from '../viewmodels/useEducatorDashboardViewModel';
 
 export function EducatorDashboardView() {
   const viewModel = useEducatorDashboardViewModel();
   const { cleanup } = viewModel;
+  const navigation = useNavigation<NativeStackNavigationProp<EducatorRootStackParamList>>();
 
   useEffect(() => cleanup, [cleanup]);
+
+  const handleLogout = async () => {
+    try {
+      const repository = new EducatorRepositoryImpl();
+      await repository.logoutEducator();
+    } catch {
+      // No-op: local cleanup still proceeds.
+    } finally {
+      await EducatorStorage.clearAuthSession();
+      httpClient.setAuthToken(null);
+      navigation.replace('EducatorLogin');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Letras - Educador</Text>
+        <View style={styles.actions}>
+          <Button title="Sair" onPress={() => void handleLogout()} />
+        </View>
 
         <Text style={styles.label}>Nome do aprendiz</Text>
         <TextInput

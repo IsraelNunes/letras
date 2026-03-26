@@ -39,6 +39,48 @@ export interface TrackProgressRequest {
   elapsedSeconds?: number;
 }
 
+export interface RegisterEducatorRequest {
+  fullName: string;
+  cpf?: string;
+  email?: string;
+  phoneDigits?: string;
+  birthDate?: string;
+  uf?: string;
+  city?: string;
+  photoUri?: string | null;
+  educationLevel?: string;
+  trainingArea?: string;
+  linkedin?: string;
+  facebook?: string;
+  instagram?: string;
+  xHandle?: string;
+  password?: string;
+}
+
+export interface LoginEducatorRequest {
+  identifier: string;
+  password: string;
+}
+
+export interface EducatorAuthProfile {
+  id: string;
+  fullName: string;
+  email: string | null;
+  cpf: string | null;
+  phoneDigits: string | null;
+}
+
+export interface EducatorAuthResponse {
+  token: string;
+  expiresAt: string;
+  educator: EducatorAuthProfile;
+}
+
+export interface EducatorMeResponse {
+  expiresAt: string;
+  educator: EducatorAuthProfile;
+}
+
 export interface ReferenceUf {
   id: number;
   code: string;

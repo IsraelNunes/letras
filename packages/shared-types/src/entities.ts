@@ -3,6 +3,18 @@ export type ParticipantRole = 'learner' | 'educator';
 export interface Educator {
   id: string;
   name: string;
+  cpf?: string | null;
+  phoneDigits?: string | null;
+  birthDate?: string | null;
+  uf?: string | null;
+  city?: string | null;
+  photoUri?: string | null;
+  educationLevel?: string | null;
+  trainingArea?: string | null;
+  linkedin?: string | null;
+  facebook?: string | null;
+  instagram?: string | null;
+  xHandle?: string | null;
   email?: string | null;
   createdAt: string;
   updatedAt: string;

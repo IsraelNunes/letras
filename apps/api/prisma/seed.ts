@@ -1,4 +1,5 @@
 import { CompletionStatus, PrismaClient, SessionRole } from '@prisma/client';
+import { hashPassword } from '../src/common/security/password-hash';
 
 const prisma = new PrismaClient();
 
@@ -123,10 +124,16 @@ async function main() {
     where: { email: 'educadora@letras.app' },
     update: {
       name: 'Educadora Ana',
+      cpf: '11111111111',
+      phoneDigits: '11988887777',
+      passwordHash: hashPassword('123456'),
     },
     create: {
       name: 'Educadora Ana',
       email: 'educadora@letras.app',
+      cpf: '11111111111',
+      phoneDigits: '11988887777',
+      passwordHash: hashPassword('123456'),
     },
   });
 

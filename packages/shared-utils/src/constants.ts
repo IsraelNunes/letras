@@ -6,4 +6,7 @@ export const STORAGE_KEYS = {
   LEARNER_PROFILE_ID: '@letras/learnerProfileId',
   LEARNER_DEVICE_ID: '@letras/learnerDeviceId',
   EDUCATOR_DEVICE_ID: '@letras/educatorDeviceId',
+  EDUCATOR_AUTH_TOKEN: '@letras/educatorAuthToken',
+  EDUCATOR_AUTH_EXPIRES_AT: '@letras/educatorAuthExpiresAt',
+  EDUCATOR_AUTH_PROFILE: '@letras/educatorAuthProfile',
 } as const;

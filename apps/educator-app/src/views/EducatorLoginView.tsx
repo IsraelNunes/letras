@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
+import { httpClient } from '../infra/api/http-client';
+import { EducatorStorage } from '../infra/storage/educator-storage';
 import { EducatorRootStackParamList } from '../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
@@ -30,8 +33,11 @@ function isValidEmail(value: string) {
 }
 
 export function EducatorLoginView({ navigation }: Props) {
+  const repository = useMemo(() => new EducatorRepositoryImpl(), []);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [assets] = useAssets([require('../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
@@ -40,7 +46,27 @@ export function EducatorLoginView({ navigation }: Props) {
     [identifier],
   );
   const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
-  const canLogin = isIdentifierValid && isPasswordValid;
+  const canLogin = isIdentifierValid && isPasswordValid && !isSubmitting;
+
+  const handleLogin = async () => {
+    if (!canLogin) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMessage(null);
+
+      const auth = await repository.loginEducator(identifier.trim(), password);
+      await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
+      httpClient.setAuthToken(auth.token);
+      navigation.replace('EducatorDashboard');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel entrar.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,15 +103,17 @@ export function EducatorLoginView({ navigation }: Props) {
 
           <Pressable
             style={[styles.loginButton, !canLogin ? styles.loginButtonDisabled : null]}
-            onPress={() => navigation.replace('EducatorDashboard')}
+            onPress={() => void handleLogin()}
             disabled={!canLogin}
           >
-            <Text style={styles.loginButtonText}>ENTRAR</Text>
+            {isSubmitting ? <ActivityIndicator size="small" color="#f5f5f5" /> : <Text style={styles.loginButtonText}>ENTRAR</Text>}
           </Pressable>
 
           <Pressable style={styles.registerLink} onPress={() => navigation.navigate('EducatorSplash')}>
             <Text style={styles.registerLinkText}>Primeiro acesso? Fazer cadastro</Text>
           </Pressable>
+
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
         </View>
       </ScrollView>
 
@@ -176,5 +204,11 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     fontSize: 14,
     textDecorationLine: 'underline',
+  },
+  errorText: {
+    marginTop: 14,
+    color: '#9e1b1b',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });

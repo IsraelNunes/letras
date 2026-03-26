@@ -29,10 +29,38 @@ model Educator {
   id        String           @id @default(cuid())
   name      String
   email     String?          @unique
+  cpf       String?          @unique
+  phoneDigits String?
+  birthDate String?
+  uf        String?
+  city      String?
+  photoUri  String?
+  educationLevel String?
+  trainingArea String?
+  linkedin  String?
+  facebook  String?
+  instagram String?
+  xHandle   String?
+  passwordHash String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
   learners  LearnerProfile[]
+  authSessions EducatorAuthSession[]
+}
+
+model EducatorAuthSession {
+  id        String    @id @default(cuid())
+  educatorId String
+  token     String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  educator  Educator  @relation(fields: [educatorId], references: [id], onDelete: Cascade)
+
+  @@index([educatorId])
+  @@index([expiresAt])
 }
 
 model LearnerProfile {

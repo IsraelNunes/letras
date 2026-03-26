@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { LearnerModule } from './modules/learner/learner.module';
 import { LearningContentModule } from './modules/learning-content/learning-content.module';
@@ -14,6 +15,7 @@ import { RealtimeModule } from './realtime/realtime.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AuthModule,
     HealthModule,
     LearnerModule,
     ThemeModule,

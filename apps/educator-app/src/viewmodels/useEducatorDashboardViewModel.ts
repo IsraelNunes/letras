@@ -31,8 +31,9 @@ export function useEducatorDashboardViewModel() {
     try {
       setIsBusy(true);
       setErrorMessage(null);
+      const educator = await EducatorStorage.getAuthProfile();
 
-      const profile = await repository.createLearnerProfile(learnerNameInput || 'Novo Aprendiz');
+      const profile = await repository.createLearnerProfile(learnerNameInput || 'Novo Aprendiz', educator?.id);
       setLearnerProfileIdInput(profile.id);
       setStatusMessage(`Perfil criado: ${profile.displayName} (${profile.id})`);
     } catch (error) {

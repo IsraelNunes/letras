@@ -1,6 +1,8 @@
+import { useMemo, useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -11,6 +13,9 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
+import { httpClient } from '../infra/api/http-client';
+import { EducatorStorage } from '../infra/storage/educator-storage';
 import { EducatorRootStackParamList } from '../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
@@ -23,6 +28,8 @@ function formatPhoneFromDigits(digits: string) {
 }
 
 export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
+  const repository = useMemo(() => new EducatorRepositoryImpl(), []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [assets] = useAssets([
     require('../../assets/Logo-LETRAS.svg'),
     require('../../assets/voltar.svg'),
@@ -34,6 +41,47 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
   const confirmUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
 
   const data = route.params;
+
+  const handleConfirm = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const auth = await repository.registerEducator({
+        fullName: data.fullName,
+        cpf: data.cpf,
+        phoneDigits: data.phoneDigits,
+        birthDate: data.birthDate,
+        uf: data.uf,
+        city: data.city,
+        photoUri: data.photoUri ?? undefined,
+        educationLevel: data.educationLevel,
+        trainingArea: data.trainingArea,
+        linkedin: data.linkedin,
+        facebook: data.facebook,
+        instagram: data.instagram,
+        xHandle: data.xHandle,
+      });
+
+      await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
+      httpClient.setAuthToken(auth.token);
+      navigation.replace('EducatorLearningMode', data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Nao foi possivel concluir o cadastro.';
+      if (message.includes('409') || message.toLowerCase().includes('ja existe')) {
+        Alert.alert('Cadastro existente', 'Este CPF/email ja possui cadastro. Faca login na tela inicial.');
+        navigation.replace('EducatorLogin');
+        return;
+      }
+
+      Alert.alert('Erro no cadastro', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -78,9 +126,12 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
 
           <Pressable
             style={styles.actionButton}
-            onPress={() => navigation.replace('EducatorLearningMode', data)}
+            onPress={() => void handleConfirm()}
+            disabled={isSubmitting}
           >
-            {confirmUri ? (
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#101010" />
+            ) : confirmUri ? (
               <View style={styles.confirmIconCrop}>
                 <SvgUri uri={confirmUri} width={72} height={62} />
               </View>
