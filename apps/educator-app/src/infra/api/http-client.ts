@@ -1,6 +1,7 @@
-import { API_BASE_URL } from '@letras/shared-utils';
+import { resolveApiBaseUrl } from './resolve-api-base-url';
 
 const REQUEST_TIMEOUT_MS = 10000;
+const API_BASE_URL = resolveApiBaseUrl();
 
 class HttpClient {
   private authToken: string | null = null;
@@ -51,12 +52,12 @@ class HttpClient {
     } catch (error) {
       if ((error as { name?: string }).name === 'AbortError') {
         throw new Error(
-          `Timeout ao chamar ${path}. Verifique EXPO_PUBLIC_API_URL e se a API está acessível.`,
+          `Timeout ao chamar ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API está acessível.`,
         );
       }
 
       throw new Error(
-        `Falha de conexão com ${path}. Verifique EXPO_PUBLIC_API_URL e se a API está rodando.`,
+        `Falha de conexão com ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API está rodando.`,
       );
     } finally {
       clearTimeout(timeout);
@@ -71,4 +72,5 @@ class HttpClient {
   }
 }
 
+export { API_BASE_URL };
 export const httpClient = new HttpClient(API_BASE_URL);

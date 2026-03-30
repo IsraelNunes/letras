@@ -1,4 +1,6 @@
-import { API_BASE_URL } from '@letras/shared-utils';
+import { resolveApiBaseUrl } from './resolve-api-base-url';
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 class HttpClient {
   constructor(private readonly baseUrl: string) {}
@@ -36,3 +38,4 @@ class HttpClient {
 }
 
 export const httpClient = new HttpClient(API_BASE_URL);
+export { API_BASE_URL };

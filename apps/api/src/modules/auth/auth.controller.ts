@@ -12,6 +12,11 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Post('educators/registers')
+  registerEducatorLegacy(@Body() dto: RegisterEducatorDto) {
+    return this.authService.register(dto);
+  }
+
   @Post('educators/login')
   loginEducator(@Body() dto: LoginEducatorDto) {
     return this.authService.login(dto);
