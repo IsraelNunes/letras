@@ -29,6 +29,7 @@ model Educator {
   id        String           @id @default(cuid())
   name      String
   email     String?          @unique
+  supabaseAuthUserId String? @unique
   cpf       String?          @unique
   phoneDigits String?
   birthDate String?

@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "prisma:seed": "ts-node --project tsconfig.json prisma/seed.ts",
+    "auth:sync-supabase-users": "ts-node --project tsconfig.json src/scripts/sync-supabase-auth-users.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
