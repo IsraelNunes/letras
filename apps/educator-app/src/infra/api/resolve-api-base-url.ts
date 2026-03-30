@@ -15,6 +15,10 @@ function hostFromScriptUrl(scriptUrl?: string): string | null {
   }
 }
 
+function isIpv4(host: string): boolean {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+}
+
 export function resolveApiBaseUrl(): string {
   const explicit = process.env.EXPO_PUBLIC_API_URL;
   if (explicit && explicit.trim().length > 0) {
@@ -24,7 +28,7 @@ export function resolveApiBaseUrl(): string {
   const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
   const host = hostFromScriptUrl(scriptUrl);
 
-  if (host && host !== 'localhost' && host !== '127.0.0.1') {
+  if (host && isIpv4(host)) {
     return `http://${host}:3000`;
   }
 
