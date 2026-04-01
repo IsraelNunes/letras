@@ -63,6 +63,20 @@ adb reverse tcp:3000 tcp:3000
 
 Com `adb reverse`, tambem pode usar `http://localhost:3000` no app.
 
+### Opcao Web (browser)
+
+Educador (web):
+
+```bash
+./scripts/dev-educator.sh web
+```
+
+Aprendiz (web):
+
+```bash
+./scripts/dev-learner.sh web
+```
+
 ## 4) Android fisico (Expo Go)
 
 Descobrir IP local da maquina:
