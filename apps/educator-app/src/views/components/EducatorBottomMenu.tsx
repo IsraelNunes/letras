@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MenuKey = 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
 
@@ -19,8 +20,10 @@ export function EducatorBottomMenu({
   onPontuacaoPress,
   onPerfilPress,
 }: EducatorBottomMenuProps) {
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 6) }]}>
       <View style={styles.row}>
         <Pressable
           style={[styles.item, active === 'inicio' ? styles.activeItem : null]}
@@ -69,7 +72,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
-    paddingBottom: 6,
     backgroundColor: '#ededed',
   },
   row: {
