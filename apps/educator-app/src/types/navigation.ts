@@ -20,6 +20,7 @@ export type EducatorRootStackParamList = {
   EducatorLoading: undefined;
   EducatorLogin: undefined;
   EducatorSplash: undefined;
+  EducatorProfile: undefined;
   EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'email' | 'password' | 'phoneDigits'>;
   EducatorOnboardingStepThree: Pick<
     EducatorOnboardingData,

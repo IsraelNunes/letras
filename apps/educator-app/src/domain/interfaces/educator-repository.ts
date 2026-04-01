@@ -6,6 +6,7 @@ import {
   ReferenceUf,
   RegisterEducatorRequest,
   Theme,
+  UpdateEducatorProfileRequest,
 } from '@letras/shared-types';
 
 export interface EducatorRepository {
@@ -13,6 +14,7 @@ export interface EducatorRepository {
   registerEducator(payload: RegisterEducatorRequest): Promise<EducatorAuthResponse>;
   loginEducator(identifier: string, password: string): Promise<EducatorAuthResponse>;
   fetchCurrentEducator(): Promise<EducatorMeResponse>;
+  updateEducatorProfile(payload: UpdateEducatorProfileRequest): Promise<EducatorMeResponse>;
   logoutEducator(): Promise<void>;
   fetchThemes(): Promise<Theme[]>;
   fetchUfs(): Promise<ReferenceUf[]>;

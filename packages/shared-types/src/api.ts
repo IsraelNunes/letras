@@ -62,12 +62,38 @@ export interface LoginEducatorRequest {
   password: string;
 }
 
+export interface UpdateEducatorProfileRequest {
+  fullName?: string;
+  cpf?: string;
+  phoneDigits?: string;
+  birthDate?: string;
+  uf?: string;
+  city?: string;
+  photoUri?: string | null;
+  educationLevel?: string;
+  trainingArea?: string;
+  linkedin?: string;
+  facebook?: string;
+  instagram?: string;
+  xHandle?: string;
+}
+
 export interface EducatorAuthProfile {
   id: string;
   fullName: string;
   email: string | null;
   cpf: string | null;
   phoneDigits: string | null;
+  birthDate?: string | null;
+  uf?: string | null;
+  city?: string | null;
+  photoUri?: string | null;
+  educationLevel?: string | null;
+  trainingArea?: string | null;
+  linkedin?: string | null;
+  facebook?: string | null;
+  instagram?: string | null;
+  xHandle?: string | null;
 }
 
 export interface EducatorAuthResponse {

@@ -10,6 +10,7 @@ import {
   RegisterEducatorRequest,
   SetLockRequest,
   Theme,
+  UpdateEducatorProfileRequest,
 } from '@letras/shared-types';
 import { EducatorRepository } from '../../domain/interfaces/educator-repository';
 import { httpClient } from '../../infra/api/http-client';
@@ -40,6 +41,10 @@ export class EducatorRepositoryImpl implements EducatorRepository {
 
   fetchCurrentEducator(): Promise<EducatorMeResponse> {
     return httpClient.get<EducatorMeResponse>('/auth/educators/me');
+  }
+
+  updateEducatorProfile(payload: UpdateEducatorProfileRequest): Promise<EducatorMeResponse> {
+    return httpClient.patch<EducatorMeResponse>('/auth/educators/profile', payload);
   }
 
   async logoutEducator(): Promise<void> {

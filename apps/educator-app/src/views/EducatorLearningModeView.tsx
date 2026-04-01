@@ -163,7 +163,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
         onTutorialPress={() => navigation.navigate('EducatorSplash')}
         onAcompanharPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
         onPontuacaoPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
-        onPerfilPress={() => navigation.navigate('EducatorLogin')}
+        onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
   );

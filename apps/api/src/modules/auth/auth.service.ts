@@ -12,6 +12,7 @@ import { createSessionToken, hashPassword, verifyPassword } from '../../common/s
 import { SupabaseAuthService } from '../../common/supabase/supabase-auth.service';
 import { LoginEducatorDto } from './dto/login-educator.dto';
 import { RegisterEducatorDto } from './dto/register-educator.dto';
+import { UpdateEducatorProfileDto } from './dto/update-educator-profile.dto';
 
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -24,6 +25,16 @@ interface AuthPayload {
     email: string | null;
     cpf: string | null;
     phoneDigits: string | null;
+    birthDate: string | null;
+    uf: string | null;
+    city: string | null;
+    photoUri: string | null;
+    educationLevel: string | null;
+    trainingArea: string | null;
+    linkedin: string | null;
+    facebook: string | null;
+    instagram: string | null;
+    xHandle: string | null;
   };
 }
 
@@ -171,19 +182,60 @@ export class AuthService {
 
   async me(authorizationHeader?: string): Promise<Omit<AuthPayload, 'token'>> {
     const token = this.extractBearerToken(authorizationHeader);
-
-    const session = await this.prisma.educatorAuthSession.findUnique({
-      where: { token },
-      include: { educator: true },
-    });
-
-    if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Sessao invalida ou expirada.');
-    }
+    const session = await this.getValidSessionByToken(token);
 
     return {
       expiresAt: session.expiresAt.toISOString(),
       educator: this.toEducatorPayload(session.educator),
+    };
+  }
+
+  async updateProfile(authorizationHeader: string | undefined, dto: UpdateEducatorProfileDto): Promise<Omit<AuthPayload, 'token'>> {
+    const token = this.extractBearerToken(authorizationHeader);
+    const session = await this.getValidSessionByToken(token);
+
+    const normalizedCpf = dto.cpf === undefined ? undefined : this.normalizeCpf(dto.cpf);
+    if (dto.cpf !== undefined && !normalizedCpf) {
+      throw new BadRequestException('CPF deve conter 11 digitos.');
+    }
+
+    const normalizedPhone = dto.phoneDigits === undefined ? undefined : this.normalizePhone(dto.phoneDigits);
+    if (dto.phoneDigits !== undefined && !normalizedPhone) {
+      throw new BadRequestException('Celular deve conter 11 digitos.');
+    }
+
+    if (normalizedCpf && normalizedCpf !== session.educator.cpf) {
+      const educatorWithCpf = await this.prisma.educator.findUnique({
+        where: { cpf: normalizedCpf },
+      });
+
+      if (educatorWithCpf && educatorWithCpf.id !== session.educator.id) {
+        throw new ConflictException('CPF ja esta em uso por outro educador.');
+      }
+    }
+
+    const updated = await this.prisma.educator.update({
+      where: { id: session.educator.id },
+      data: {
+        name: dto.fullName?.trim() || session.educator.name,
+        cpf: normalizedCpf ?? session.educator.cpf,
+        phoneDigits: normalizedPhone ?? session.educator.phoneDigits,
+        birthDate: this.normalizeOptionalValue(dto.birthDate, session.educator.birthDate),
+        uf: this.normalizeOptionalValue(dto.uf, session.educator.uf),
+        city: this.normalizeOptionalValue(dto.city, session.educator.city),
+        photoUri: this.normalizeOptionalValue(dto.photoUri, session.educator.photoUri),
+        educationLevel: this.normalizeOptionalValue(dto.educationLevel, session.educator.educationLevel),
+        trainingArea: this.normalizeOptionalValue(dto.trainingArea, session.educator.trainingArea),
+        linkedin: this.normalizeOptionalValue(dto.linkedin, session.educator.linkedin),
+        facebook: this.normalizeOptionalValue(dto.facebook, session.educator.facebook),
+        instagram: this.normalizeOptionalValue(dto.instagram, session.educator.instagram),
+        xHandle: this.normalizeOptionalValue(dto.xHandle, session.educator.xHandle),
+      },
+    });
+
+    return {
+      expiresAt: session.expiresAt.toISOString(),
+      educator: this.toEducatorPayload(updated),
     };
   }
 
@@ -229,7 +281,30 @@ export class AuthService {
       email: educator.email,
       cpf: educator.cpf,
       phoneDigits: educator.phoneDigits,
+      birthDate: educator.birthDate,
+      uf: educator.uf,
+      city: educator.city,
+      photoUri: educator.photoUri,
+      educationLevel: educator.educationLevel,
+      trainingArea: educator.trainingArea,
+      linkedin: educator.linkedin,
+      facebook: educator.facebook,
+      instagram: educator.instagram,
+      xHandle: educator.xHandle,
     };
+  }
+
+  private async getValidSessionByToken(token: string) {
+    const session = await this.prisma.educatorAuthSession.findUnique({
+      where: { token },
+      include: { educator: true },
+    });
+
+    if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Sessao invalida ou expirada.');
+    }
+
+    return session;
   }
 
   private extractBearerToken(authorizationHeader?: string): string {
@@ -263,6 +338,18 @@ export class AuthService {
   private pickValue(newValue: string | undefined, previousValue: string | null): string | null {
     const trimmed = newValue?.trim() ?? '';
     return trimmed.length > 0 ? trimmed : previousValue;
+  }
+
+  private normalizeOptionalValue(
+    incomingValue: string | undefined,
+    currentValue: string | null,
+  ): string | null {
+    if (incomingValue === undefined) {
+      return currentValue;
+    }
+
+    const trimmed = incomingValue.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
 
   private async resolveSupabaseUserForRegister(
