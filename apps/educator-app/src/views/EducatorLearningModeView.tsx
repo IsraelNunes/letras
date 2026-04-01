@@ -43,7 +43,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
   const groupUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
   const arrowUri = assets?.[3]?.localUri ?? assets?.[3]?.uri;
 
-  const educatorName = route.params.fullName.trim() || 'Educador';
+  const educatorName = route.params?.fullName?.trim() || 'Educador';
 
   const normalizedNewGroupName = newGroupName.trim();
   const canCreateGroup = normalizedNewGroupName.length >= 2;
@@ -158,18 +158,12 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
       </ScrollView>
 
       <EducatorBottomMenu
-        active="acompanhar"
-        onInicioPress={() => navigation.navigate('EducatorSplash')}
-        onTutorialPress={() =>
-          navigation.navigate('EducatorOnboardingStepTwo', {
-            cpf: route.params.cpf,
-            email: route.params.email,
-            password: route.params.password,
-            phoneDigits: route.params.phoneDigits,
-          })
-        }
-        onAcompanharPress={() => navigation.navigate('EducatorLearningMode', route.params)}
-        onPontuacaoPress={() => navigation.navigate('EducatorOnboardingConfirm', route.params)}
+        active="inicio"
+        onInicioPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
+        onTutorialPress={() => navigation.navigate('EducatorSplash')}
+        onAcompanharPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
+        onPontuacaoPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
+        onPerfilPress={() => navigation.navigate('EducatorLogin')}
       />
     </SafeAreaView>
   );

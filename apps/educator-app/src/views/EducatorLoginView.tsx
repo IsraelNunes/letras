@@ -60,7 +60,9 @@ export function EducatorLoginView({ navigation }: Props) {
       const auth = await repository.loginEducator(identifier.trim(), password);
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);
-      navigation.replace('EducatorDashboard');
+      navigation.replace('EducatorLearningMode', {
+        fullName: auth.educator.fullName,
+      });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel entrar.');
     } finally {

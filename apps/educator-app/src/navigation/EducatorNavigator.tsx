@@ -6,7 +6,6 @@ import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTw
 import { EducatorOnboardingStepThreeView } from '../views/EducatorOnboardingStepThreeView';
 import { EducatorOnboardingConfirmView } from '../views/EducatorOnboardingConfirmView';
 import { EducatorLearningModeView } from '../views/EducatorLearningModeView';
-import { EducatorDashboardView } from '../views/EducatorDashboardView';
 import { EducatorRootStackParamList } from '../types';
 
 const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
@@ -64,13 +63,6 @@ export function EducatorNavigator() {
         component={EducatorLearningModeView}
         options={{
           headerShown: false,
-        }}
-      />
-      <Stack.Screen
-        name="EducatorDashboard"
-        component={EducatorDashboardView}
-        options={{
-          headerTitle: 'Letras Educador',
         }}
       />
     </Stack.Navigator>

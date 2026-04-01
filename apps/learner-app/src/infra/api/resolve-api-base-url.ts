@@ -15,21 +15,42 @@ function hostFromScriptUrl(scriptUrl?: string): string | null {
   }
 }
 
+function hostFromBaseUrl(url?: string): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname || null;
+  } catch {
+    const match = url.match(/^[a-zA-Z]+:\/\/([^/:]+)/);
+    return match?.[1] ?? null;
+  }
+}
+
 function isIpv4(host: string): boolean {
   return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
 }
 
 export function resolveApiBaseUrl(): string {
+  const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
+  const metroHost = hostFromScriptUrl(scriptUrl);
+
   const explicit = process.env.EXPO_PUBLIC_API_URL;
   if (explicit && explicit.trim().length > 0) {
-    return normalize(explicit);
+    const normalizedExplicit = normalize(explicit);
+    const explicitHost = hostFromBaseUrl(normalizedExplicit);
+
+    const isWrongHostOnAndroid =
+      Platform.OS === 'android' &&
+      (explicitHost === '10.0.2.2' || explicitHost === 'localhost' || explicitHost === '127.0.0.1');
+
+    if (isWrongHostOnAndroid && metroHost && isIpv4(metroHost) && metroHost !== '10.0.2.2') {
+      return `http://${metroHost}:3000`;
+    }
+
+    return normalizedExplicit;
   }
 
-  const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
-  const host = hostFromScriptUrl(scriptUrl);
-
-  if (host && isIpv4(host)) {
-    return `http://${host}:3000`;
+  if (metroHost && isIpv4(metroHost)) {
+    return `http://${metroHost}:3000`;
   }
 
   if (Platform.OS === 'android') {

@@ -70,7 +70,9 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
 
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);
-      navigation.replace('EducatorLearningMode', data);
+      navigation.replace('EducatorLearningMode', {
+        fullName: data.fullName,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Nao foi possivel concluir o cadastro.';
       if (message.includes('409') || message.toLowerCase().includes('ja existe')) {
