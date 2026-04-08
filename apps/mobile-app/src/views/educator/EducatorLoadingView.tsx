@@ -3,10 +3,10 @@ import { useAssets } from 'expo-asset';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
-import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
-import { httpClient } from '../infra/api/http-client';
-import { EducatorStorage } from '../infra/storage/educator-storage';
-import { EducatorRootStackParamList } from '../types';
+import { EducatorRepositoryImpl } from '../../data/repositories/educator-repository.impl';
+import { httpClient } from '../../infra/api/http-client';
+import { EducatorStorage } from '../../infra/storage/educator-storage';
+import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLoading'>;
@@ -14,7 +14,7 @@ type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLoading
 const LOADING_DURATION_MS = 1800;
 
 export function EducatorLoadingView({ navigation }: Props) {
-  const [assets] = useAssets([require('../../assets/Logo-LETRAS.svg')]);
+  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   useEffect(() => {

@@ -30,35 +30,35 @@ export function EducatorBottomMenu({
           onPress={onInicioPress}
           disabled={!onInicioPress}
         >
-          <Image source={require('../../../assets/menu/inicio.png')} style={styles.image79} />
+          <Image source={require('../../../../assets/menu/inicio.png')} style={styles.image79} />
         </Pressable>
         <Pressable
           style={[styles.item, active === 'tutorial' ? styles.activeItem : null]}
           onPress={onTutorialPress}
           disabled={!onTutorialPress}
         >
-          <Image source={require('../../../assets/menu/tutorial.png')} style={styles.image79} />
+          <Image source={require('../../../../assets/menu/tutorial.png')} style={styles.image79} />
         </Pressable>
         <Pressable
           style={[styles.item, active === 'acompanhar' ? styles.activeItem : null]}
           onPress={onAcompanharPress}
           disabled={!onAcompanharPress}
         >
-          <Image source={require('../../../assets/menu/acompanhar.png')} style={styles.image79} />
+          <Image source={require('../../../../assets/menu/acompanhar.png')} style={styles.image79} />
         </Pressable>
         <Pressable
           style={[styles.item, active === 'pontuacao' ? styles.activeItem : null]}
           onPress={onPontuacaoPress}
           disabled={!onPontuacaoPress}
         >
-          <Image source={require('../../../assets/menu/pontuacao.png')} style={styles.image78} />
+          <Image source={require('../../../../assets/menu/pontuacao.png')} style={styles.image78} />
         </Pressable>
         <Pressable
           style={[styles.item, active === 'perfil' ? styles.activeItem : null]}
           onPress={onPerfilPress}
           disabled={!onPerfilPress}
         >
-          <Image source={require('../../../assets/menu/perfil.png')} style={styles.image78} />
+          <Image source={require('../../../../assets/menu/perfil.png')} style={styles.image78} />
         </Pressable>
       </View>
     </View>

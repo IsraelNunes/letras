@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
-import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
-import { EducatorRootStackParamList } from '../types';
+import { EducatorRepositoryImpl } from '../../data/repositories/educator-repository.impl';
+import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepTwo'>;
@@ -81,8 +81,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const [referenceError, setReferenceError] = useState<string | null>(null);
 
   const [assets] = useAssets([
-    require('../../assets/Logo-LETRAS.svg'),
-    require('../../assets/avançar.svg'),
+    require('../../../assets/Logo-LETRAS.svg'),
+    require('../../../assets/avançar.svg'),
   ]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
   const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
@@ -241,7 +241,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           </View>
 
           <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>1</Text>
             </View>

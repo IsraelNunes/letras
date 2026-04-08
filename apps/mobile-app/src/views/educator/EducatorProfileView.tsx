@@ -16,10 +16,10 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
-import { EducatorRepositoryImpl } from '../data/repositories/educator-repository.impl';
-import { httpClient } from '../infra/api/http-client';
-import { EducatorStorage } from '../infra/storage/educator-storage';
-import { EducatorRootStackParamList } from '../types';
+import { EducatorRepositoryImpl } from '../../data/repositories/educator-repository.impl';
+import { httpClient } from '../../infra/api/http-client';
+import { EducatorStorage } from '../../infra/storage/educator-storage';
+import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorProfile'>;
@@ -83,8 +83,8 @@ export function EducatorProfileView({ navigation }: Props) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [assets] = useAssets([
-    require('../../assets/Logo-LETRAS.svg'),
-    require('../../assets/confirmar.svg'),
+    require('../../../assets/Logo-LETRAS.svg'),
+    require('../../../assets/confirmar.svg'),
   ]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
   const confirmUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
@@ -325,7 +325,7 @@ export function EducatorProfileView({ navigation }: Props) {
           </View>
 
           <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>1</Text>
             </View>

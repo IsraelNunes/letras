@@ -1,13 +1,13 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { EducatorLoadingView } from '../views/EducatorLoadingView';
-import { EducatorLoginView } from '../views/EducatorLoginView';
-import { EducatorSplashView } from '../views/EducatorSplashView';
-import { EducatorProfileView } from '../views/EducatorProfileView';
-import { EducatorOnboardingStepTwoView } from '../views/EducatorOnboardingStepTwoView';
-import { EducatorOnboardingStepThreeView } from '../views/EducatorOnboardingStepThreeView';
-import { EducatorOnboardingConfirmView } from '../views/EducatorOnboardingConfirmView';
-import { EducatorLearningModeView } from '../views/EducatorLearningModeView';
-import { EducatorRootStackParamList } from '../types';
+import { EducatorLoadingView } from '../../views/educator/EducatorLoadingView';
+import { EducatorLoginView } from '../../views/educator/EducatorLoginView';
+import { EducatorSplashView } from '../../views/educator/EducatorSplashView';
+import { EducatorProfileView } from '../../views/educator/EducatorProfileView';
+import { EducatorOnboardingStepTwoView } from '../../views/educator/EducatorOnboardingStepTwoView';
+import { EducatorOnboardingStepThreeView } from '../../views/educator/EducatorOnboardingStepThreeView';
+import { EducatorOnboardingConfirmView } from '../../views/educator/EducatorOnboardingConfirmView';
+import { EducatorLearningModeView } from '../../views/educator/EducatorLearningModeView';
+import { EducatorRootStackParamList } from '../../types';
 
 const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
 
