@@ -37,3 +37,9 @@ export type EducatorRootStackParamList = {
 export type LearnerRootStackParamList = {
   LearnerHome: undefined;
 };
+
+export type RootStackParamList = {
+  AppModeGate: undefined;
+  EducatorFlow: undefined;
+  LearnerFlow: undefined;
+};
