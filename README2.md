@@ -1,6 +1,6 @@
-# README2 - Comandos Basicos (Android)
+# README2 - Comandos Basicos (App Unificado)
 
-Guia rapido para rodar o projeto no Android.
+Guia rapido para rodar o novo app unico `apps/mobile-app` (Educador + Aprendiz).
 
 ## 1) Setup inicial
 
@@ -41,18 +41,38 @@ kill <PID>
 pnpm --filter api dev
 ```
 
-## 3) Android Emulator (Studio)
+## 3) Configurar API URL no app unificado
 
-Para emulador Android, use `10.0.2.2`:
+Arquivo:
 
-```bash
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 pnpm --filter educator-app start
+```text
+apps/mobile-app/.env
 ```
 
-Aprendiz:
+Conteudo base:
+
+```env
+EXPO_PUBLIC_API_URL=http://localhost:3000/
+```
+
+## 4) Rodar o app unificado
+
+Atalho recomendado (API + Expo no mesmo terminal):
 
 ```bash
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 pnpm --filter learner-app start
+pnpm dev:mobile:local
+```
+
+### Android Emulator (Studio)
+
+```bash
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 pnpm --filter mobile-app exec expo start --clear
+```
+
+Atalho:
+
+```bash
+pnpm dev:mobile:emulator
 ```
 
 Opcional (ADB reverse):
@@ -61,23 +81,9 @@ Opcional (ADB reverse):
 adb reverse tcp:3000 tcp:3000
 ```
 
-Com `adb reverse`, tambem pode usar `http://localhost:3000` no app.
+Com `adb reverse`, tambem pode usar `http://localhost:3000`.
 
-### Opcao Web (browser)
-
-Educador (web):
-
-```bash
-./scripts/dev-educator.sh web
-```
-
-Aprendiz (web):
-
-```bash
-./scripts/dev-learner.sh web
-```
-
-## 4) Android fisico (Expo Go)
+### Android fisico (Expo Go)
 
 Descobrir IP local da maquina:
 
@@ -85,16 +91,10 @@ Descobrir IP local da maquina:
 hostname -I | awk '{print $1}'
 ```
 
-Exemplo de subida (troque pelo seu IP):
+Exemplo (troque pelo seu IP):
 
 ```bash
-EXPO_PUBLIC_API_URL=http://192.168.100.13:3000 pnpm --filter educator-app exec expo start --clear
-```
-
-Aprendiz:
-
-```bash
-EXPO_PUBLIC_API_URL=http://192.168.100.13:3000 pnpm --filter learner-app exec expo start --clear
+EXPO_PUBLIC_API_URL=http://192.168.100.13:3000 pnpm --filter mobile-app exec expo start --lan --clear
 ```
 
 Regras importantes:
@@ -102,7 +102,26 @@ Regras importantes:
 - Nao use 5G/dados moveis para esse teste local.
 - No celular, `localhost` nao aponta para seu PC.
 
-## 5) Banco (Prisma)
+### Web (browser)
+
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:3000 pnpm --filter mobile-app exec expo start --web --clear
+```
+
+Atalho:
+
+```bash
+pnpm dev:mobile:web
+```
+
+## 5) Como usar o fluxo no app unificado
+
+1. App abre na tela de escolha de modo (gate): `Educador` ou `Aprendiz`.
+2. Escolha `Educador` para login/cadastro/onboarding/perfil.
+3. Escolha `Aprendiz` para o fluxo learner.
+4. Se houver sessao persistida valida, o app entra direto no fluxo correto.
+
+## 6) Banco (Prisma)
 
 ```bash
 pnpm db:generate
@@ -116,18 +135,21 @@ Sincronizar usuarios locais com `auth.users`:
 pnpm --filter api auth:sync-supabase-users
 ```
 
-## 6) Limpeza de cache quando travar
+## 7) Limpeza de cache quando travar
 
 ```bash
-pnpm --filter educator-app exec expo start --clear
-pnpm --filter learner-app exec expo start --clear
+pnpm --filter mobile-app exec expo start --clear
 ```
 
-Se preciso, feche Expo Go no celular e abra de novo.
+Se precisar:
+- feche o Expo Go no celular;
+- abra novamente;
+- rode o comando acima de novo.
 
-## 7) Fluxo recomendado (rapido)
+## 8) Fluxo recomendado (rapido)
 
 1. `pnpm --filter api dev`
 2. Emulador Android: usar `http://10.0.2.2:3000`
 3. Celular fisico: usar `http://SEU_IP_LOCAL:3000`
-4. Abrir app e validar `/reference/ufs` na tela de cadastro
+4. `pnpm --filter mobile-app exec expo start --lan --clear`
+5. Abrir app e validar login/cadastro e carregamento de UFs

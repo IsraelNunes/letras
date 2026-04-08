@@ -6,6 +6,9 @@
   "scripts": {
     "postinstall": "pnpm --filter api prisma:generate",
     "dev": "pnpm -r --parallel dev",
+    "dev:mobile:local": "./scripts/dev-mobile-local.sh local",
+    "dev:mobile:emulator": "./scripts/dev-mobile-local.sh emulator",
+    "dev:mobile:web": "./scripts/dev-mobile-local.sh web",
     "build": "pnpm -r build",
     "build:shared": "pnpm --filter @letras/shared-types build && pnpm --filter @letras/shared-utils build",
     "typecheck": "pnpm -r typecheck",
