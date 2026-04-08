@@ -2,8 +2,7 @@
 
 ## Monorepo
 
-- `apps/learner-app`: React Native (Expo SDK 54) learner app using MVVM.
-- `apps/educator-app`: React Native (Expo SDK 54) educator app using MVVM.
+- `apps/mobile-app`: React Native (Expo SDK 54) unified app for learner + educator flows using MVVM.
 - `apps/api`: NestJS API with Prisma + Socket.IO.
 - `packages/shared-types`: cross-app contracts (entities, DTOs, realtime payloads).
 - `packages/shared-utils`: shared constants and utilities.

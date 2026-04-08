@@ -176,13 +176,13 @@ EXPO_PUBLIC_API_URL=http://192.168.0.10:3000/
 - [x] Nenhuma alteração de contrato em `apps/api` (sem mudança de regra de negócio/backend)
 - [x] Sem commit de segredos/chaves
 
-## Plano de Rollback
+## Estado Atual
 
-### Rollback rápido operacional
-- Continue executando apps separados:
-  - `apps/educator-app`
-  - `apps/learner-app`
-- Eles não foram removidos e continuam independentes.
+- `apps/educator-app` e `apps/learner-app` foram removidos do repositório.
+- O app mobile ativo é exclusivamente `apps/mobile-app`.
+- Scripts legados `scripts/dev-educator.sh` e `scripts/dev-learner.sh` também foram removidos.
+
+## Plano de Rollback
 
 ### Rollback no Git (incremental)
 - Reverter commits de unificação em ordem inversa:
@@ -191,5 +191,6 @@ EXPO_PUBLIC_API_URL=http://192.168.0.10:3000/
   3. `4e0cec9` (educator namespacing)
   4. `5a56593` (shared layer migration)
   5. `775bdb8` (scaffold mobile-app)
+  6. commit de remoção dos legados (`apps/educator-app`, `apps/learner-app`, scripts legados)
 
 Isso retorna ao cenário pré-unificação sem mexer no backend.

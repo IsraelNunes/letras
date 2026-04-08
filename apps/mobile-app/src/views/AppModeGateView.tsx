@@ -1,29 +1,16 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useAssets } from 'expo-asset';
+import { useCallback } from 'react';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { SvgUri } from 'react-native-svg';
 import { AppModeStorage } from '../infra/storage/app-mode-storage';
-import { EducatorStorage } from '../infra/storage/educator-storage';
-import { SessionStorage } from '../infra/storage/session-storage';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AppModeGate'>;
 
-function isSessionStillValid(expiresAt: string | null): boolean {
-  if (!expiresAt) {
-    return false;
-  }
-
-  const expiry = new Date(expiresAt).getTime();
-
-  if (!Number.isFinite(expiry)) {
-    return false;
-  }
-
-  return expiry > Date.now();
-}
-
 export function AppModeGateView({ navigation }: Props) {
-  const [loading, setLoading] = useState(true);
+  const [assets] = useAssets([require('../../assets/Logo-LETRAS.svg')]);
+  const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   const goToMode = useCallback(
     async (mode: 'educator' | 'learner') => {
@@ -33,52 +20,10 @@ export function AppModeGateView({ navigation }: Props) {
     [navigation],
   );
 
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        const [preferredMode, token, expiresAt, learnerProfileId] = await Promise.all([
-          AppModeStorage.getPreferredMode(),
-          EducatorStorage.getAuthToken(),
-          EducatorStorage.getAuthSessionExpiry(),
-          SessionStorage.getLearnerProfileId(),
-        ]);
-
-        if (token && isSessionStillValid(expiresAt)) {
-          await AppModeStorage.setPreferredMode('educator');
-          navigation.replace('EducatorFlow');
-          return;
-        }
-
-        if (learnerProfileId) {
-          await AppModeStorage.setPreferredMode('learner');
-          navigation.replace('LearnerFlow');
-          return;
-        }
-
-        if (preferredMode) {
-          navigation.replace(preferredMode === 'educator' ? 'EducatorFlow' : 'LearnerFlow');
-          return;
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void initialize();
-  }, [navigation]);
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.loadingText}>Preparando o Letras...</Text>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
+        {logoUri ? <SvgUri uri={logoUri} width={220} height={128} /> : null}
         <Text style={styles.title}>Letras Mobile</Text>
         <Text style={styles.subtitle}>Escolha como deseja entrar no aplicativo.</Text>
 
@@ -106,30 +51,33 @@ const styles = StyleSheet.create({
     gap: 12,
     backgroundColor: '#f2f2f2',
   },
-  loadingText: {
-    fontSize: 16,
-    color: '#111827',
-  },
   content: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 380,
     gap: 16,
   },
   title: {
     fontSize: 32,
     fontWeight: '700',
     color: '#111827',
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#374151',
     marginBottom: 12,
+    textAlign: 'center',
   },
   primaryButton: {
     backgroundColor: '#0f172a',
     borderRadius: 10,
     paddingVertical: 14,
+    paddingHorizontal: 18,
+    width: '100%',
     alignItems: 'center',
   },
   primaryButtonText: {
@@ -143,6 +91,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingVertical: 14,
+    paddingHorizontal: 18,
+    width: '100%',
     alignItems: 'center',
   },
   secondaryButtonText: {

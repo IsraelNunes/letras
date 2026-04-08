@@ -63,6 +63,12 @@ Atalho recomendado (API + Expo no mesmo terminal):
 pnpm dev:mobile:local
 ```
 
+Fallback quando LAN travar no Expo Go:
+
+```bash
+pnpm dev:mobile:tunnel
+```
+
 ### Android Emulator (Studio)
 
 ```bash
@@ -106,6 +112,9 @@ Regras importantes:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:3000 pnpm --filter mobile-app exec expo start --web --clear
+
+EXPO_PUBLIC_API_URL=http://localhost:3000 pnpm --filter mobile-app exec expo start --clear
+
 ```
 
 Atalho:
