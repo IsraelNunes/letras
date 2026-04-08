@@ -182,7 +182,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   }, [cities, city, isUfValid, selectedCityId]);
 
   const hasPhoto = Boolean(photoUri);
-  const canProceed = isFullNameValid && isBirthDateValid && isUfValid && isCityValid && hasPhoto;
+  const canProceed = isFullNameValid && isBirthDateValid && isUfValid && isCityValid;
 
   const pickImageFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -350,7 +350,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
 
           {referenceError ? <Text style={styles.errorText}>{referenceError}</Text> : null}
 
-          <Text style={styles.photoLabel}>Faca o upload ou tire uma foto sua.</Text>
+          <Text style={styles.photoLabel}>Faca o upload ou tire uma foto sua. (Opcional)</Text>
 
           <Pressable style={[styles.photoBox, hasPhoto ? styles.photoBoxSelected : null]} onPress={openPhotoChooser}>
             {photoUri ? (

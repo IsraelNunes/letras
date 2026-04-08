@@ -29,21 +29,30 @@ function isIpv4(host: string): boolean {
   return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
 }
 
+function isLoopbackHost(host: string | null): boolean {
+  if (!host) return false;
+  return host === 'localhost' || host === '127.0.0.1' || host === '10.0.2.2';
+}
+
 export function resolveApiBaseUrl(): string {
   const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
   const metroHost = hostFromScriptUrl(scriptUrl);
+  const isNativeRuntime = Platform.OS === 'android' || Platform.OS === 'ios';
 
   const explicit = process.env.EXPO_PUBLIC_API_URL;
   if (explicit && explicit.trim().length > 0) {
     const normalizedExplicit = normalize(explicit);
     const explicitHost = hostFromBaseUrl(normalizedExplicit);
 
-    const isWrongHostOnAndroid =
-      Platform.OS === 'android' &&
-      (explicitHost === '10.0.2.2' || explicitHost === 'localhost' || explicitHost === '127.0.0.1');
+    const isWrongHostOnNative = isNativeRuntime && isLoopbackHost(explicitHost);
+    if (isWrongHostOnNative) {
+      if (metroHost && isIpv4(metroHost) && !isLoopbackHost(metroHost)) {
+        return `http://${metroHost}:3000`;
+      }
 
-    if (isWrongHostOnAndroid && metroHost && isIpv4(metroHost) && metroHost !== '10.0.2.2') {
-      return `http://${metroHost}:3000`;
+      if (Platform.OS === 'android') {
+        return 'http://10.0.2.2:3000';
+      }
     }
 
     return normalizedExplicit;
