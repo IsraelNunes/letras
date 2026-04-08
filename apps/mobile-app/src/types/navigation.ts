@@ -16,6 +16,8 @@ export interface EducatorOnboardingData {
   xHandle?: string;
 }
 
+export type AppMode = 'educator' | 'learner';
+
 export type EducatorRootStackParamList = {
   EducatorLoading: undefined;
   EducatorLogin: undefined;
@@ -30,4 +32,8 @@ export type EducatorRootStackParamList = {
   EducatorLearningMode: {
     fullName?: string;
   };
+};
+
+export type LearnerRootStackParamList = {
+  LearnerHome: undefined;
 };

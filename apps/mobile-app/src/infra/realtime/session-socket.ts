@@ -6,7 +6,7 @@ function resolveRealtimeBaseUrl(): string {
   return API_BASE_URL.replace(/\/$/, '');
 }
 
-export function createEducatorSocket(identity: SocketIdentity): Socket {
+function createSessionSocket(identity: SocketIdentity): Socket {
   return io(`${resolveRealtimeBaseUrl()}/realtime`, {
     transports: ['websocket'],
     query: {
@@ -15,4 +15,12 @@ export function createEducatorSocket(identity: SocketIdentity): Socket {
       role: identity.role,
     },
   });
+}
+
+export function createEducatorSocket(identity: SocketIdentity): Socket {
+  return createSessionSocket(identity);
+}
+
+export function createLearnerSocket(identity: SocketIdentity): Socket {
+  return createSessionSocket(identity);
 }
