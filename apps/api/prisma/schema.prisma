@@ -25,6 +25,45 @@ enum CompletionStatus {
   COMPLETED
 }
 
+enum TutorLearnerLinkStatus {
+  PENDING
+  CONFIRMED
+  DENIED
+}
+
+enum ContentAssetKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  SVG
+  OTHER
+}
+
+enum MobileBlueprintStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SyncEntityType {
+  TUTOR_LEARNER_LINK
+  THEME
+  LEARNING_UNIT
+  ACTIVITY
+  CONTENT_ASSET
+  MOBILE_BLUEPRINT
+  LEARNER_PROFILE
+  EDUCATOR
+}
+
+enum SyncAction {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  IMPORTED
+  PUBLISHED
+}
+
 model Educator {
   id        String           @id @default(cuid())
   name      String
@@ -48,6 +87,11 @@ model Educator {
 
   learners  LearnerProfile[]
   authSessions EducatorAuthSession[]
+  tutorLearnerLinks TutorLearnerLink[] @relation("LinkEducator")
+  createdAssets ContentAsset[] @relation("AssetCreator")
+  createdBlueprints MobileBlueprint[] @relation("BlueprintCreator")
+  blueprintManifestImports BlueprintManifestImport[] @relation("BlueprintImporter")
+  syncEvents SyncEvent[] @relation("SyncActor")
 }
 
 model EducatorAuthSession {
@@ -69,6 +113,12 @@ model LearnerProfile {
   displayName  String
   notes        String?
   educatorId   String?
+  cpfOrPassport String?       @unique
+  phoneDigits   String?       @unique
+  birthDate     String?
+  uf            String?
+  city          String?
+  photoUri      String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -76,8 +126,10 @@ model LearnerProfile {
   learnerThemes LearnerTheme[]
   session      LearnerSession?
   completions  Completion[]
+  tutorLearnerLinks TutorLearnerLink[]
 
   @@index([educatorId])
+  @@index([uf, city])
 }
 
 model Theme {
@@ -121,8 +173,11 @@ model LearningUnit {
 model Activity {
   id             String       @id @default(cuid())
   learningUnitId String
+  title          String?
   prompt         String
   content        Json?
+  instructorGuidance String?
+  learnerGuidance String?
   order          Int          @default(0)
   type           ActivityType @default(READING)
   createdAt      DateTime     @default(now())
@@ -130,6 +185,7 @@ model Activity {
 
   learningUnit   LearningUnit @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
   completions    Completion[]
+  assets         ActivityAsset[]
 
   @@index([learningUnitId, order])
 }
@@ -176,4 +232,111 @@ model Completion {
 
   @@unique([learnerProfileId, activityId])
   @@index([activityId])
+}
+
+model TutorLearnerLink {
+  id               String                @id @default(cuid())
+  educatorId       String
+  learnerProfileId String
+  status           TutorLearnerLinkStatus @default(PENDING)
+  requestedBy      String?
+  requestedAt      DateTime              @default(now())
+  respondedAt      DateTime?
+  responseReason   String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  educator         Educator              @relation("LinkEducator", fields: [educatorId], references: [id], onDelete: Cascade)
+  learnerProfile   LearnerProfile        @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([educatorId, learnerProfileId])
+  @@index([status, requestedAt])
+  @@index([learnerProfileId])
+}
+
+model ContentAsset {
+  id                  String           @id @default(cuid())
+  key                 String?          @unique
+  kind                ContentAssetKind
+  title               String
+  description         String?
+  sourceUrl           String
+  mimeType            String?
+  originalFileName    String?
+  bytes               Int?
+  durationSeconds     Int?
+  checksum            String?
+  createdByEducatorId String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  createdByEducator   Educator?        @relation("AssetCreator", fields: [createdByEducatorId], references: [id], onDelete: SetNull)
+  activityAssets      ActivityAsset[]
+
+  @@index([kind, createdAt])
+  @@index([createdByEducatorId])
+}
+
+model ActivityAsset {
+  id         String   @id @default(cuid())
+  activityId String
+  assetId    String
+  role       String?
+  createdAt  DateTime @default(now())
+
+  activity   Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  asset      ContentAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, assetId])
+  @@index([assetId])
+}
+
+model MobileBlueprint {
+  id                  String               @id @default(cuid())
+  name                String
+  description         String?
+  stage               Int?
+  screenType          String
+  layoutJson          Json
+  previewImageUrl     String?
+  status              MobileBlueprintStatus @default(DRAFT)
+  createdByEducatorId String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  createdByEducator   Educator?            @relation("BlueprintCreator", fields: [createdByEducatorId], references: [id], onDelete: SetNull)
+
+  @@index([stage, status])
+  @@index([createdAt])
+  @@index([createdByEducatorId])
+}
+
+model BlueprintManifestImport {
+  id                  String   @id @default(cuid())
+  sourceName          String?
+  importedCount       Int
+  manifestJson        Json
+  importedByEducatorId String?
+  createdAt           DateTime @default(now())
+
+  importedByEducator  Educator? @relation("BlueprintImporter", fields: [importedByEducatorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([importedByEducatorId])
+}
+
+model SyncEvent {
+  id             String       @id @default(cuid())
+  entityType     SyncEntityType
+  entityId       String
+  action         SyncAction
+  actorEducatorId String?
+  payload        Json?
+  createdAt      DateTime     @default(now())
+
+  actorEducator  Educator?    @relation("SyncActor", fields: [actorEducatorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([actorEducatorId])
 }
