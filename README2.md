@@ -53,6 +53,7 @@ Conteudo base:
 
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:3000/
+VITE_API_BASE_URL=http://localhost:3000
 ```
 
 ## 4) Rodar o app unificado
@@ -130,7 +131,28 @@ pnpm dev:mobile:web
 3. Escolha `Aprendiz` para o fluxo learner.
 4. Se houver sessao persistida valida, o app entra direto no fluxo correto.
 
-## 6) Banco (Prisma)
+## 6) Painel web de upload de conteudo
+
+Suba a API e rode o painel web:
+
+```bash
+pnpm --filter web dev
+```
+
+Abra:
+
+```text
+http://localhost:5173
+```
+
+No painel, use "Upload de Arquivo" para enviar imagem, video, audio ou SVG.
+O endpoint usado e:
+
+```text
+POST /painel/conteudo/assets/upload (multipart/form-data, campo: file)
+```
+
+## 7) Banco (Prisma)
 
 ```bash
 pnpm db:generate
@@ -144,7 +166,7 @@ Sincronizar usuarios locais com `auth.users`:
 pnpm --filter api auth:sync-supabase-users
 ```
 
-## 7) Limpeza de cache quando travar
+## 8) Limpeza de cache quando travar
 
 ```bash
 pnpm --filter mobile-app exec expo start --clear
@@ -155,7 +177,7 @@ Se precisar:
 - abra novamente;
 - rode o comando acima de novo.
 
-## 8) Fluxo recomendado (rapido)
+## 9) Fluxo recomendado (rapido)
 
 1. `pnpm --filter api dev`
 2. Emulador Android: usar `http://10.0.2.2:3000`
