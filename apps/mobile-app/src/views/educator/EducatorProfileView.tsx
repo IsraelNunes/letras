@@ -54,6 +54,12 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function isLocalFileUri(value?: string | null): value is string {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('file://') || normalized.startsWith('content://');
+}
+
 export function EducatorProfileView({ navigation }: Props) {
   const repository = useMemo(() => new EducatorRepositoryImpl(), []);
 
@@ -70,6 +76,7 @@ export function EducatorProfileView({ navigation }: Props) {
   const [instagram, setInstagram] = useState('');
   const [xHandle, setXHandle] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [educatorId, setEducatorId] = useState<string | null>(null);
 
   const [ufs, setUfs] = useState<ReferenceUf[]>([]);
   const [cities, setCities] = useState<ReferenceCity[]>([]);
@@ -134,6 +141,7 @@ export function EducatorProfileView({ navigation }: Props) {
         setUfs(fetchedUfs);
 
         setFullName(me.educator.fullName ?? '');
+        setEducatorId(me.educator.id ?? null);
         setCpf((me.educator.cpf ?? '').replace(/\D/g, '').slice(0, 11));
         setPhoneDigits((me.educator.phoneDigits ?? '').replace(/\D/g, '').slice(0, 11));
         setBirthDate(me.educator.birthDate ?? '');
@@ -255,6 +263,16 @@ export function EducatorProfileView({ navigation }: Props) {
       setErrorMessage(null);
       setStatusMessage(null);
 
+      let uploadedPhotoUri = photoUri;
+      if (isLocalFileUri(photoUri)) {
+        const uploaded = await repository.uploadImageAsset({
+          uri: photoUri,
+          title: `Foto ${fullName.trim() || 'Educador'}`,
+          createdByEducatorId: educatorId ?? undefined,
+        });
+        uploadedPhotoUri = uploaded.asset.sourceUrl;
+      }
+
       const response = await repository.updateEducatorProfile({
         fullName: fullName.trim(),
         cpf,
@@ -262,7 +280,7 @@ export function EducatorProfileView({ navigation }: Props) {
         birthDate: birthDate.trim(),
         uf,
         city: city.trim(),
-        photoUri,
+        photoUri: uploadedPhotoUri,
         educationLevel: educationLevel.trim(),
         trainingArea: trainingArea.trim(),
         linkedin: linkedin.trim(),
@@ -282,7 +300,7 @@ export function EducatorProfileView({ navigation }: Props) {
       setBirthDate(response.educator.birthDate ?? '');
       setUf((response.educator.uf ?? '').trim().toUpperCase());
       setCity(response.educator.city ?? '');
-      setPhotoUri(response.educator.photoUri ?? null);
+      setPhotoUri(response.educator.photoUri ?? uploadedPhotoUri ?? null);
       setEducationLevel(response.educator.educationLevel ?? '');
       setTrainingArea(response.educator.trainingArea ?? '');
       setLinkedin(response.educator.linkedin ?? '');

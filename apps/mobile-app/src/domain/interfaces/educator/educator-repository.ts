@@ -6,6 +6,7 @@ import {
   ReferenceUf,
   RegisterEducatorRequest,
   Theme,
+  UploadedAssetResponse,
   UpdateEducatorProfileRequest,
 } from '@letras/shared-types';
 
@@ -19,6 +20,13 @@ export interface EducatorRepository {
   fetchThemes(): Promise<Theme[]>;
   fetchUfs(): Promise<ReferenceUf[]>;
   fetchCitiesByUf(uf: string): Promise<ReferenceCity[]>;
+  uploadImageAsset(params: {
+    uri: string;
+    fileName?: string;
+    mimeType?: string;
+    title: string;
+    createdByEducatorId?: string;
+  }): Promise<UploadedAssetResponse>;
   assignTheme(learnerProfileId: string, themeId: string): Promise<void>;
   setLockState(learnerProfileId: string, isLocked: boolean): Promise<void>;
 }

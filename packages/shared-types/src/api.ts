@@ -118,3 +118,24 @@ export interface ReferenceCity {
   uf: string;
   name: string;
 }
+
+export interface UploadedAssetResponse {
+  asset: {
+    id: string;
+    key: string | null;
+    kind: string;
+    title: string;
+    sourceUrl: string;
+    mimeType: string | null;
+    originalFileName: string | null;
+    bytes: number | null;
+    createdByEducatorId: string | null;
+    createdAt: string;
+  };
+  storage: {
+    bucket: string;
+    objectPath: string;
+    publicUrl: string;
+  };
+  vinculado: boolean;
+}

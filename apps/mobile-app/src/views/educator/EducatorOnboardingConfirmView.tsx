@@ -27,6 +27,12 @@ function formatPhoneFromDigits(digits: string) {
   return `(${onlyDigits.slice(0, 2)}) ${onlyDigits.slice(2, 7)}-${onlyDigits.slice(7)}`;
 }
 
+function isLocalFileUri(value?: string | null): value is string {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('file://') || normalized.startsWith('content://');
+}
+
 export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
   const repository = useMemo(() => new EducatorRepositoryImpl(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,6 +56,15 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
     try {
       setIsSubmitting(true);
 
+      let uploadedPhotoUri = data.photoUri ?? undefined;
+      if (isLocalFileUri(data.photoUri)) {
+        const uploaded = await repository.uploadImageAsset({
+          uri: data.photoUri,
+          title: `Foto ${data.fullName}`,
+        });
+        uploadedPhotoUri = uploaded.asset.sourceUrl;
+      }
+
       const auth = await repository.registerEducator({
         fullName: data.fullName,
         cpf: data.cpf,
@@ -59,7 +74,7 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
         birthDate: data.birthDate,
         uf: data.uf,
         city: data.city,
-        photoUri: data.photoUri ?? undefined,
+        photoUri: uploadedPhotoUri,
         educationLevel: data.educationLevel,
         trainingArea: data.trainingArea,
         linkedin: data.linkedin,
