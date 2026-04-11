@@ -47,6 +47,34 @@ class HttpClient {
     });
   }
 
+  private buildUrl(baseUrl: string, path: string): string {
+    const normalizedBase = baseUrl.replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${normalizedBase}${normalizedPath}`;
+  }
+
+  private getApiV1Base(baseUrl: string): string | null {
+    const normalizedBase = baseUrl.replace(/\/+$/, '');
+    if (normalizedBase.endsWith('/api/v1')) {
+      return null;
+    }
+    return `${normalizedBase}/api/v1`;
+  }
+
+  private shouldRetryWithApiV1(path: string, response: Response): boolean {
+    if (!path.startsWith('/')) {
+      return false;
+    }
+    if (response.status === 404) {
+      return true;
+    }
+    const contentType = response.headers.get('content-type') ?? '';
+    if (response.ok && contentType.includes('text/html')) {
+      return true;
+    }
+    return false;
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -59,20 +87,31 @@ class HttpClient {
     let response: Response;
 
     try {
-      response = await fetch(`${this.baseUrl}${path}`, {
+      response = await fetch(this.buildUrl(this.baseUrl, path), {
         ...init,
         headers,
         signal: controller.signal,
       });
+
+      if (this.shouldRetryWithApiV1(path, response)) {
+        const apiV1Base = this.getApiV1Base(this.baseUrl);
+        if (apiV1Base) {
+          response = await fetch(this.buildUrl(apiV1Base, path), {
+            ...init,
+            headers,
+            signal: controller.signal,
+          });
+        }
+      }
     } catch (error) {
       if ((error as { name?: string }).name === 'AbortError') {
         throw new Error(
-          `Timeout ao chamar ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API está acessível.`,
+          `Timeout ao chamar ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API esta acessivel.`,
         );
       }
 
       throw new Error(
-        `Falha de conexão com ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API está rodando.`,
+        `Falha de conexao com ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API esta rodando.`,
       );
     } finally {
       clearTimeout(timeout);
