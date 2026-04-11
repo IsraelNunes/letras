@@ -35,6 +35,29 @@ function isLoopbackHost(host: string | null): boolean {
 }
 
 export function resolveApiBaseUrl(): string {
+  if (Platform.OS === 'web') {
+    const webEnv = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
+      ?.EXPO_PUBLIC_API_URL;
+
+    if (webEnv && webEnv.trim().length > 0) {
+      return normalize(webEnv);
+    }
+
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const host = window.location.hostname.toLowerCase();
+
+      if (host === 'painel.letras.cloud') {
+        return `${window.location.origin.replace(/\/+$/, '')}/api/v1`;
+      }
+
+      if (host === 'mobile.letras.cloud' || host === 'app.letras.cloud') {
+        return 'https://painel.letras.cloud/api/v1';
+      }
+    }
+
+    return 'http://localhost:3000';
+  }
+
   const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
   const metroHost = hostFromScriptUrl(scriptUrl);
   const isNativeRuntime = Platform.OS === 'android' || Platform.OS === 'ios';
