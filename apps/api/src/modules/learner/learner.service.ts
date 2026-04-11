@@ -14,6 +14,12 @@ export class LearnerService {
         notes: dto.notes,
         educatorId: dto.educatorId,
       },
+      select: {
+        id: true,
+        displayName: true,
+        notes: true,
+        educatorId: true,
+      },
     });
   }
 

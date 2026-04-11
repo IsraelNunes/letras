@@ -57,9 +57,26 @@ export class SessionService {
       where: {
         learnerProfileId,
       },
-      include: {
-        learnerProfile: true,
-        sessionState: true,
+      select: {
+        id: true,
+        learnerProfileId: true,
+        deviceId: true,
+        role: true,
+        connectedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        sessionState: {
+          select: {
+            id: true,
+            sessionId: true,
+            currentView: true,
+            currentActivityId: true,
+            statePayload: true,
+            isLocked: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
   }
