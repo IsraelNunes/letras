@@ -42,7 +42,7 @@ export class SupabaseStorageService {
         'Content-Type': input.contentType,
         'x-upsert': input.upsert ? 'true' : 'false',
       },
-      body: input.file,
+      body: new Uint8Array(input.file),
     });
 
     if (!response.ok) {

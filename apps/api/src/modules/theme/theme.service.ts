@@ -17,12 +17,12 @@ export class ThemeService {
 
   getThemes() {
     return this.prisma.theme.findMany({
-      include: {
-        learningUnits: {
-          include: {
-            activities: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
       },
       orderBy: {
         createdAt: 'desc',
