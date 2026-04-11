@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -46,7 +48,8 @@ export function EducatorLoginView({ navigation }: Props) {
     [identifier],
   );
   const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
-  const canLogin = isIdentifierValid && isPasswordValid && !isSubmitting;
+  const isWeb = Platform.OS === 'web';
+  const canLogin = isIdentifierValid && isPasswordValid && !isSubmitting && !isWeb;
 
   const handleLogin = async () => {
     if (!canLogin) {
@@ -81,6 +84,33 @@ export function EducatorLoginView({ navigation }: Props) {
           <Text style={styles.title}>Entrar no Letras Educador</Text>
           <Text style={styles.subtitle}>Use seu CPF e senha para continuar.</Text>
 
+          {isWeb ? (
+            <View style={styles.webNoticeBox}>
+              <Text style={styles.webNoticeTitle}>Login Educador indisponivel nesta URL</Text>
+              <Text style={styles.webNoticeText}>
+                Este frontend web esta integrado ao conteudo do aprendiz. Para gestao de educadores, use o painel admin.
+              </Text>
+
+              <Pressable
+                style={styles.webActionButton}
+                onPress={() => {
+                  navigation.getParent()?.navigate('LearnerFlow');
+                }}
+              >
+                <Text style={styles.webActionButtonText}>Abrir fluxo do Aprendiz</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.webActionButtonSecondary}
+                onPress={() => {
+                  void Linking.openURL('https://painel.letras.cloud/admin/dashboard');
+                }}
+              >
+                <Text style={styles.webActionButtonSecondaryText}>Abrir painel admin</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <Text style={styles.label}>CPF ou Email *</Text>
           <TextInput
             value={identifier}
@@ -111,9 +141,11 @@ export function EducatorLoginView({ navigation }: Props) {
             {isSubmitting ? <ActivityIndicator size="small" color="#f5f5f5" /> : <Text style={styles.loginButtonText}>ENTRAR</Text>}
           </Pressable>
 
-          <Pressable style={styles.registerLink} onPress={() => navigation.navigate('EducatorSplash')}>
-            <Text style={styles.registerLinkText}>Primeiro acesso? Fazer cadastro</Text>
-          </Pressable>
+          {!isWeb ? (
+            <Pressable style={styles.registerLink} onPress={() => navigation.navigate('EducatorSplash')}>
+              <Text style={styles.registerLinkText}>Primeiro acesso? Fazer cadastro</Text>
+            </Pressable>
+          ) : null}
 
           {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
         </View>
@@ -212,5 +244,51 @@ const styles = StyleSheet.create({
     color: '#9e1b1b',
     fontSize: 13,
     textAlign: 'center',
+  },
+  webNoticeBox: {
+    marginTop: 16,
+    backgroundColor: '#f8fafc',
+    borderColor: '#cbd5e1',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 14,
+    gap: 8,
+  },
+  webNoticeTitle: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  webNoticeText: {
+    color: '#334155',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  webActionButton: {
+    marginTop: 6,
+    height: 40,
+    borderRadius: 6,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webActionButtonText: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  webActionButtonSecondary: {
+    height: 40,
+    borderRadius: 6,
+    borderColor: '#0f172a',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  webActionButtonSecondaryText: {
+    color: '#0f172a',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
