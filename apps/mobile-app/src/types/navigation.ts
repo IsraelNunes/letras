@@ -36,6 +36,24 @@ export type EducatorRootStackParamList = {
 
 export type LearnerRootStackParamList = {
   LearnerHome: undefined;
+  LearnerLessonIntro: {
+    moduleId: string;
+    lessonId: string;
+  };
+  LearnerLessonScreen: {
+    moduleId: string;
+    lessonId: string;
+    screenIndex: number;
+  };
+  LearnerLessonActivity: {
+    moduleId: string;
+    lessonId: string;
+    screenIndex: number;
+  };
+  LearnerLessonConclusion: {
+    moduleId: string;
+    lessonId: string;
+  };
 };
 
 export type RootStackParamList = {
