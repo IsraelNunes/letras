@@ -11,5 +11,10 @@
         "../../packages/shared-utils/src"
       ]
     }
-  }
+  },
+  "exclude": [
+    "dist-web-check",
+    "dist-web-release",
+    "dist-web-release-deploy"
+  ]
 }
