@@ -1,15 +1,34 @@
-﻿import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import { StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
 import { LearnerRootStackParamList } from '../../types';
+import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
+import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
+import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonConclusion'>;
 
 export function LearnerLessonConclusionView({ navigation, route }: Props) {
-  const { moduleId, lessonId } = route.params;
+  const { moduleId, lessonId, moduleLabel, moduleTitle } = route.params;
   const { getLesson } = useLearnerFlowData();
+  const learnerSession = useLearnerSession();
   const lesson = getLesson(moduleId, lessonId);
+
+  useFocusEffect(
+    useCallback(() => {
+      void learnerSession.syncCurrentState({
+        currentView: 'LearnerLessonConclusion',
+        currentActivityId: lessonId,
+        statePayload: {
+          moduleId,
+          lessonId,
+        },
+      });
+    }, [learnerSession, lessonId, moduleId]),
+  );
 
   if (!lesson) {
     return (
@@ -18,6 +37,33 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       </LearnerScreenLayout>
     );
   }
+
+  const onBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate('LearnerLessonScreen', {
+      moduleId,
+      lessonId,
+      screenIndex: Math.max(lesson.screens.length - 1, 0),
+      moduleLabel,
+      moduleTitle,
+    });
+  };
+
+  const onFinish = () => {
+    if (learnerSession.isLocked) {
+      return;
+    }
+
+    if (navigation.canGoBack()) {
+      navigation.popToTop();
+      return;
+    }
+    navigation.navigate('LearnerHome');
+  };
 
   return (
     <LearnerScreenLayout
@@ -28,6 +74,10 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerHome')}
       roleLabel="alfabetizador"
+      isSessionLocked={learnerSession.isLocked}
+      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para encerrar a aula.')}
+      helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>
         <View style={styles.iconWrap}>
@@ -42,7 +92,7 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
         </View>
 
         <View style={styles.progressCard}>
-          <Text style={styles.progressTitle}>{lesson.moduleTitle.toUpperCase()}</Text>
+          <Text style={styles.progressTitle}>{moduleTitle.toUpperCase()}</Text>
           <View style={styles.progressTrack}>
             <View style={styles.progressFill} />
           </View>
@@ -55,10 +105,11 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
 
         <Text style={styles.motivation}>Foco e dedicacao levam longe!</Text>
 
-        <Pressable style={styles.finishButton} onPress={() => navigation.navigate('LearnerHome')}>
-          <Text style={styles.finishArrow}>→</Text>
-          <Text style={styles.finishLabel}>VOLTAR AOS MODULOS</Text>
-        </Pressable>
+        <LearnerActionButtons
+          onBack={onBack}
+          onNext={onFinish}
+          nextLabel="VOLTAR AOS MODULOS"
+        />
       </View>
     </LearnerScreenLayout>
   );
@@ -70,7 +121,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   error: {
-    color: '#b91c1c',
+    color: learnerTheme.danger,
     fontSize: 14,
   },
   iconWrap: {
@@ -78,34 +129,34 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: '#d9ffe8',
+    backgroundColor: learnerTheme.successBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   icon: {
     fontSize: 40,
-    color: '#0f8b50',
+    color: learnerTheme.successText,
     fontWeight: '700',
   },
   title: {
     fontSize: 34 / 1.6,
-    color: '#111827',
+    color: learnerTheme.textStrong,
     fontWeight: '700',
   },
   subtitle: {
-    color: '#4b5563',
+    color: learnerTheme.text,
     fontSize: 18 / 1.2,
   },
   messageCard: {
     width: '100%',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d7dce4',
-    backgroundColor: '#ffffff',
+    borderColor: learnerTheme.border,
+    backgroundColor: learnerTheme.surface,
     padding: 14,
   },
   messageText: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 18 / 1.2,
     textAlign: 'center',
     lineHeight: 24,
@@ -114,14 +165,14 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d7dce4',
-    backgroundColor: '#ffffff',
+    borderColor: learnerTheme.border,
+    backgroundColor: learnerTheme.surface,
     padding: 14,
     alignItems: 'center',
     gap: 8,
   },
   progressTitle: {
-    color: '#5f6f8c',
+    color: learnerTheme.textMuted,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -129,52 +180,38 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 10,
     borderRadius: 8,
-    backgroundColor: '#d6dae1',
+    backgroundColor: learnerTheme.border,
     overflow: 'hidden',
   },
   progressFill: {
     width: '100%',
     height: 10,
-    backgroundColor: '#17335B',
+    backgroundColor: learnerTheme.primary,
   },
   progressText: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 14,
   },
   pointsCard: {
     width: '100%',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f5d77b',
-    backgroundColor: '#fff8db',
+    borderColor: learnerTheme.warningBorder,
+    backgroundColor: learnerTheme.warningBg,
     paddingVertical: 11,
     paddingHorizontal: 12,
   },
   pointsText: {
     textAlign: 'center',
-    color: '#b7791f',
+    color: learnerTheme.warningText,
     fontSize: 17 / 1.2,
     fontWeight: '700',
   },
   motivation: {
     marginTop: 4,
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontSize: 16,
   },
-  finishButton: {
-    marginTop: 10,
-    alignItems: 'center',
-    gap: 6,
-  },
-  finishArrow: {
-    color: '#17335B',
-    fontSize: 44,
-    lineHeight: 44,
-    fontWeight: '700',
-  },
-  finishLabel: {
-    color: '#17335B',
-    fontSize: 17,
-    fontWeight: '700',
-  },
 });
+
+

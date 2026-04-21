@@ -21,12 +21,8 @@ let cacheTimestamp = 0;
 const CACHE_TTL_MS = 60_000;
 
 async function fetchLearnerModules(): Promise<LearnerFlowModule[]> {
-  try {
-    const payload = await httpClient.get<PainelConteudoResponse>('/painel/conteudo');
-    return mapPainelToModules(payload);
-  } catch {
-    return mapPainelToModules({ themes: [] });
-  }
+  const payload = await httpClient.get<PainelConteudoResponse>('/painel/conteudo?scope=cms');
+  return mapPainelToModules(payload);
 }
 
 export function useLearnerFlowData() {
@@ -53,9 +49,8 @@ export function useLearnerFlowData() {
     } catch (fetchError) {
       const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
       setError(message);
-      const fallback = mapPainelToModules({ themes: [] });
-      setModules(fallback);
-      cachedModules = fallback;
+      setModules([]);
+      cachedModules = [];
       cacheTimestamp = now;
     } finally {
       setLoading(false);

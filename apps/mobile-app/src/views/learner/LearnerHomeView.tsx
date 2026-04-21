@@ -1,13 +1,29 @@
-﻿import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
+import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
+import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
 export function LearnerHomeView({ navigation }: Props) {
   const { modules, loading, error, refresh } = useLearnerFlowData();
+  const learnerSession = useLearnerSession();
+
+  useFocusEffect(
+    useCallback(() => {
+      void learnerSession.syncCurrentState({
+        currentView: 'LearnerHome',
+        statePayload: {
+          modulesCount: modules.length,
+        },
+      });
+    }, [learnerSession, modules.length]),
+  );
 
   return (
     <LearnerScreenLayout
@@ -18,16 +34,33 @@ export function LearnerHomeView({ navigation }: Props) {
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerHome')}
       roleLabel="alfabetizador"
+      isSessionLocked={learnerSession.isLocked}
+      onRequestHelp={() => learnerSession.requestHelp('Preciso de apoio para seguir na aula inicial.')}
+      helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>
         {loading ? <Text style={styles.helper}>Carregando aulas...</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {!loading && modules.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>Nenhum conteudo publicado</Text>
+            <Text style={styles.emptyStateText}>
+              Crie no painel um tema, depois um modulo e as telas da aula com os audios, imagens e interacoes.
+            </Text>
+            <Pressable style={styles.retryButton} onPress={() => void refresh()}>
+              <Text style={styles.retryText}>Recarregar conteudo</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {modules.map((moduleItem, moduleIndex) => {
           const firstLesson = moduleItem.lessons[0] ?? null;
+          const moduleLabel = firstLesson?.moduleLabel ?? `MODULO ${moduleIndex + 1}`;
           return (
             <View key={moduleItem.id} style={styles.moduleBlock}>
-              <Text style={styles.moduleLabel}>MODULO {moduleIndex + 1}</Text>
+              <Text style={styles.moduleLabel}>{moduleLabel}</Text>
               <Text style={styles.moduleTitle}>{moduleItem.title}</Text>
               <Text style={styles.moduleSubtitle}>{moduleItem.subtitle}</Text>
 
@@ -38,18 +71,20 @@ export function LearnerHomeView({ navigation }: Props) {
                     navigation.navigate('LearnerLessonIntro', {
                       moduleId: moduleItem.id,
                       lessonId: firstLesson.id,
+                      moduleLabel,
+                      moduleTitle: moduleItem.title,
                     })
                   }
                 >
                   <View style={styles.lessonIcon}>
-                    <Text style={styles.lessonIconText}>▶</Text>
+                    <Text style={styles.lessonIconText}>{'>'}</Text>
                   </View>
                   <View style={styles.lessonBody}>
                     <Text style={styles.lessonTitle}>Aula 1 - {firstLesson.title}</Text>
                     <Text style={styles.lessonSubtitle}>{firstLesson.objective}</Text>
                     <Text style={styles.lessonCount}>{firstLesson.screens.length} telas</Text>
                   </View>
-                  <Text style={styles.lessonArrow}>›</Text>
+                  <Text style={styles.lessonArrow}>{'>'}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -59,12 +94,6 @@ export function LearnerHomeView({ navigation }: Props) {
         <View style={styles.motivationBox}>
           <Text style={styles.motivationText}>Cada aula e um passo a mais na sua jornada.</Text>
         </View>
-
-        {!loading && modules.length === 0 ? (
-          <Pressable style={styles.retryButton} onPress={() => void refresh()}>
-            <Text style={styles.retryText}>Recarregar conteudo</Text>
-          </Pressable>
-        ) : null}
       </View>
     </LearnerScreenLayout>
   );
@@ -75,36 +104,55 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   helper: {
-    color: '#1f2937',
+    color: learnerTheme.textStrong,
     fontSize: 14,
   },
   error: {
-    color: '#b91c1c',
+    color: learnerTheme.danger,
     fontSize: 13,
+  },
+  emptyState: {
+    borderRadius: 14,
+    backgroundColor: learnerTheme.surface,
+    borderWidth: 1,
+    borderColor: learnerTheme.border,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    gap: 10,
+  },
+  emptyStateTitle: {
+    color: learnerTheme.textStrong,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  emptyStateText: {
+    color: learnerTheme.text,
+    fontSize: 14,
+    lineHeight: 20,
   },
   moduleBlock: {
     gap: 4,
   },
   moduleLabel: {
-    color: '#5f6f8c',
+    color: learnerTheme.textMuted,
     fontSize: 13,
     fontWeight: '700',
   },
   moduleTitle: {
-    color: '#111827',
+    color: learnerTheme.textStrong,
     fontSize: 36 / 1.6,
     fontWeight: '700',
   },
   moduleSubtitle: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 16,
   },
   lessonCard: {
     marginTop: 10,
     borderRadius: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: learnerTheme.surface,
     borderWidth: 1,
-    borderColor: '#d7dce4',
+    borderColor: learnerTheme.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
@@ -114,12 +162,12 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#d9e8ff',
+    backgroundColor: learnerTheme.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   lessonIconText: {
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontWeight: '700',
     marginLeft: 1,
   },
@@ -129,36 +177,36 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   lessonTitle: {
-    color: '#111827',
+    color: learnerTheme.textStrong,
     fontSize: 19 / 1.2,
     fontWeight: '700',
   },
   lessonSubtitle: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 13,
   },
   lessonCount: {
-    color: '#6b7280',
+    color: learnerTheme.textMuted,
     fontSize: 12,
     fontWeight: '600',
   },
   lessonArrow: {
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontSize: 26,
     fontWeight: '700',
     marginLeft: 8,
   },
   motivationBox: {
     borderRadius: 12,
-    backgroundColor: '#dfe4eb',
+    backgroundColor: learnerTheme.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: learnerTheme.border,
     paddingVertical: 14,
     paddingHorizontal: 12,
   },
   motivationText: {
     textAlign: 'center',
-    color: '#5a6478',
+    color: learnerTheme.textMuted,
     fontSize: 15,
   },
   retryButton: {
@@ -167,10 +215,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#17335B',
+    borderColor: learnerTheme.primary,
   },
   retryText: {
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontWeight: '700',
   },
 });

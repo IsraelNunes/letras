@@ -3,6 +3,12 @@ import { useCallback, useMemo, useState } from 'react';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 
+interface SyncCurrentStateInput {
+  currentView?: string;
+  currentActivityId?: string;
+  statePayload?: Record<string, unknown>;
+}
+
 export function useLearnerHomeViewModel() {
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
@@ -29,49 +35,62 @@ export function useLearnerHomeViewModel() {
         role: 'learner',
       };
 
-      realtime.connect(identity);
+      connect(identity);
 
       const themes = await repository.getAssignedThemes(session.learnerProfileId);
       setThemeNames(themes.map((item) => item.theme.name));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar sessão';
+      const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar sessao';
       setErrorMessage(message);
     } finally {
       setLoading(false);
     }
   }, [connect, repository]);
 
-  const syncCurrentState = useCallback(async () => {
-    if (!learnerProfileId) {
-      return;
-    }
+  const syncCurrentState = useCallback(
+    async ({
+      currentView = 'LearnerHome',
+      currentActivityId,
+      statePayload,
+    }: SyncCurrentStateInput = {}) => {
+      if (!learnerProfileId) {
+        return;
+      }
 
-    const payload = {
-      learnerProfileId,
-      currentView: 'LearnerHome',
-      state: {
-        timestamp: new Date().toISOString(),
-      },
-    };
+      const payload = {
+        learnerProfileId,
+        currentView,
+        currentActivityId,
+        state: {
+          timestamp: new Date().toISOString(),
+          ...(statePayload ?? {}),
+        },
+      };
 
-    sendStateUpdate(payload);
+      sendStateUpdate(payload);
 
-    await repository.pushState(learnerProfileId, {
-      currentView: payload.currentView,
-      statePayload: payload.state,
-    });
-  }, [learnerProfileId, repository, sendStateUpdate]);
+      await repository.pushState(learnerProfileId, {
+        currentView: payload.currentView,
+        currentActivityId: payload.currentActivityId,
+        statePayload: payload.state,
+      });
+    },
+    [learnerProfileId, repository, sendStateUpdate],
+  );
 
-  const requestHelp = useCallback(() => {
-    if (!learnerProfileId) {
-      return;
-    }
+  const requestHelp = useCallback(
+    (message = 'Preciso de apoio na atividade atual.') => {
+      if (!learnerProfileId) {
+        return;
+      }
 
-    emitHelp({
-      learnerProfileId,
-      message: 'Preciso de apoio na atividade atual.',
-    });
-  }, [emitHelp, learnerProfileId]);
+      emitHelp({
+        learnerProfileId,
+        message,
+      });
+    },
+    [emitHelp, learnerProfileId],
+  );
 
   const cleanup = useCallback(() => {
     disconnect();

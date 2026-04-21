@@ -1,15 +1,56 @@
-﻿import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { StyleSheet, Text, View } from 'react-native';
 import { LearnerRootStackParamList } from '../../types';
+import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
+import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
+import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonIntro'>;
 
 export function LearnerLessonIntroView({ navigation, route }: Props) {
-  const { moduleId, lessonId } = route.params;
+  const { moduleId, lessonId, moduleLabel, moduleTitle } = route.params;
   const { getLesson } = useLearnerFlowData();
+  const learnerSession = useLearnerSession();
   const lesson = getLesson(moduleId, lessonId);
+
+  useFocusEffect(
+    useCallback(() => {
+      void learnerSession.syncCurrentState({
+        currentView: 'LearnerLessonIntro',
+        currentActivityId: lessonId,
+        statePayload: {
+          moduleId,
+          lessonId,
+        },
+      });
+    }, [learnerSession, lessonId, moduleId]),
+  );
+
+  const startLesson = () => {
+    if (learnerSession.isLocked) {
+      return;
+    }
+
+    navigation.push('LearnerLessonScreen', {
+      moduleId,
+      lessonId,
+      screenIndex: 0,
+      moduleLabel,
+      moduleTitle,
+    });
+  };
+
+  const goBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate('LearnerHome');
+  };
 
   if (!lesson) {
     return (
@@ -28,9 +69,13 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerHome')}
       roleLabel="alfabetizador"
+      isSessionLocked={learnerSession.isLocked}
+      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda antes de iniciar esta aula.')}
+      helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>
-        <Text style={styles.path}>{lesson.moduleLabel} · AULA 1</Text>
+        <Text style={styles.path}>{moduleLabel} - AULA 1</Text>
         <Text style={styles.title}>{lesson.title}</Text>
 
         <View style={styles.objectiveCard}>
@@ -44,22 +89,10 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>{lesson.screens.length} telas nesta aula</Text>
-          <Text style={styles.infoSub}>Avance no seu ritmo — sem pressa!</Text>
+          <Text style={styles.infoSub}>Avance no seu ritmo - sem pressa!</Text>
         </View>
 
-        <Pressable
-          style={styles.startButton}
-          onPress={() =>
-            navigation.navigate('LearnerLessonScreen', {
-              moduleId,
-              lessonId,
-              screenIndex: 0,
-            })
-          }
-        >
-          <Text style={styles.startArrow}>→</Text>
-          <Text style={styles.startLabel}>INICIAR AULA</Text>
-        </Pressable>
+        <LearnerActionButtons onBack={goBack} onNext={startLesson} nextLabel="INICIAR AULA" />
       </View>
     </LearnerScreenLayout>
   );
@@ -70,82 +103,64 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   error: {
-    color: '#b91c1c',
+    color: learnerTheme.danger,
     fontSize: 14,
   },
   path: {
-    color: '#5f6f8c',
+    color: learnerTheme.textMuted,
     fontSize: 12,
     fontWeight: '700',
   },
   title: {
     fontSize: 36 / 1.6,
     fontWeight: '700',
-    color: '#111827',
+    color: learnerTheme.textStrong,
   },
   objectiveCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#d7dce4',
-    backgroundColor: '#ffffff',
+    borderColor: learnerTheme.border,
+    backgroundColor: learnerTheme.surface,
     padding: 14,
     gap: 4,
   },
   objectiveLabel: {
-    color: '#5f6f8c',
+    color: learnerTheme.textMuted,
     fontSize: 11,
     fontWeight: '700',
   },
   objectiveText: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 16,
     lineHeight: 22,
   },
   messageCard: {
     borderRadius: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: learnerTheme.surface,
     borderWidth: 1,
-    borderColor: '#d7dce4',
+    borderColor: learnerTheme.border,
     padding: 14,
   },
   messageText: {
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 16,
     lineHeight: 24,
   },
   infoCard: {
     borderRadius: 14,
-    backgroundColor: '#ffffff',
+    backgroundColor: learnerTheme.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#d7dce4',
+    borderColor: learnerTheme.border,
     padding: 14,
   },
   infoTitle: {
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontSize: 16,
     fontWeight: '700',
   },
   infoSub: {
     marginTop: 2,
-    color: '#374151',
+    color: learnerTheme.text,
     fontSize: 13,
-  },
-  startButton: {
-    marginTop: 6,
-    alignSelf: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  startArrow: {
-    color: '#17335B',
-    fontSize: 44,
-    lineHeight: 44,
-    fontWeight: '700',
-  },
-  startLabel: {
-    color: '#17335B',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.3,
   },
 });

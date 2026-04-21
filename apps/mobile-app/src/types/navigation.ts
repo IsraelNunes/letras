@@ -39,20 +39,28 @@ export type LearnerRootStackParamList = {
   LearnerLessonIntro: {
     moduleId: string;
     lessonId: string;
+    moduleLabel: string;
+    moduleTitle: string;
   };
   LearnerLessonScreen: {
     moduleId: string;
     lessonId: string;
     screenIndex: number;
+    moduleLabel: string;
+    moduleTitle: string;
   };
   LearnerLessonActivity: {
     moduleId: string;
     lessonId: string;
     screenIndex: number;
+    moduleLabel: string;
+    moduleTitle: string;
   };
   LearnerLessonConclusion: {
     moduleId: string;
     lessonId: string;
+    moduleLabel: string;
+    moduleTitle: string;
   };
 };
 
