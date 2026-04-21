@@ -1,6 +1,7 @@
-﻿import { useAssets } from 'expo-asset';
+import { useAssets } from 'expo-asset';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
+import { learnerTheme } from '../learnerTheme';
 
 interface LearnerHeaderBarProps {
   roleLabel?: string;
@@ -13,7 +14,7 @@ export function LearnerHeaderBar({ roleLabel = 'alfabetizador' }: LearnerHeaderB
   return (
     <View style={styles.wrapper}>
       <View style={styles.logoWrap}>
-        {logoUri ? <SvgUri uri={logoUri} width={84} height={50} /> : <ActivityIndicator size="small" color="#111827" />}
+        {logoUri ? <SvgUri uri={logoUri} width={84} height={50} /> : <ActivityIndicator size="small" color={learnerTheme.textStrong} />}
       </View>
       <View style={styles.rightCol}>
         <View style={styles.notificationWrap}>
@@ -60,18 +61,18 @@ const styles = StyleSheet.create({
     minWidth: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#17335B',
+    backgroundColor: learnerTheme.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
   badgeText: {
-    color: '#ffffff',
+    color: learnerTheme.surface,
     fontSize: 9,
     fontWeight: '700',
   },
   roleLabel: {
-    color: '#17335B',
+    color: learnerTheme.primary,
     fontSize: 11,
     fontWeight: '600',
     textTransform: 'lowercase',
