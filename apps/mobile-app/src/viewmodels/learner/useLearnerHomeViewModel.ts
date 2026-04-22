@@ -41,7 +41,11 @@ export function useLearnerHomeViewModel() {
       setThemeNames(themes.map((item) => item.theme.name));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar sessao';
-      setErrorMessage(message);
+      const normalized = message.toLowerCase();
+      const isProvisioningWarning =
+        normalized.includes('learner profile is not provisioned') ||
+        normalized.includes('profile is not provisioned');
+      setErrorMessage(isProvisioningWarning ? null : message);
     } finally {
       setLoading(false);
     }

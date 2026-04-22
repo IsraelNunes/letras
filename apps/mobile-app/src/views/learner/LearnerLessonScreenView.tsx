@@ -37,7 +37,7 @@ function resolveLockMessage(reason: string | null, lockMessage?: string | null) 
 }
 
 function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null) {
-  return Boolean(exercise?.instructionAudioUrl);
+  return Boolean(exercise);
 }
 
 function clampAspectRatio(width: number, height: number) {
@@ -47,6 +47,57 @@ function clampAspectRatio(width: number, height: number) {
 
   const ratio = width / height;
   return Math.max(1.2, Math.min(2, ratio));
+}
+
+function buildSpellingNarration(label: string): string {
+  const normalized = String(label || '').trim();
+  if (!normalized) return '';
+  return normalized
+    .split(/\s+/g)
+    .map((chunk) => chunk.split('').join(' '))
+    .join(', ');
+}
+
+function speakWithBrowserVoice(text: string): boolean {
+  const normalized = String(text || '').trim();
+  if (!normalized || Platform.OS !== 'web') {
+    return false;
+  }
+
+  const runtime = globalThis as {
+    speechSynthesis?: {
+      cancel: () => void;
+      speak: (utterance: unknown) => void;
+      getVoices: () => Array<{ lang?: string }>;
+    };
+    SpeechSynthesisUtterance?: new (value: string) => {
+      lang?: string;
+      rate?: number;
+      pitch?: number;
+      voice?: unknown;
+    };
+  };
+
+  if (!runtime.speechSynthesis || typeof runtime.SpeechSynthesisUtterance !== 'function') {
+    return false;
+  }
+
+  const utterance = new runtime.SpeechSynthesisUtterance(normalized);
+  const voices = runtime.speechSynthesis.getVoices?.() ?? [];
+  const preferredVoice =
+    voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('pt-br')) ??
+    voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('pt'));
+
+  utterance.lang = 'pt-BR';
+  utterance.rate = 0.92;
+  utterance.pitch = 1;
+  if (preferredVoice) {
+    utterance.voice = preferredVoice;
+  }
+
+  runtime.speechSynthesis.cancel();
+  runtime.speechSynthesis.speak(utterance);
+  return true;
 }
 
 export function LearnerLessonScreenView({ navigation, route }: Props) {
@@ -364,10 +415,15 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const handleInstructionAudioPress = () => {
-    if (!screen.exercise?.instructionAudioUrl) {
+    const instructionUrl = screen.exercise?.instructionAudioUrl;
+    if (instructionUrl) {
+      void Linking.openURL(instructionUrl);
       return;
     }
-    void Linking.openURL(screen.exercise.instructionAudioUrl);
+
+    const fallbackInstruction =
+      screen.exercise?.instructionText || 'Escute o audio e marque a letra correta.';
+    speakWithBrowserVoice(fallbackInstruction);
   };
 
   const onNext = () => {
@@ -519,19 +575,30 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                 </View>
 
                 <View style={styles.matchStatusColumn}>
-                  {wordAudioUrl ? (
-                    <Pressable onPress={() => void Linking.openURL(wordAudioUrl)} style={styles.smallAudioButton}>
-                      <Text style={styles.smallAudioButtonText}>PAL</Text>
-                    </Pressable>
-                  ) : null}
-                  {spellingAudioUrl ? (
-                    <Pressable
-                      onPress={() => void Linking.openURL(spellingAudioUrl)}
-                      style={[styles.smallAudioButton, styles.smallAudioButtonSecondary]}
-                    >
-                      <Text style={[styles.smallAudioButtonText, styles.smallAudioButtonTextSecondary]}>LET</Text>
-                    </Pressable>
-                  ) : null}
+                  <Pressable
+                    onPress={() => {
+                      if (wordAudioUrl) {
+                        void Linking.openURL(wordAudioUrl);
+                        return;
+                      }
+                      speakWithBrowserVoice(item.label);
+                    }}
+                    style={styles.smallAudioButton}
+                  >
+                    <Text style={styles.smallAudioButtonText}>PAL</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => {
+                      if (spellingAudioUrl) {
+                        void Linking.openURL(spellingAudioUrl);
+                        return;
+                      }
+                      speakWithBrowserVoice(buildSpellingNarration(item.label));
+                    }}
+                    style={[styles.smallAudioButton, styles.smallAudioButtonSecondary]}
+                  >
+                    <Text style={[styles.smallAudioButtonText, styles.smallAudioButtonTextSecondary]}>LET</Text>
+                  </Pressable>
                   {isCompleted ? (
                     <View style={styles.doneBadge}>
                       <Text style={styles.doneBadgeText}>OK</Text>

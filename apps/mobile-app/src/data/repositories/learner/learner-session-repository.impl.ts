@@ -1,4 +1,4 @@
-import { CreateLearnerSessionRequest, LearnerSession } from '@letras/shared-types';
+import { CreateLearnerProfileRequest, CreateLearnerSessionRequest, LearnerProfile, LearnerSession } from '@letras/shared-types';
 import {
   AssignedLearnerTheme,
   BootstrappedLearnerSession,
@@ -11,10 +11,9 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
   async bootstrapPersistentSession(): Promise<BootstrappedLearnerSession> {
     const deviceId = await SessionStorage.getOrCreateLearnerDeviceId();
 
-    const learnerProfileId = await SessionStorage.getLearnerProfileId();
-
+    let learnerProfileId = await SessionStorage.getLearnerProfileId();
     if (!learnerProfileId) {
-      throw new Error('Learner profile is not provisioned on this device. Ask an educator to provision it first.');
+      learnerProfileId = await this.createAndPersistLearnerProfile(deviceId);
     }
 
     const session = await this.createOrRefreshSession({
@@ -43,5 +42,17 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
 
   private createOrRefreshSession(body: CreateLearnerSessionRequest) {
     return httpClient.post<LearnerSession>('/sessions', body);
+  }
+
+  private async createAndPersistLearnerProfile(deviceId: string): Promise<string> {
+    const friendlySuffix = deviceId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || 'WEB';
+    const body: CreateLearnerProfileRequest = {
+      displayName: `Alfabetizando ${friendlySuffix}`,
+      notes: 'Provisionado automaticamente no primeiro acesso ao fluxo mobile.',
+    };
+
+    const profile = await httpClient.post<LearnerProfile>('/learners', body);
+    await SessionStorage.setLearnerProfileId(profile.id);
+    return profile.id;
   }
 }
