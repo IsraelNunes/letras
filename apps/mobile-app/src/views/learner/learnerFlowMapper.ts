@@ -273,6 +273,48 @@ function normalizeScreenTemplate(value: unknown): LearnerScreenTemplate {
   return 'default';
 }
 
+function looksLikeStructuredJson(text: string): boolean {
+  const normalized = String(text || '').trim();
+  if (!normalized.startsWith('{') || !normalized.endsWith('}')) {
+    return false;
+  }
+  return normalized.includes(':') && normalized.includes('"');
+}
+
+function tryParseInstructionJsonObject(rawValue: string): Record<string, unknown> | null {
+  const normalized = String(rawValue || '').trim();
+  if (!looksLikeStructuredJson(normalized)) {
+    return null;
+  }
+
+  const parseCandidate = (candidate: string) => {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = parseCandidate(normalized);
+  if (direct) {
+    return direct;
+  }
+
+  const withoutFence = normalized
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  const normalizedQuotes = withoutFence
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+  const withoutTrailingCommas = normalizedQuotes.replace(/,\s*([}\]])/g, '$1');
+  return parseCandidate(withoutTrailingCommas);
+}
+
 function buildLegacyGuidance(instructions: string): Pick<ParsedInstructionBundle, 'educatorGuidance' | 'learnerSpeech'> {
   const normalized = String(instructions || '').trim();
   if (!normalized) {
@@ -510,48 +552,55 @@ function parseGuidance(
     };
   }
 
-  const canBeJson = normalized.startsWith('{') && normalized.endsWith('}');
-  if (canBeJson) {
-    try {
-      const parsed = JSON.parse(normalized) as Record<string, unknown>;
-      const screenTemplate = normalizeScreenTemplate(parsed.screenTemplate ?? parsed.template);
-      const legacyGuidance = buildLegacyGuidance(
-        [
-          toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador) || '',
-          toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando) || '',
-        ]
-          .filter(Boolean)
-          .join('\n\n'),
-      );
-      const explicitEducator =
-        toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador);
-      const explicitLearner =
-        toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando);
-      const lockReason =
-        toOptionalText(parsed.lockReason) || toOptionalText(parsed.blockReason) || null;
-      const lockMessage =
-        toOptionalText(parsed.lockMessage) || toOptionalText(parsed.blockMessage) || null;
-      const lockAudioUrl =
-        toOptionalText(parsed.lockAudioUrl) || toOptionalText(parsed.blockAudioUrl) || null;
-      const parsedExercise = normalizeExerciseConfig(parsed.exercise ?? parsed.interaction);
+  const parsed = tryParseInstructionJsonObject(normalized);
+  if (parsed) {
+    const screenTemplate = normalizeScreenTemplate(parsed.screenTemplate ?? parsed.template);
+    const legacyGuidance = buildLegacyGuidance(
+      [
+        toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador) || '',
+        toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando) || '',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    );
+    const explicitEducator =
+      toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador);
+    const explicitLearner =
+      toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando);
+    const lockReason =
+      toOptionalText(parsed.lockReason) || toOptionalText(parsed.blockReason) || null;
+    const lockMessage =
+      toOptionalText(parsed.lockMessage) || toOptionalText(parsed.blockMessage) || null;
+    const lockAudioUrl =
+      toOptionalText(parsed.lockAudioUrl) || toOptionalText(parsed.blockAudioUrl) || null;
+    const parsedExercise = normalizeExerciseConfig(parsed.exercise ?? parsed.interaction);
 
-      return {
-        educatorGuidance: explicitEducator ?? legacyGuidance.educatorGuidance,
-        learnerSpeech: explicitLearner ?? legacyGuidance.learnerSpeech,
-        screenTemplate:
-          parsedExercise?.template === 'exercise-match-letter'
-            ? 'exercise-match-letter'
-            : parsedExercise?.template === 'exercise-mark-images'
-              ? 'exercise-mark-images'
-              : screenTemplate,
-        lockReason,
-        lockMessage,
-        lockAudioUrl,
-        exercise: hydrateExerciseWithAssets(parsedExercise, assetReferences),
-      };
-    } catch {
-      // Se nao for um JSON valido, segue o parser legado de texto.
-    }
+    return {
+      educatorGuidance: explicitEducator ?? legacyGuidance.educatorGuidance,
+      learnerSpeech: explicitLearner ?? legacyGuidance.learnerSpeech,
+      screenTemplate:
+        parsedExercise?.template === 'exercise-match-letter'
+          ? 'exercise-match-letter'
+          : parsedExercise?.template === 'exercise-mark-images'
+            ? 'exercise-mark-images'
+            : screenTemplate,
+      lockReason,
+      lockMessage,
+      lockAudioUrl,
+      exercise: hydrateExerciseWithAssets(parsedExercise, assetReferences),
+    };
+  }
+
+  if (looksLikeStructuredJson(normalized)) {
+    return {
+      educatorGuidance: null,
+      learnerSpeech: null,
+      screenTemplate: 'default',
+      lockReason: null,
+      lockMessage: null,
+      lockAudioUrl: null,
+      exercise: null,
+    };
   }
 
   const legacy = buildLegacyGuidance(normalized);
@@ -569,6 +618,26 @@ function parseGuidance(
 function normalizeText(value: string | null | undefined, fallback: string): string {
   const text = String(value || '').trim();
   return text.length > 0 ? text : fallback;
+}
+
+function buildLessonObjective(
+  description: string | null | undefined,
+  firstScreen: LearnerFlowScreen | null | undefined,
+): string {
+  const candidates = [
+    toOptionalText(description),
+    toOptionalText(firstScreen?.exercise?.instructionText),
+    toOptionalText(firstScreen?.educatorGuidance),
+    toOptionalText(firstScreen?.learnerSpeech),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (looksLikeStructuredJson(candidate)) continue;
+    return candidate;
+  }
+
+  return 'Objetivo da aula em configuracao.';
 }
 
 function withSequentialModuleLabels(modules: LearnerFlowModule[]): LearnerFlowModule[] {
@@ -697,7 +766,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
         return {
           id: unit.id,
           title: normalizeText(unit.title, 'Aula'),
-          objective: normalizeText(unit.description, 'Objetivo da aula em configuracao.'),
+          objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MODULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.name || theme.title, 'Modulo'),
           screens: safeScreens,
@@ -871,10 +940,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
         return {
           id: unit.id,
           title: normalizeText(primaryActivityTitle, normalizeText(unit.title, 'Aula')),
-          objective: normalizeText(
-            unit.description,
-            unitActivities[0]?.instructions || 'Objetivo da aula em configuracao.',
-          ),
+          objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MODULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.title || theme.name, 'Modulo'),
           screens: safeScreens,
