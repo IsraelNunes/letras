@@ -1,5 +1,6 @@
 import { SocketIdentity } from '@letras/shared-types';
 import { useCallback, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 
@@ -35,7 +36,11 @@ export function useLearnerHomeViewModel() {
         role: 'learner',
       };
 
-      connect(identity);
+      const isLocalFallbackProfile = session.learnerProfileId.startsWith('learner-local-profile-');
+      const shouldConnectRealtime = Platform.OS !== 'web' && !isLocalFallbackProfile;
+      if (shouldConnectRealtime) {
+        connect(identity);
+      }
 
       const themes = await repository.getAssignedThemes(session.learnerProfileId);
       setThemeNames(themes.map((item) => item.theme.name));
