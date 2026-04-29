@@ -523,7 +523,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
               {screen.exercise.instructionText || 'Escute o audio e marque a letra correta.'}
             </Text>
             {isInstructionAudioButtonVisible(screen.exercise) ? (
-              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton}>
+              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton} hitSlop={8}>
                 <Text style={styles.audioButtonText}>AUDIO</Text>
               </Pressable>
             ) : null}
@@ -562,6 +562,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                         key={`${item.id}-${normalizedOption}`}
                         onPress={() => handleMatchOptionPress(itemIndex, item.id, normalizedOption)}
                         disabled={!isEnabled}
+                        hitSlop={8}
                         style={[
                           styles.optionButton,
                           isOptionSelected ? styles.optionButtonSelected : null,
@@ -584,6 +585,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       speakWithBrowserVoice(item.label);
                     }}
                     style={styles.smallAudioButton}
+                    hitSlop={8}
                   >
                     <Text style={styles.smallAudioButtonText}>PAL</Text>
                   </Pressable>
@@ -596,6 +598,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       speakWithBrowserVoice(buildSpellingNarration(item.label));
                     }}
                     style={[styles.smallAudioButton, styles.smallAudioButtonSecondary]}
+                    hitSlop={8}
                   >
                     <Text style={[styles.smallAudioButtonText, styles.smallAudioButtonTextSecondary]}>LET</Text>
                   </Pressable>
@@ -620,7 +623,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
               {screen.exercise.instructionText || 'Marque as imagens corretas para continuar.'}
             </Text>
             {isInstructionAudioButtonVisible(screen.exercise) ? (
-              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton}>
+              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton} hitSlop={8}>
                 <Text style={styles.audioButtonText}>AUDIO</Text>
               </Pressable>
             ) : null}
@@ -638,6 +641,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                   key={item.id}
                   onPress={() => handleToggleMarkImageItem(item.id)}
                   disabled={isInteractionLocked}
+                  hitSlop={8}
                   style={[styles.markItem, isSelected ? styles.markItemSelected : null]}
                 >
                   {item.imageUrl ? (
@@ -676,7 +680,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     >
       <View style={styles.wrapper}>
         <View style={styles.progressHeader}>
-          <Text style={styles.path}>{moduleLabel} - Aula 1</Text>
+          <Text style={styles.path}>{moduleLabel} - {lesson.title}</Text>
           <Text style={styles.count}>
             {safeIndex + 1} de {totalScreens}
           </Text>
@@ -871,7 +875,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mediaErrorText: {
-    color: learnerTheme.warningText,
+    color: learnerTheme.textMuted,
     fontSize: 12,
   },
   tutorCard: {
@@ -913,14 +917,14 @@ const styles = StyleSheet.create({
   highlightCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: learnerTheme.warningBorder,
-    backgroundColor: learnerTheme.warningBg,
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
   highlightText: {
     textAlign: 'center',
-    color: learnerTheme.warningText,
+    color: learnerTheme.selectedText,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -1007,9 +1011,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   optionButton: {
-    minWidth: 32,
-    height: 32,
-    borderRadius: 8,
+    minWidth: 40,
+    height: 40,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: learnerTheme.border,
     backgroundColor: learnerTheme.surface,
@@ -1017,8 +1021,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   optionButtonSelected: {
-    borderColor: learnerTheme.warningBorder,
-    backgroundColor: learnerTheme.warningBg,
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
   },
   optionButtonCorrect: {
     borderColor: learnerTheme.successBorder,
@@ -1035,8 +1039,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   smallAudioButton: {
-    minWidth: 34,
-    height: 24,
+    minWidth: 40,
+    height: 30,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: learnerTheme.primary,
@@ -1051,11 +1055,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   smallAudioButtonSecondary: {
-    borderColor: learnerTheme.warningBorder,
-    backgroundColor: learnerTheme.warningBg,
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
   },
   smallAudioButtonTextSecondary: {
-    color: learnerTheme.warningText,
+    color: learnerTheme.selectedText,
   },
   doneBadge: {
     borderRadius: 10,
@@ -1091,8 +1095,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   markItemSelected: {
-    borderColor: learnerTheme.warningBorder,
-    backgroundColor: learnerTheme.warningBg,
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
   },
   markItemImage: {
     width: 78,
@@ -1166,33 +1170,33 @@ const styles = StyleSheet.create({
   reinforcementCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f5d38b',
-    backgroundColor: '#fff8df',
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
     paddingVertical: 10,
     paddingHorizontal: 12,
     gap: 6,
   },
   reinforcementTitle: {
-    color: '#7a4b00',
+    color: learnerTheme.selectedText,
     fontSize: 13,
     fontWeight: '700',
   },
   reinforcementText: {
-    color: '#5c3a00',
+    color: learnerTheme.text,
     fontSize: 12,
     lineHeight: 18,
   },
   reinforcementAudioButton: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#f1c15e',
+    borderColor: learnerTheme.selectedBorder,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#fff2cc',
+    backgroundColor: learnerTheme.surface,
   },
   reinforcementAudioButtonText: {
-    color: '#6b4700',
+    color: learnerTheme.selectedText,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1207,8 +1211,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f9df',
   },
   feedbackCardError: {
-    borderColor: '#f2b58d',
-    backgroundColor: '#fff2e8',
+    borderColor: '#f5b0b0',
+    backgroundColor: '#fff2f2',
   },
   feedbackText: {
     color: '#1f2937',

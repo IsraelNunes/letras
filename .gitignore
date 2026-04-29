@@ -16,6 +16,9 @@ dist
 build
 coverage
 *.tsbuildinfo
+artifacts
+.playwright-cli
+apps/mobile-app/dist-web-*
 
 # Prisma
 apps/api/prisma/dev.db

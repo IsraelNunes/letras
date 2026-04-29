@@ -67,6 +67,7 @@ export function LearnerHomeView({ navigation }: Props) {
               {firstLesson ? (
                 <Pressable
                   style={styles.lessonCard}
+                  hitSlop={8}
                   onPress={() =>
                     navigation.navigate('LearnerLessonIntro', {
                       moduleId: moduleItem.id,
@@ -76,15 +77,14 @@ export function LearnerHomeView({ navigation }: Props) {
                     })
                   }
                 >
-                  <View style={styles.lessonIcon}>
-                    <Text style={styles.lessonIconText}>{'>'}</Text>
-                  </View>
                   <View style={styles.lessonBody}>
-                    <Text style={styles.lessonTitle}>Aula 1 - {firstLesson.title}</Text>
+                    <Text style={styles.lessonTitle}>{firstLesson.title}</Text>
                     <Text style={styles.lessonSubtitle}>{firstLesson.objective}</Text>
                     <Text style={styles.lessonCount}>{firstLesson.screens.length} telas</Text>
                   </View>
-                  <Text style={styles.lessonArrow}>{'>'}</Text>
+                  <View style={styles.lessonAction}>
+                    <Text style={styles.lessonActionText}>Abrir</Text>
+                  </View>
                 </Pressable>
               ) : null}
             </View>
@@ -158,22 +158,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  lessonIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: learnerTheme.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lessonIconText: {
-    color: learnerTheme.primary,
-    fontWeight: '700',
-    marginLeft: 1,
-  },
   lessonBody: {
     flex: 1,
-    marginLeft: 10,
     gap: 2,
   },
   lessonTitle: {
@@ -190,11 +176,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  lessonArrow: {
-    color: learnerTheme.primary,
-    fontSize: 26,
+  lessonAction: {
+    marginLeft: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: learnerTheme.selectedBorder,
+    backgroundColor: learnerTheme.selectedBg,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  lessonActionText: {
+    color: learnerTheme.selectedText,
+    fontSize: 12,
     fontWeight: '700',
-    marginLeft: 8,
   },
   motivationBox: {
     borderRadius: 12,
