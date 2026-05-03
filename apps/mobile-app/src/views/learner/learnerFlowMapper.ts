@@ -110,6 +110,7 @@ interface PainelActivity {
   title: string | null;
   prompt?: string;
   instructions?: string | null;
+  content?: Record<string, unknown> | null;
   instructorGuidance?: string | null;
   learnerGuidance?: string | null;
   assets: PainelActivityAsset[];
@@ -455,9 +456,7 @@ function normalizeExerciseConfig(rawExercise: unknown): LearnerExerciseConfig | 
   const attemptsRaw = Number(exercise.maxAttemptsBeforeLock ?? exercise.maxAttempts ?? 3);
   const maxAttemptsBeforeLock = Number.isFinite(attemptsRaw) && attemptsRaw > 0 ? Math.floor(attemptsRaw) : 3;
   const progressiveUnlock =
-    typeof exercise.progressiveUnlock === 'boolean'
-      ? exercise.progressiveUnlock
-      : template === 'exercise-match-letter';
+    typeof exercise.progressiveUnlock === 'boolean' ? exercise.progressiveUnlock : false;
 
   const rawItems = Array.isArray(exercise.items) ? exercise.items : [];
   const items = rawItems
@@ -615,6 +614,114 @@ function parseGuidance(
   };
 }
 
+function getActivityInstructions(activity: PainelActivity): string | null {
+  const directInstructions = toOptionalText(activity.instructions);
+  if (directInstructions) return directInstructions;
+
+  const content = activity.content;
+  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+    return null;
+  }
+
+  return toOptionalText(content.instructions);
+}
+
+function getCompositeBlocks(instructions: string | null | undefined): Record<string, unknown>[] | null {
+  const parsed = tryParseInstructionJsonObject(String(instructions || '').trim());
+  if (!parsed) return null;
+
+  const template = String(parsed.screenTemplate ?? parsed.template ?? '').trim().toLowerCase();
+  const blocks = Array.isArray(parsed.blocks) ? parsed.blocks : [];
+  if (template !== 'composite' || blocks.length === 0) {
+    return null;
+  }
+
+  return blocks.filter(
+    (block): block is Record<string, unknown> =>
+      Boolean(block && typeof block === 'object' && !Array.isArray(block)),
+  );
+}
+
+function buildBlockExercisePayload(block: Record<string, unknown>): Record<string, unknown> | null {
+  const blockType = toOptionalText(block.type);
+  const rawExercise =
+    block.exercise && typeof block.exercise === 'object' && !Array.isArray(block.exercise)
+      ? { ...(block.exercise as Record<string, unknown>) }
+      : {};
+  const template = normalizeExerciseTemplate(rawExercise.template ?? blockType);
+  if (!template) {
+    return null;
+  }
+
+  const instructionText =
+    toOptionalText(block.instructionText) || toOptionalText(block.instrText);
+  const instructionAudioUrl =
+    toOptionalText(block.instructionAudioUrl) || toOptionalText(block.instrAudioUrl);
+  const targetLetter =
+    normalizeLetterToken(block.targetLetter) || normalizeLetterToken(block.letraAlvo);
+
+  return {
+    ...rawExercise,
+    template,
+    targetLetter: rawExercise.targetLetter ?? targetLetter,
+    instructionText: rawExercise.instructionText ?? instructionText,
+    instructionAudioUrl: rawExercise.instructionAudioUrl ?? instructionAudioUrl,
+    expectedSelections: rawExercise.expectedSelections ?? block.expectedSelections,
+    progressiveUnlock: rawExercise.progressiveUnlock ?? block.progressiveUnlock,
+  };
+}
+
+function mapCompositeBlockToScreen(
+  activity: PainelActivity,
+  block: Record<string, unknown>,
+  blockIndex: number,
+  assetReferences: ActivityAssetReference[],
+): LearnerFlowScreen {
+  const blockType = toOptionalText(block.type) || 'default';
+  const instructionText =
+    toOptionalText(block.instructionText) || toOptionalText(block.instrText);
+  const notes = toOptionalText(block.notes);
+  const exercisePayload = buildBlockExercisePayload(block);
+  const guidancePayload = {
+    screenTemplate: blockType,
+    educatorGuidance: notes || instructionText || normalizeText(activity.prompt, ''),
+    learnerSpeech: instructionText || null,
+    exercise: exercisePayload,
+  };
+  const guidance = parseGuidance(JSON.stringify(guidancePayload), assetReferences);
+  const mediaUrl =
+    toOptionalText(block.videoUrl) ||
+    toOptionalText(block.imageUrl) ||
+    toOptionalText(block.mediaUrl);
+  const title =
+    toOptionalText(block.title) ||
+    (blockType === 'video'
+      ? blockIndex === 0
+        ? 'Vídeo de abertura'
+        : 'Vídeo da aula'
+      : exercisePayload?.template === 'exercise-match-letter'
+        ? 'Encontre a letra'
+        : exercisePayload?.template === 'exercise-mark-images'
+          ? 'Marque as imagens'
+          : `Tela ${blockIndex + 1}`);
+
+  return {
+    id: `${activity.id}-${toOptionalText(block.id) || `bloco-${blockIndex + 1}`}`,
+    title,
+    educatorGuidance: guidance.educatorGuidance,
+    learnerSpeech: guidance.learnerSpeech,
+    mediaUrl,
+    mediaKind: resolveAssetKind(blockType, mediaUrl),
+    highlightMessage: null,
+    followUpActivity: null,
+    screenTemplate: guidance.screenTemplate,
+    lockReason: guidance.lockReason,
+    lockMessage: guidance.lockMessage,
+    lockAudioUrl: guidance.lockAudioUrl,
+    exercise: guidance.exercise,
+  };
+}
+
 function normalizeText(value: string | null | undefined, fallback: string): string {
   const text = String(value || '').trim();
   return text.length > 0 ? text : fallback;
@@ -678,7 +785,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
         );
 
-        const screens: LearnerFlowScreen[] = activities.map((activity, activityIndex): LearnerFlowScreen => {
+        const screens: LearnerFlowScreen[] = activities.flatMap((activity, activityIndex): LearnerFlowScreen[] => {
           const normalizedAssets = (activity.assets || [])
             .map((item) => item.asset)
             .filter((item): item is PainelAsset => Boolean(item && (item.sourceUrl || item.storage_path)));
@@ -695,9 +802,17 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
           const mainAsset = normalizedAssets[0] ?? null;
           const followUpAsset = normalizedAssets[1] ?? null;
-          const guidanceFromInstruction = parseGuidance(activity.instructions, assetReferences);
+          const instructions = getActivityInstructions(activity);
+          const compositeBlocks = getCompositeBlocks(instructions);
+          if (compositeBlocks) {
+            return compositeBlocks.map((block, blockIndex) =>
+              mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
+            );
+          }
 
-          return {
+          const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
+
+          return [{
             id: activity.id,
             title: normalizeText(activity.title, normalizeText(activity.prompt, `Tela ${activityIndex + 1}`)),
             educatorGuidance:
@@ -742,7 +857,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             lockMessage: guidanceFromInstruction.lockMessage,
             lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
             exercise: guidanceFromInstruction.exercise,
-          };
+          }];
         });
 
         const fallbackScreen: LearnerFlowScreen = {
@@ -858,7 +973,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
         const unitActivities = activitiesByModule.get(unit.id) ?? [];
         const linkedBlueprints = blueprintsByModule.get(unit.id) ?? [];
 
-        const screens: LearnerFlowScreen[] = unitActivities.map((activity, activityIndex): LearnerFlowScreen => {
+        const screens: LearnerFlowScreen[] = unitActivities.flatMap((activity, activityIndex): LearnerFlowScreen[] => {
           const activityAssets = assetsByActivity.get(activity.id) ?? [];
           const assetReferences: ActivityAssetReference[] = activityAssets
             .map((asset) => {
@@ -872,9 +987,17 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             .filter((item): item is ActivityAssetReference => Boolean(item));
           const mainAsset = activityAssets[0] ?? null;
           const followUpAsset = activityAssets[1] ?? null;
-          const guidanceFromInstruction = parseGuidance(activity.instructions, assetReferences);
+          const instructions = getActivityInstructions(activity);
+          const compositeBlocks = getCompositeBlocks(instructions);
+          if (compositeBlocks) {
+            return compositeBlocks.map((block, blockIndex) =>
+              mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
+            );
+          }
 
-          return {
+          const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
+
+          return [{
             id: activity.id,
             title: normalizeText(activity.title, `Tela ${activityIndex + 1}`),
             educatorGuidance: guidanceFromInstruction.educatorGuidance,
@@ -912,7 +1035,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             lockMessage: guidanceFromInstruction.lockMessage,
             lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
             exercise: guidanceFromInstruction.exercise,
-          };
+          }];
         });
 
         const fallbackScreen: LearnerFlowScreen = {

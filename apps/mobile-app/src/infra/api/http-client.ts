@@ -1,6 +1,7 @@
 import { resolveApiBaseUrl } from './resolve-api-base-url';
 
 const REQUEST_TIMEOUT_MS = 10000;
+const LOCAL_WEB_FALLBACK_API_BASE_URLS = ['http://localhost:8082/api/v1', 'http://127.0.0.1:8082/api/v1'];
 const API_BASE_URL = resolveApiBaseUrl();
 
 class HttpClient {
@@ -61,6 +62,28 @@ class HttpClient {
     return `${normalizedBase}/api/v1`;
   }
 
+  private getRequestBaseUrls(path: string): string[] {
+    const normalizedBase = this.baseUrl.replace(/\/+$/, '');
+    const candidates = [normalizedBase];
+    const apiV1Base = this.getApiV1Base(normalizedBase);
+
+    if (apiV1Base && path.startsWith('/')) {
+      candidates.push(apiV1Base);
+    }
+
+    if (typeof window !== 'undefined') {
+      const hostname = window.location?.hostname?.toLowerCase() || '';
+      const isLocalWeb = hostname === 'localhost' || hostname === '127.0.0.1';
+      const isLocalApi = /^http:\/\/(localhost|127\.0\.0\.1):3000$/i.test(normalizedBase);
+
+      if (isLocalWeb && isLocalApi) {
+        candidates.push(...LOCAL_WEB_FALLBACK_API_BASE_URLS);
+      }
+    }
+
+    return Array.from(new Set(candidates));
+  }
+
   private shouldRetryWithApiV1(path: string, response: Response): boolean {
     if (!path.startsWith('/')) {
       return false;
@@ -76,55 +99,59 @@ class HttpClient {
   }
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     const headers = new Headers(init.headers);
 
     if (this.authToken) {
       headers.set('Authorization', `Bearer ${this.authToken}`);
     }
 
-    let response: Response;
+    const baseUrls = this.getRequestBaseUrls(path);
+    let lastError: unknown = null;
+    let lastResponseText = '';
+    let lastResponseStatus: number | null = null;
 
-    try {
-      response = await fetch(this.buildUrl(this.baseUrl, path), {
-        ...init,
-        headers,
-        signal: controller.signal,
-      });
+    for (const baseUrl of baseUrls) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-      if (this.shouldRetryWithApiV1(path, response)) {
-        const apiV1Base = this.getApiV1Base(this.baseUrl);
-        if (apiV1Base) {
-          response = await fetch(this.buildUrl(apiV1Base, path), {
-            ...init,
-            headers,
-            signal: controller.signal,
-          });
+      try {
+        const response = await fetch(this.buildUrl(baseUrl, path), {
+          ...init,
+          headers,
+          signal: controller.signal,
+        });
+
+        const contentType = response.headers.get('content-type') ?? '';
+
+        if (response.ok && !contentType.includes('text/html')) {
+          return (await response.json()) as T;
         }
-      }
-    } catch (error) {
-      if ((error as { name?: string }).name === 'AbortError') {
-        throw new Error(
-          `Timeout ao chamar ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API esta acessivel.`,
-        );
-      }
 
+        lastResponseStatus = response.status;
+        lastResponseText = await response.text();
+      } catch (error) {
+        lastError = error;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    if (lastResponseStatus !== null) {
+      throw new Error(`Request failed (${lastResponseStatus}): ${lastResponseText}`);
+    }
+
+    if ((lastError as { name?: string })?.name === 'AbortError') {
       throw new Error(
-        `Falha de conexao com ${path} em ${this.baseUrl}. Verifique EXPO_PUBLIC_API_URL e se a API esta rodando.`,
+        `Timeout ao chamar ${path} em ${baseUrls.join(' ou ')}. Verifique EXPO_PUBLIC_API_URL e se a API esta acessivel.`,
       );
-    } finally {
-      clearTimeout(timeout);
     }
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Request failed (${response.status}): ${text}`);
-    }
-
-    return (await response.json()) as T;
+    throw new Error(
+      `Falha de conexao com ${path} em ${baseUrls.join(' ou ')}. Verifique EXPO_PUBLIC_API_URL e se a API esta rodando.`,
+    );
   }
 }
 
 export { API_BASE_URL };
 export const httpClient = new HttpClient(API_BASE_URL);
+
