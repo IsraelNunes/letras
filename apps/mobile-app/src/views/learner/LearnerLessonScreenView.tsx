@@ -1,8 +1,9 @@
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ResizeMode, Video } from 'expo-av';
-import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Audio, ResizeMode, Video } from 'expo-av';
+import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
@@ -38,6 +39,66 @@ function resolveLockMessage(reason: string | null, lockMessage?: string | null) 
 
 function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null) {
   return Boolean(exercise);
+}
+
+function SoundWaveIcon({ large = false }: { large?: boolean }) {
+  const color = large ? '#2fa536' : '#9be39f';
+  const strokeWidth = large ? 4.5 : 4;
+  return (
+    <Svg width={large ? 66 : 38} height={large ? 54 : 32} viewBox="0 0 66 54" fill="none">
+      <Path d="M8 22H19L33 10V44L19 32H8V22Z" fill={color} />
+      <Path
+        d="M42 20C45 23.5 45 30.5 42 34"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M49 15C55 21 55 33 49 39"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+      {large ? (
+        <Path
+          d="M56 10C65 19 65 35 56 44"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+      ) : null}
+    </Svg>
+  );
+}
+
+function SpeakerButton({
+  onPress,
+  large = false,
+  disabled = false,
+  active = false,
+}: {
+  onPress: () => void;
+  large?: boolean;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel="Reproduzir audio"
+      hitSlop={large ? 12 : 8}
+      style={({ pressed }) => [
+        large ? styles.largeAudioBtn : styles.itemSpeakerBtn,
+        active ? styles.audioBtnActive : null,
+        pressed && !disabled ? styles.audioBtnPressed : null,
+        disabled ? styles.audioBtnDisabled : null,
+      ]}
+    >
+      <SoundWaveIcon large={large} />
+    </Pressable>
+  );
 }
 
 function clampAspectRatio(width: number, height: number) {
@@ -107,6 +168,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const lesson = getLesson(moduleId, lessonId);
   const wrongSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reinforcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeAudioRef = useRef<Audio.Sound | null>(null);
 
   const [didFailImageLoad, setDidFailImageLoad] = useState(false);
   const [didFailMediaLoad, setDidFailMediaLoad] = useState(false);
@@ -115,12 +177,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const [matchSelectedOptions, setMatchSelectedOptions] = useState<Record<string, string>>({});
   const [matchCompletedIds, setMatchCompletedIds] = useState<string[]>([]);
   const [matchUnlockedIndex, setMatchUnlockedIndex] = useState(0);
+  const [matchWrongIds, setMatchWrongIds] = useState<string[]>([]);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [exerciseLocked, setExerciseLocked] = useState(false);
   const [exerciseFeedback, setExerciseFeedback] = useState<ExerciseFeedback | null>(null);
   const [showReinforcement, setShowReinforcement] = useState(false);
   const [reinforcementMessage, setReinforcementMessage] = useState<string | null>(null);
+  const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
 
   if (!lesson) {
     return (
@@ -142,6 +206,66 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const selectedImageCount = selectedImageIds.length;
   const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
 
+  const stopCurrentAudio = useCallback(async () => {
+    const current = activeAudioRef.current;
+    activeAudioRef.current = null;
+    setPlayingAudioKey(null);
+    if (!current) return;
+    try {
+      await current.stopAsync();
+    } catch {
+      // The audio may already be stopped; unloading below is still the important part.
+    }
+    try {
+      await current.unloadAsync();
+    } catch {
+      // Ignore unload errors from already released native resources.
+    }
+  }, []);
+
+  const playAudioUrl = useCallback(
+    async (url: string | null | undefined, fallbackText?: string | null, key?: string) => {
+      const normalizedUrl = String(url || '').trim();
+      const normalizedFallback = String(fallbackText || '').trim();
+
+      await stopCurrentAudio();
+
+      if (!normalizedUrl) {
+        speakWithBrowserVoice(normalizedFallback);
+        return;
+      }
+
+      const audioKey = key || normalizedUrl;
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          shouldDuckAndroid: true,
+          staysActiveInBackground: false,
+        });
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: normalizedUrl },
+          { shouldPlay: true },
+        );
+        activeAudioRef.current = sound;
+        setPlayingAudioKey(audioKey);
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (!status.isLoaded || !status.didJustFinish) return;
+          void sound.unloadAsync();
+          if (activeAudioRef.current === sound) {
+            activeAudioRef.current = null;
+            setPlayingAudioKey(null);
+          }
+        });
+      } catch {
+        activeAudioRef.current = null;
+        setPlayingAudioKey(null);
+        speakWithBrowserVoice(normalizedFallback);
+      }
+    },
+    [stopCurrentAudio],
+  );
+
   useFocusEffect(
     useCallback(() => {
       void learnerSession.syncCurrentState({
@@ -158,12 +282,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   );
 
   useEffect(() => {
+    void stopCurrentAudio();
     setDidFailImageLoad(false);
     setDidFailMediaLoad(false);
     setMediaAspectRatio(16 / 9);
     setMatchSelectedOptions({});
     setMatchCompletedIds([]);
     setMatchUnlockedIndex(0);
+    setMatchWrongIds([]);
     setSelectedImageIds([]);
     setExerciseAttempts(0);
     setExerciseLocked(false);
@@ -178,7 +304,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       clearTimeout(reinforcementTimeoutRef.current);
       reinforcementTimeoutRef.current = null;
     }
-  }, [screen.id, screen.mediaKind, screen.mediaUrl, screen.screenTemplate]);
+  }, [screen.id, screen.mediaKind, screen.mediaUrl, screen.screenTemplate, stopCurrentAudio]);
 
   useEffect(() => {
     return () => {
@@ -187,6 +313,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       }
       if (reinforcementTimeoutRef.current) {
         clearTimeout(reinforcementTimeoutRef.current);
+      }
+      const activeAudio = activeAudioRef.current;
+      activeAudioRef.current = null;
+      if (activeAudio) {
+        void activeAudio.unloadAsync();
       }
     };
   }, []);
@@ -329,7 +460,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setShowReinforcement(true);
 
     if (config.instructionAudioUrl) {
-      void Linking.openURL(config.instructionAudioUrl);
+      void playAudioUrl(config.instructionAudioUrl, reinforcementText, 'reinforcement');
     }
 
     reinforcementTimeoutRef.current = setTimeout(() => {
@@ -363,10 +494,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       }
       setExerciseFeedback({
         type: 'ok',
-        message: screen.exercise.successFeedback || 'Resposta correta. Continue.',
+        message: screen.exercise.successFeedback || 'Correto!',
       });
       return;
     }
+
+    setMatchWrongIds((previous) => [...previous.filter((id) => id !== itemId), itemId]);
 
     if (wrongSelectionTimeoutRef.current) {
       clearTimeout(wrongSelectionTimeoutRef.current);
@@ -377,7 +510,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         delete next[itemId];
         return next;
       });
-    }, 800);
+      setMatchWrongIds((previous) => previous.filter((id) => id !== itemId));
+    }, 1000);
 
     const nextAttempts = exerciseAttempts + 1;
     setExerciseAttempts(nextAttempts);
@@ -390,7 +524,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    const fallbackMessage = screen.exercise.errorFeedback || 'Resposta incorreta. Tente novamente.';
+    const fallbackMessage = screen.exercise.errorFeedback || 'Tente outra posicao.';
     const hasReinforcement = triggerErrorReinforcement(fallbackMessage);
     setExerciseFeedback({
       type: 'error',
@@ -416,14 +550,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
   const handleInstructionAudioPress = () => {
     const instructionUrl = screen.exercise?.instructionAudioUrl;
-    if (instructionUrl) {
-      void Linking.openURL(instructionUrl);
-      return;
-    }
-
     const fallbackInstruction =
       screen.exercise?.instructionText || 'Escute o audio e marque a letra correta.';
-    speakWithBrowserVoice(fallbackInstruction);
+    void playAudioUrl(instructionUrl, fallbackInstruction, `instruction-${screen.id}`);
   };
 
   const onNext = () => {
@@ -518,95 +647,92 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     if (screen.screenTemplate === 'exercise-match-letter') {
       return (
         <View style={styles.exerciseCard}>
-          <View style={styles.exerciseTopRow}>
-            <Text style={styles.exerciseTitle}>
-              {screen.exercise.instructionText || 'Escute o audio e marque a letra correta.'}
-            </Text>
-            {isInstructionAudioButtonVisible(screen.exercise) ? (
-              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton} hitSlop={8}>
-                <Text style={styles.audioButtonText}>AUDIO</Text>
-              </Pressable>
-            ) : null}
+          {/* Botão de áudio de instrução — ícone grande centralizado */}
+          <View style={styles.instructionAudioRow}>
+            <SpeakerButton
+              onPress={handleInstructionAudioPress}
+              large
+              active={playingAudioKey === `instruction-${screen.id}`}
+            />
           </View>
 
           {screen.exercise.items.map((item, itemIndex) => {
-            const selectedOption = matchSelectedOptions[item.id];
             const isCompleted = completedMatchSet.has(item.id);
-            const isEnabled =
-              !isInteractionLocked &&
-              (!screen.exercise?.progressiveUnlock || itemIndex <= matchUnlockedIndex);
-            const itemOptions = item.options.length > 0 ? item.options : ['A'];
-            const wordAudioUrl = item.wordAudioUrl || item.audioUrl;
-            const spellingAudioUrl = item.spellingAudioUrl;
+            const isWrongFlash = matchWrongIds.includes(item.id);
+            const selectedLetter = matchSelectedOptions[item.id];
+            const word = String(item.label || '').toUpperCase();
+            const wordLetters = word.split('').filter(Boolean);
+            const audioUrl = item.wordAudioUrl || item.audioUrl;
+            const isEnabled = !isInteractionLocked;
 
             return (
-              <View key={item.id} style={[styles.matchRow, !isEnabled ? styles.rowDisabled : null]}>
-                <View style={styles.matchMediaColumn}>
-                  {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.matchImage} resizeMode="contain" />
-                  ) : (
-                    <View style={styles.matchImageFallback}>
-                      <Text style={styles.matchImageFallbackText}>{item.label.slice(0, 1)}</Text>
-                    </View>
-                  )}
-                  <Text style={styles.matchWord}>{item.label}</Text>
+              <View key={item.id} style={styles.matchItem}>
+                {/* Imagem com badge de status + botão speaker */}
+                <View style={styles.matchItemTopRow}>
+                  <View style={styles.matchImageWrap}>
+                    {item.imageUrl ? (
+                      <Image
+                        source={{ uri: item.imageUrl }}
+                        style={styles.matchItemImage}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <View style={styles.matchItemImageFallback}>
+                        <Text style={styles.matchItemImageFallbackText}>{word.slice(0, 1)}</Text>
+                      </View>
+                    )}
+                    {isCompleted ? (
+                      <View style={[styles.itemStatusBadge, styles.itemStatusBadgeOk]}>
+                        <Text style={styles.itemStatusBadgeText}>✓</Text>
+                      </View>
+                    ) : isWrongFlash ? (
+                      <View style={[styles.itemStatusBadge, styles.itemStatusBadgeErr]}>
+                        <Text style={styles.itemStatusBadgeText}>✗</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <SpeakerButton
+                    onPress={() => {
+                      void playAudioUrl(audioUrl, item.label, `word-${item.id}`);
+                    }}
+                    active={playingAudioKey === `word-${item.id}`}
+                  />
                 </View>
 
-                <View style={styles.matchOptions}>
-                  {itemOptions.map((option) => {
-                    const normalizedOption = String(option).toUpperCase();
-                    const isOptionSelected = selectedOption === normalizedOption;
-                    const isOptionCorrect = item.correctOptions.includes(normalizedOption);
+                {/* Quadrados posicionais — um por letra da palavra */}
+                <View style={styles.squaresRow}>
+                  {wordLetters.map((letter, squareIndex) => {
+                    const isWrongSquare =
+                      isWrongFlash &&
+                      Boolean(selectedLetter) &&
+                      wordLetters.indexOf(selectedLetter) === squareIndex;
+                    const isTargetLetter = isCompleted && item.correctOptions.includes(letter);
+
                     return (
                       <Pressable
-                        key={`${item.id}-${normalizedOption}`}
-                        onPress={() => handleMatchOptionPress(itemIndex, item.id, normalizedOption)}
-                        disabled={!isEnabled}
-                        hitSlop={8}
+                        key={`${item.id}-sq-${squareIndex}`}
+                        onPress={() => handleMatchOptionPress(itemIndex, item.id, letter)}
+                        disabled={!isEnabled || isCompleted}
+                        hitSlop={4}
                         style={[
-                          styles.optionButton,
-                          isOptionSelected ? styles.optionButtonSelected : null,
-                          isOptionSelected && isOptionCorrect ? styles.optionButtonCorrect : null,
+                          styles.letterSquare,
+                          isWrongSquare ? styles.letterSquareWrong : null,
+                          isCompleted ? styles.letterSquareFilled : null,
+                          isCompleted && isTargetLetter ? styles.letterSquareTarget : null,
                         ]}
                       >
-                        <Text style={styles.optionText}>{normalizedOption}</Text>
+                        <Text
+                          style={[
+                            styles.letterSquareText,
+                            isCompleted ? styles.letterSquareTextFilled : null,
+                            isCompleted && isTargetLetter ? styles.letterSquareTextTarget : null,
+                          ]}
+                        >
+                          {isCompleted ? letter : ''}
+                        </Text>
                       </Pressable>
                     );
                   })}
-                </View>
-
-                <View style={styles.matchStatusColumn}>
-                  <Pressable
-                    onPress={() => {
-                      if (wordAudioUrl) {
-                        void Linking.openURL(wordAudioUrl);
-                        return;
-                      }
-                      speakWithBrowserVoice(item.label);
-                    }}
-                    style={styles.smallAudioButton}
-                    hitSlop={8}
-                  >
-                    <Text style={styles.smallAudioButtonText}>PAL</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      if (spellingAudioUrl) {
-                        void Linking.openURL(spellingAudioUrl);
-                        return;
-                      }
-                      speakWithBrowserVoice(buildSpellingNarration(item.label));
-                    }}
-                    style={[styles.smallAudioButton, styles.smallAudioButtonSecondary]}
-                    hitSlop={8}
-                  >
-                    <Text style={[styles.smallAudioButtonText, styles.smallAudioButtonTextSecondary]}>LET</Text>
-                  </Pressable>
-                  {isCompleted ? (
-                    <View style={styles.doneBadge}>
-                      <Text style={styles.doneBadgeText}>OK</Text>
-                    </View>
-                  ) : null}
                 </View>
               </View>
             );
@@ -623,9 +749,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
               {screen.exercise.instructionText || 'Marque as imagens corretas para continuar.'}
             </Text>
             {isInstructionAudioButtonVisible(screen.exercise) ? (
-              <Pressable onPress={handleInstructionAudioPress} style={styles.audioButton} hitSlop={8}>
-                <Text style={styles.audioButtonText}>AUDIO</Text>
-              </Pressable>
+              <SpeakerButton
+                onPress={handleInstructionAudioPress}
+                active={playingAudioKey === `instruction-${screen.id}`}
+              />
             ) : null}
           </View>
 
@@ -731,20 +858,6 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
         {renderExerciseContent()}
 
-        {screen.educatorGuidance ? (
-          <View style={styles.tutorCard}>
-            <Text style={styles.cardTitle}>Orientacao para o Alfabetizador</Text>
-            <Text style={styles.cardText}>{screen.educatorGuidance}</Text>
-          </View>
-        ) : null}
-
-        {screen.learnerSpeech ? (
-          <View style={styles.studentCard}>
-            <Text style={styles.studentTitle}>Fala sugerida para o Alfabetizando</Text>
-            <Text style={styles.studentText}>{screen.learnerSpeech}</Text>
-          </View>
-        ) : null}
-
         {screen.highlightMessage ? (
           <View style={styles.highlightCard}>
             <Text style={styles.highlightText}>{screen.highlightMessage}</Text>
@@ -756,7 +869,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             <Text style={styles.lockTitle}>Tela bloqueada</Text>
             <Text style={styles.lockText}>{resolveLockMessage(screen.lockReason, screen.lockMessage)}</Text>
             {screen.lockAudioUrl ? (
-              <Pressable onPress={() => void Linking.openURL(screen.lockAudioUrl!)} style={styles.lockAudioButton}>
+              <Pressable
+                onPress={() => void playAudioUrl(screen.lockAudioUrl, resolveLockMessage(screen.lockReason, screen.lockMessage), 'lock')}
+                style={styles.lockAudioButton}
+              >
                 <Text style={styles.lockAudioButtonText}>Ouvir orientacao</Text>
               </Pressable>
             ) : null}
@@ -771,7 +887,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             </Text>
             {screen.exercise?.errorReinforcement?.instructionAudioUrl ? (
               <Pressable
-                onPress={() => void Linking.openURL(screen.exercise?.errorReinforcement?.instructionAudioUrl!)}
+                onPress={() =>
+                  void playAudioUrl(
+                    screen.exercise?.errorReinforcement?.instructionAudioUrl,
+                    reinforcementMessage || screen.exercise?.errorReinforcement?.instructionText,
+                    'reinforcement',
+                  )
+                }
                 style={styles.reinforcementAudioButton}
               >
                 <Text style={styles.reinforcementAudioButtonText}>Reproduzir audio</Text>
@@ -799,13 +921,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 10,
+    gap: 12,
   },
   error: {
     color: learnerTheme.danger,
     fontSize: 14,
   },
   progressHeader: {
+    display: 'none',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -821,6 +944,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressTrack: {
+    display: 'none',
     height: 10,
     borderRadius: 8,
     backgroundColor: learnerTheme.border,
@@ -831,8 +955,8 @@ const styles = StyleSheet.create({
     backgroundColor: learnerTheme.primary,
   },
   title: {
-    marginTop: 8,
-    fontSize: 21,
+    marginTop: 2,
+    fontSize: 18,
     color: learnerTheme.textStrong,
     fontWeight: '700',
   },
@@ -929,12 +1053,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   exerciseCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    padding: 12,
-    gap: 10,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 4,
+    gap: 14,
   },
   exerciseTopRow: {
     flexDirection: 'row',
@@ -949,130 +1071,204 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   audioButton: {
-    borderWidth: 1,
-    borderColor: learnerTheme.primary,
-    backgroundColor: learnerTheme.primarySoft,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    width: 38,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   audioButtonText: {
     color: learnerTheme.primary,
     fontSize: 11,
     fontWeight: '700',
   },
-  matchRow: {
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    borderRadius: 10,
-    padding: 8,
+  // exercise-match-letter: botão de instrução grande centralizado
+  instructionAudioRow: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  largeAudioBtn: {
+    width: 86,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioBtnActive: {
+    opacity: 0.78,
+    transform: [{ scale: 1.04 }],
+  },
+  audioBtnPressed: {
+    opacity: 0.62,
+    transform: [{ scale: 0.96 }],
+  },
+  audioBtnDisabled: {
+    opacity: 0.35,
+  },
+  soundIcon: {
+    minWidth: 30,
+    height: 26,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  rowDisabled: {
-    opacity: 0.58,
+  soundIconLarge: {
+    minWidth: 56,
+    height: 48,
   },
-  matchMediaColumn: {
-    width: 74,
+  soundCore: {
+    width: 9,
+    height: 16,
+    borderRadius: 2,
+    backgroundColor: '#92d78b',
+    marginRight: 2,
+  },
+  soundCoreLarge: {
+    width: 15,
+    height: 26,
+    marginRight: 4,
+    backgroundColor: '#35a632',
+  },
+  soundBars: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
-  matchImage: {
-    width: 60,
-    height: 60,
+  soundBar: {
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: '#b8e4b3',
   },
-  matchImageFallback: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
+  soundBarOne: {
+    height: 10,
+  },
+  soundBarTwo: {
+    height: 16,
+  },
+  soundBarThree: {
+    height: 22,
+  },
+  soundBarLargeOne: {
+    width: 4,
+    height: 18,
+    backgroundColor: '#52bb4d',
+  },
+  soundBarLargeTwo: {
+    width: 4,
+    height: 28,
+    backgroundColor: '#35a632',
+  },
+  soundBarLargeThree: {
+    width: 4,
+    height: 38,
+    backgroundColor: '#258b22',
+  },
+  // exercise-match-letter: item (imagem + quadrados)
+  matchItem: {
+    paddingHorizontal: 44,
+    paddingVertical: 4,
+    gap: 5,
+    backgroundColor: 'transparent',
+  },
+  matchItemTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 22,
+  },
+  matchImageWrap: {
+    width: 54,
+    height: 46,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchItemImage: {
+    width: 54,
+    height: 46,
+  },
+  matchItemImageFallback: {
+    width: 48,
+    height: 42,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: learnerTheme.border,
     backgroundColor: learnerTheme.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  matchImageFallbackText: {
-    fontSize: 24,
+  matchItemImageFallbackText: {
+    fontSize: 22,
     color: learnerTheme.primary,
     fontWeight: '700',
   },
-  matchWord: {
-    fontSize: 11,
-    color: learnerTheme.textMuted,
-    fontWeight: '600',
-    textAlign: 'center',
+  itemStatusBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: learnerTheme.surface,
   },
-  matchOptions: {
-    flex: 1,
+  itemStatusBadgeOk: {
+    backgroundColor: learnerTheme.successBorder,
+  },
+  itemStatusBadgeErr: {
+    backgroundColor: '#ef4444',
+  },
+  itemStatusBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
+  itemSpeakerBtn: {
+    width: 48,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Quadrados posicionais
+  squaresRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-  },
-  optionButton: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionButtonSelected: {
-    borderColor: learnerTheme.selectedBorder,
-    backgroundColor: learnerTheme.selectedBg,
-  },
-  optionButtonCorrect: {
-    borderColor: learnerTheme.successBorder,
-    backgroundColor: learnerTheme.successBg,
-  },
-  optionText: {
-    color: learnerTheme.text,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  matchStatusColumn: {
-    width: 42,
-    alignItems: 'center',
     gap: 4,
+    marginLeft: 52,
   },
-  smallAudioButton: {
-    minWidth: 40,
-    height: 30,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: learnerTheme.primary,
+  letterSquare: {
+    width: 29,
+    height: 29,
+    borderWidth: 1.5,
+    borderColor: learnerTheme.border,
+    borderRadius: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: learnerTheme.primarySoft,
-    paddingHorizontal: 4,
+    backgroundColor: learnerTheme.surface,
   },
-  smallAudioButtonText: {
-    color: learnerTheme.primary,
-    fontSize: 9,
-    fontWeight: '700',
+  letterSquareWrong: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fee2e2',
   },
-  smallAudioButtonSecondary: {
-    borderColor: learnerTheme.selectedBorder,
-    backgroundColor: learnerTheme.selectedBg,
-  },
-  smallAudioButtonTextSecondary: {
-    color: learnerTheme.selectedText,
-  },
-  doneBadge: {
-    borderRadius: 10,
-    borderWidth: 1,
+  letterSquareFilled: {
     borderColor: learnerTheme.successBorder,
     backgroundColor: learnerTheme.successBg,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
   },
-  doneBadgeText: {
-    color: learnerTheme.successText,
-    fontSize: 10,
+  letterSquareTarget: {
+    borderColor: '#f59e0b',
+    backgroundColor: '#fef3c7',
+  },
+  letterSquareText: {
+    fontSize: 15,
     fontWeight: '700',
+    color: 'transparent',
+  },
+  letterSquareTextFilled: {
+    color: learnerTheme.successText,
+  },
+  letterSquareTextTarget: {
+    color: '#92400e',
   },
   selectionHint: {
     color: learnerTheme.textMuted,

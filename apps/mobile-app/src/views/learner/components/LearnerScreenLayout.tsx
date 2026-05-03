@@ -37,26 +37,28 @@ export function LearnerScreenLayout({
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        <LearnerHeaderBar roleLabel={roleLabel} />
-        {sessionErrorMessage ? (
-          <View style={styles.alertError}>
-            <Text style={styles.alertErrorText}>{sessionErrorMessage}</Text>
-          </View>
-        ) : null}
-        {isSessionLocked ? (
-          <View style={styles.alertLock}>
-            <Text style={styles.alertLockText}>Sessao bloqueada pelo alfabetizador. Aguarde orientacao.</Text>
-          </View>
-        ) : null}
-        {onRequestHelp ? (
-          <View style={styles.helpRow}>
-            <Pressable style={styles.helpButton} onPress={onRequestHelp}>
-              <Text style={styles.helpButtonText}>PEDIR AJUDA</Text>
-            </Pressable>
-            {helpAcknowledgedAt ? <Text style={styles.helpAckText}>Ajuda recebida</Text> : null}
-          </View>
-        ) : null}
-        <View style={styles.body}>{children}</View>
+        <View style={styles.shell}>
+          <LearnerHeaderBar roleLabel={roleLabel} />
+          {sessionErrorMessage ? (
+            <View style={styles.alertError}>
+              <Text style={styles.alertErrorText}>{sessionErrorMessage}</Text>
+            </View>
+          ) : null}
+          {isSessionLocked ? (
+            <View style={styles.alertLock}>
+              <Text style={styles.alertLockText}>Sessao bloqueada pelo alfabetizador. Aguarde orientacao.</Text>
+            </View>
+          ) : null}
+          {onRequestHelp ? (
+            <View style={styles.helpRow}>
+              <Pressable style={styles.helpButton} onPress={onRequestHelp}>
+                <Text style={styles.helpButtonText}>PEDIR AJUDA</Text>
+              </Pressable>
+              {helpAcknowledgedAt ? <Text style={styles.helpAckText}>Ajuda recebida</Text> : null}
+            </View>
+          ) : null}
+          <View style={styles.body}>{children}</View>
+        </View>
       </ScrollView>
       <EducatorBottomMenu
         active={activeMenu}
@@ -81,6 +83,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 20,
     paddingBottom: 130,
+    alignItems: 'center',
+  },
+  shell: {
+    width: '100%',
+    maxWidth: 390,
   },
   body: {
     marginTop: 14,

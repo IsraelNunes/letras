@@ -1,7 +1,5 @@
-﻿import { useAssets } from 'expo-asset';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SvgUri } from 'react-native-svg';
-import { learnerTheme } from '../learnerTheme';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 interface LearnerActionButtonsProps {
   onBack?: () => void;
@@ -11,28 +9,36 @@ interface LearnerActionButtonsProps {
   hideBack?: boolean;
 }
 
+const NEXT_ARROW = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 17H30V8L51 23L30 38V29H4V17Z" stroke="#8fd17e" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
+
+const BACK_ARROW = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M51 17H25V8L4 23L25 38V29H51V17Z" stroke="#8fd17e" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
+
 export function LearnerActionButtons({
   onBack,
   onNext,
-  nextLabel = 'AVANCAR',
-  backLabel = 'VOLTAR',
+  nextLabel = 'avançar',
+  backLabel = 'voltar',
   hideBack = false,
 }: LearnerActionButtonsProps) {
-  const [assets] = useAssets([require('../../../../assets/voltar.svg'), require('../../../../assets/avancar.svg')]);
-  const backUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const nextUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
-
   return (
     <View style={styles.row}>
-      {hideBack ? <View style={styles.placeholder} /> : (
+      {hideBack ? (
+        <View style={styles.placeholder} />
+      ) : (
         <Pressable style={styles.action} onPress={onBack} disabled={!onBack}>
-          {backUri ? <SvgUri uri={backUri} width={58} height={42} /> : <ActivityIndicator size="small" color={learnerTheme.primary} />}
+          <SvgXml xml={BACK_ARROW} width={55} height={46} />
           <Text style={styles.label}>{backLabel}</Text>
         </Pressable>
       )}
 
       <Pressable style={styles.action} onPress={onNext} disabled={!onNext}>
-        {nextUri ? <SvgUri uri={nextUri} width={58} height={42} /> : <ActivityIndicator size="small" color={learnerTheme.primary} />}
+        <SvgXml xml={NEXT_ARROW} width={55} height={46} />
         <Text style={styles.label}>{nextLabel}</Text>
       </Pressable>
     </View>
@@ -41,25 +47,25 @@ export function LearnerActionButtons({
 
 const styles = StyleSheet.create({
   row: {
-    marginTop: 24,
+    marginTop: 18,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
   },
   action: {
-    minWidth: 100,
+    minWidth: 86,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 1,
   },
   placeholder: {
-    width: 100,
+    width: 86,
   },
   label: {
-    fontSize: 16,
-    color: learnerTheme.primary,
+    fontSize: 10,
+    color: '#8fd17e',
     fontWeight: '600',
     textAlign: 'center',
+    textTransform: 'lowercase',
   },
 });
-

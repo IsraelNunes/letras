@@ -219,20 +219,6 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {activity.educatorGuidance ? (
-          <View style={styles.tutorCard}>
-            <Text style={styles.tutorTitle}>Orientacao para o Alfabetizador</Text>
-            <Text style={styles.tutorText}>{activity.educatorGuidance}</Text>
-          </View>
-        ) : null}
-
-        {activity.learnerSpeech ? (
-          <View style={styles.studentCard}>
-            <Text style={styles.studentTitle}>Fala sugerida para o Alfabetizando</Text>
-            <Text style={styles.studentText}>{activity.learnerSpeech}</Text>
-          </View>
-        ) : null}
-
         {activity.completionMessage ? (
           <View style={styles.successCard}>
             <Text style={styles.successTitle}>Muito bem!</Text>
