@@ -3,11 +3,21 @@ import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
+import { httpClient } from '../../infra/api/http-client';
 
 interface SyncCurrentStateInput {
   currentView?: string;
   currentActivityId?: string;
   statePayload?: Record<string, unknown>;
+}
+
+type ProgressStatus = 'IN_PROGRESS' | 'COMPLETED';
+
+interface RecordProgressInput {
+  activityId: string;
+  status: ProgressStatus;
+  score?: number;
+  elapsedSeconds?: number;
 }
 
 export function useLearnerHomeViewModel() {
@@ -101,6 +111,39 @@ export function useLearnerHomeViewModel() {
     [emitHelp, learnerProfileId],
   );
 
+  const recordProgress = useCallback(
+    async ({ activityId, status, score, elapsedSeconds }: RecordProgressInput) => {
+      if (!learnerProfileId || !activityId) {
+        return;
+      }
+
+      // Perfis locais (modo offline/fallback) nao tem registro no backend,
+      // entao nao adianta tentar gravar progresso.
+      if (learnerProfileId.startsWith('learner-local-profile-')) {
+        return;
+      }
+
+      try {
+        await httpClient.post('/progress', {
+          learnerProfileId,
+          activityId,
+          status,
+          ...(typeof score === 'number' ? { score } : {}),
+          ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
+        });
+      } catch (error) {
+        // Falha de progresso nao deve quebrar a UI da aula. O proximo
+        // sync ou a proxima conclusao tentam de novo; o erro fica visivel
+        // no log para diagnostico.
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.warn('[learner] failed to record progress', error);
+        }
+      }
+    },
+    [learnerProfileId],
+  );
+
   const cleanup = useCallback(() => {
     disconnect();
   }, [disconnect]);
@@ -118,5 +161,6 @@ export function useLearnerHomeViewModel() {
     cleanup,
     syncCurrentState,
     requestHelp,
+    recordProgress,
   };
 }

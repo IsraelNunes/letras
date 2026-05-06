@@ -21,7 +21,10 @@ let cacheTimestamp = 0;
 const CACHE_TTL_MS = 60_000;
 
 async function fetchLearnerModules(): Promise<LearnerFlowModule[]> {
-  const payload = await httpClient.get<PainelConteudoResponse>('/painel/conteudo?scope=cms');
+  // published=true garante que rascunhos do CMS nao apareçam para o alfabetizando.
+  const payload = await httpClient.get<PainelConteudoResponse>(
+    '/painel/conteudo?scope=cms&published=true',
+  );
   return mapPainelToModules(payload);
 }
 

@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
@@ -16,6 +16,10 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
   const { getLesson } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
   const lesson = getLesson(moduleId, lessonId);
+  // Garante que o POST /progress de conclusao da aula seja disparado
+  // uma unica vez por entrada na tela de conclusao, mesmo que o
+  // useFocusEffect rode multiplas vezes (re-render, foco recuperado).
+  const completedRecordedRef = useRef<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,6 +31,14 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
           lessonId,
         },
       });
+
+      if (completedRecordedRef.current !== lessonId) {
+        completedRecordedRef.current = lessonId;
+        void learnerSession.recordProgress({
+          activityId: lessonId,
+          status: 'COMPLETED',
+        });
+      }
     }, [learnerSession, lessonId, moduleId]),
   );
 
