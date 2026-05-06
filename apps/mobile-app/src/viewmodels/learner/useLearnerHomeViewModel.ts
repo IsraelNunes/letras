@@ -124,7 +124,10 @@ export function useLearnerHomeViewModel() {
       }
 
       try {
-        await httpClient.post('/progress', {
+        // Em producao o mobile aponta para o painel Express
+        // (painel.letras.cloud/api/v1), que expoe POST /painel/progress
+        // espelhando o contrato do POST /progress do backend NestJS.
+        await httpClient.post('/painel/progress', {
           learnerProfileId,
           activityId,
           status,
