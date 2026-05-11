@@ -636,9 +636,16 @@ function getCompositeBlocks(instructions: string | null | undefined): Record<str
     return null;
   }
 
+  // Blocos marcados como audience=educator sao orientacoes para o alfabetizador
+  // e nao devem virar telas do fluxo do alfabetizando.
   return blocks.filter(
-    (block): block is Record<string, unknown> =>
-      Boolean(block && typeof block === 'object' && !Array.isArray(block)),
+    (block): block is Record<string, unknown> => {
+      if (!block || typeof block !== 'object' || Array.isArray(block)) return false;
+      const audience = String((block as Record<string, unknown>).audience ?? '')
+        .trim()
+        .toLowerCase();
+      return audience !== 'educator' && audience !== 'tutor' && audience !== 'alfabetizador';
+    },
   );
 }
 
@@ -678,13 +685,25 @@ function mapCompositeBlockToScreen(
   assetReferences: ActivityAssetReference[],
 ): LearnerFlowScreen {
   const blockType = toOptionalText(block.type) || 'default';
+  const audience = String(block.audience ?? '').trim().toLowerCase();
+  const content = toOptionalText(block.content);
+  const caption = toOptionalText(block.caption);
+  const label = toOptionalText(block.label);
   const instructionText =
-    toOptionalText(block.instructionText) || toOptionalText(block.instrText);
+    toOptionalText(block.instructionText) ||
+    toOptionalText(block.instrText) ||
+    (blockType === 'text' && audience !== 'educator' ? content : null) ||
+    (blockType === 'image' ? caption : null) ||
+    (blockType === 'audio' ? label : null);
   const notes = toOptionalText(block.notes);
   const exercisePayload = buildBlockExercisePayload(block);
   const guidancePayload = {
     screenTemplate: blockType,
-    educatorGuidance: notes || instructionText || normalizeText(activity.prompt, ''),
+    educatorGuidance:
+      notes ||
+      (blockType === 'text' && audience === 'educator' ? content : null) ||
+      instructionText ||
+      normalizeText(activity.prompt, ''),
     learnerSpeech: instructionText || null,
     exercise: exercisePayload,
   };
@@ -692,18 +711,26 @@ function mapCompositeBlockToScreen(
   const mediaUrl =
     toOptionalText(block.videoUrl) ||
     toOptionalText(block.imageUrl) ||
+    toOptionalText(block.audioUrl) ||
+    toOptionalText(block.sourceUrl) ||
     toOptionalText(block.mediaUrl);
+  const normalizedBlockType = String(blockType || '').trim().toLowerCase();
+  const fallbackTitleByType = (() => {
+    if (exercisePayload?.template === 'exercise-match-letter') return 'Encontre a letra';
+    if (exercisePayload?.template === 'exercise-mark-images') return 'Marque as imagens';
+    if (normalizedBlockType === 'video') {
+      return blockIndex === 0 ? 'Vídeo de abertura' : 'Vídeo da aula';
+    }
+    if (normalizedBlockType === 'image') return 'Observe a imagem';
+    if (normalizedBlockType === 'audio') return 'Ouça o áudio';
+    if (normalizedBlockType === 'text') return 'Leia com atenção';
+    return null;
+  })();
+
   const title =
     toOptionalText(block.title) ||
-    (blockType === 'video'
-      ? blockIndex === 0
-        ? 'Vídeo de abertura'
-        : 'Vídeo da aula'
-      : exercisePayload?.template === 'exercise-match-letter'
-        ? 'Encontre a letra'
-        : exercisePayload?.template === 'exercise-mark-images'
-          ? 'Marque as imagens'
-          : `Tela ${blockIndex + 1}`);
+    fallbackTitleByType ||
+    `Tela ${blockIndex + 1}`;
 
   return {
     id: `${activity.id}-${toOptionalText(block.id) || `bloco-${blockIndex + 1}`}`,

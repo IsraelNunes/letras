@@ -7,7 +7,7 @@ interface LearnerHeaderBarProps {
   roleLabel?: string;
 }
 
-export function LearnerHeaderBar({ roleLabel = 'alfabetizador' }: LearnerHeaderBarProps) {
+export function LearnerHeaderBar({ roleLabel = 'alfabetizando' }: LearnerHeaderBarProps) {
   const [assets] = useAssets([require('../../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 

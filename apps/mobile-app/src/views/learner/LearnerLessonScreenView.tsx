@@ -161,6 +161,12 @@ function speakWithBrowserVoice(text: string): boolean {
   return true;
 }
 
+function cancelBrowserVoice() {
+  if (Platform.OS !== 'web') return;
+  const runtime = globalThis as { speechSynthesis?: { cancel: () => void } };
+  runtime.speechSynthesis?.cancel();
+}
+
 export function LearnerLessonScreenView({ navigation, route }: Props) {
   const { moduleId, lessonId, screenIndex, moduleLabel, moduleTitle } = route.params;
   const { getLesson } = useLearnerFlowData();
@@ -169,6 +175,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const wrongSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reinforcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeAudioRef = useRef<Audio.Sound | null>(null);
+  const audioRequestIdRef = useRef(0);
 
   const [didFailImageLoad, setDidFailImageLoad] = useState(false);
   const [didFailMediaLoad, setDidFailMediaLoad] = useState(false);
@@ -207,6 +214,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
 
   const stopCurrentAudio = useCallback(async () => {
+    audioRequestIdRef.current += 1;
+    cancelBrowserVoice();
     const current = activeAudioRef.current;
     activeAudioRef.current = null;
     setPlayingAudioKey(null);
@@ -229,9 +238,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       const normalizedFallback = String(fallbackText || '').trim();
 
       await stopCurrentAudio();
+      const requestId = audioRequestIdRef.current;
 
       if (!normalizedUrl) {
-        speakWithBrowserVoice(normalizedFallback);
+        if (requestId === audioRequestIdRef.current) {
+          speakWithBrowserVoice(normalizedFallback);
+        }
         return;
       }
 
@@ -247,6 +259,15 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           { uri: normalizedUrl },
           { shouldPlay: true },
         );
+        if (requestId !== audioRequestIdRef.current) {
+          try {
+            await sound.stopAsync();
+          } catch {
+            // The stale sound may not have started yet.
+          }
+          await sound.unloadAsync();
+          return;
+        }
         activeAudioRef.current = sound;
         setPlayingAudioKey(audioKey);
         sound.setOnPlaybackStatusUpdate((status) => {
@@ -258,6 +279,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           }
         });
       } catch {
+        if (requestId !== audioRequestIdRef.current) {
+          return;
+        }
         activeAudioRef.current = null;
         setPlayingAudioKey(null);
         speakWithBrowserVoice(normalizedFallback);
@@ -370,6 +394,36 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         shouldPlay={false}
         isLooping={false}
         onReadyForDisplay={handleMediaReady}
+        onError={() => setDidFailMediaLoad(true)}
+      />
+    );
+  };
+
+  const renderAudioPlayer = (mediaUrl: string) => {
+    // No web a tag <video> nao expoe controles utilizaveis para arquivos de
+    // audio (renderiza apenas um retangulo cinza). Usamos a tag <audio> nativa
+    // para ter o player com play/pausa/scrubber.
+    if (Platform.OS === 'web') {
+      return createElement('audio', {
+        src: mediaUrl,
+        controls: true,
+        preload: 'metadata',
+        style: {
+          width: '100%',
+          display: 'block',
+        },
+        onError: () => setDidFailMediaLoad(true),
+      });
+    }
+
+    return (
+      <Video
+        source={{ uri: mediaUrl }}
+        style={styles.audioMedia}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay={false}
+        isLooping={false}
         onError={() => setDidFailMediaLoad(true)}
       />
     );
@@ -799,7 +853,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerHome')}
-      roleLabel="alfabetizador"
+      roleLabel="alfabetizando"
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
@@ -842,17 +896,15 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                 {renderVideoPlayer(screen.mediaUrl)}
               </View>
             ) : (
-              <Video
-                source={{ uri: screen.mediaUrl }}
-                style={styles.audioMedia}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay={false}
-                isLooping={false}
-                onError={() => setDidFailMediaLoad(true)}
-              />
+              renderAudioPlayer(screen.mediaUrl)
             )}
             {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia automaticamente.</Text> : null}
+          </View>
+        ) : null}
+
+        {screen.learnerSpeech && !screen.exercise ? (
+          <View style={styles.studentCard}>
+            <Text style={styles.studentText}>{screen.learnerSpeech}</Text>
           </View>
         ) : null}
 

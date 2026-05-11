@@ -172,7 +172,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerHome')}
-      roleLabel="alfabetizador"
+      roleLabel="alfabetizando"
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda na atividade complementar.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
