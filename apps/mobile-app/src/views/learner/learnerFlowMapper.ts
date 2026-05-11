@@ -626,6 +626,56 @@ function getActivityInstructions(activity: PainelActivity): string | null {
   return toOptionalText(content.instructions);
 }
 
+function mergeAudioIntoFollowingExercise(
+  blocks: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  // Quando um bloco do tipo audio precede um bloco de exercicio, fundimos o
+  // audio na instrucao do proprio exercicio (instructionAudioUrl) e descartamos
+  // a tela standalone. Evita duplicar o "Ouca o audio" em uma tela exclusiva
+  // quando o speaker do exercicio ja serve para reouvir a mesma orientacao.
+  const result: Record<string, unknown>[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const blockType = String(block.type ?? '').trim().toLowerCase();
+
+    if (blockType !== 'audio') {
+      result.push(block);
+      continue;
+    }
+
+    const audioUrl =
+      toOptionalText(block.audioUrl) ||
+      toOptionalText(block.sourceUrl) ||
+      toOptionalText(block.mediaUrl);
+    const next = blocks[i + 1];
+    const nextType = next ? String(next.type ?? '').trim().toLowerCase() : '';
+    const isNextExercise = nextType.startsWith('exercise-');
+
+    if (!audioUrl || !isNextExercise || !next) {
+      result.push(block);
+      continue;
+    }
+
+    const existingExercise =
+      next.exercise && typeof next.exercise === 'object' && !Array.isArray(next.exercise)
+        ? (next.exercise as Record<string, unknown>)
+        : {};
+    const existingExerciseAudio = toOptionalText(existingExercise.instructionAudioUrl);
+    const existingBlockAudio =
+      toOptionalText(next.instructionAudioUrl) || toOptionalText(next.instrAudioUrl);
+
+    result.push({
+      ...next,
+      instructionAudioUrl: existingBlockAudio || audioUrl,
+      exercise: existingExerciseAudio
+        ? existingExercise
+        : { ...existingExercise, instructionAudioUrl: audioUrl },
+    });
+    i += 1;
+  }
+  return result;
+}
+
 function getCompositeBlocks(instructions: string | null | undefined): Record<string, unknown>[] | null {
   const parsed = tryParseInstructionJsonObject(String(instructions || '').trim());
   if (!parsed) return null;
@@ -638,7 +688,7 @@ function getCompositeBlocks(instructions: string | null | undefined): Record<str
 
   // Blocos marcados como audience=educator sao orientacoes para o alfabetizador
   // e nao devem virar telas do fluxo do alfabetizando.
-  return blocks.filter(
+  const filtered = blocks.filter(
     (block): block is Record<string, unknown> => {
       if (!block || typeof block !== 'object' || Array.isArray(block)) return false;
       const audience = String((block as Record<string, unknown>).audience ?? '')
@@ -647,6 +697,8 @@ function getCompositeBlocks(instructions: string | null | undefined): Record<str
       return audience !== 'educator' && audience !== 'tutor' && audience !== 'alfabetizador';
     },
   );
+
+  return mergeAudioIntoFollowingExercise(filtered);
 }
 
 function buildBlockExercisePayload(block: Record<string, unknown>): Record<string, unknown> | null {

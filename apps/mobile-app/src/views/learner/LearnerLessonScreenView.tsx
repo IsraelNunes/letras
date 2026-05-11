@@ -213,24 +213,49 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const selectedImageCount = selectedImageIds.length;
   const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
 
-  const stopCurrentAudio = useCallback(async () => {
-    audioRequestIdRef.current += 1;
-    cancelBrowserVoice();
-    const current = activeAudioRef.current;
-    activeAudioRef.current = null;
-    setPlayingAudioKey(null);
-    if (!current) return;
-    try {
-      await current.stopAsync();
-    } catch {
-      // The audio may already be stopped; unloading below is still the important part.
-    }
-    try {
-      await current.unloadAsync();
-    } catch {
-      // Ignore unload errors from already released native resources.
-    }
+  const pauseOtherHtmlMedia = useCallback((exceptElement: unknown = null) => {
+    // No web temos tres fontes de audio concorrentes: <audio>/<video> nativos
+    // renderizados em telas de midia, o expo-av (speaker dos exercicios) e o
+    // speechSynthesis (fallback TTS). Para evitar sobreposicao, ao iniciar
+    // qualquer audio paramos todos os elementos de midia da pagina, exceto o
+    // que disparou o evento.
+    if (Platform.OS !== 'web') return;
+    const runtimeDocument = (globalThis as { document?: Document }).document;
+    if (!runtimeDocument) return;
+    runtimeDocument.querySelectorAll('audio, video').forEach((element) => {
+      if (element === exceptElement) return;
+      const mediaElement = element as HTMLMediaElement;
+      if (mediaElement.paused) return;
+      try {
+        mediaElement.pause();
+      } catch {
+        // Elementos ainda nao prontos podem lancar; nao ha o que fazer aqui.
+      }
+    });
   }, []);
+
+  const stopCurrentAudio = useCallback(
+    async (exceptHtmlElement: unknown = null) => {
+      audioRequestIdRef.current += 1;
+      cancelBrowserVoice();
+      pauseOtherHtmlMedia(exceptHtmlElement);
+      const current = activeAudioRef.current;
+      activeAudioRef.current = null;
+      setPlayingAudioKey(null);
+      if (!current) return;
+      try {
+        await current.stopAsync();
+      } catch {
+        // The audio may already be stopped; unloading below is still the important part.
+      }
+      try {
+        await current.unloadAsync();
+      } catch {
+        // Ignore unload errors from already released native resources.
+      }
+    },
+    [pauseOtherHtmlMedia],
+  );
 
   const playAudioUrl = useCallback(
     async (url: string | null | undefined, fallbackText?: string | null, key?: string) => {
@@ -381,6 +406,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           if (!clampedRatio) return;
           setMediaAspectRatio(clampedRatio);
         },
+        onPlay: (event: { currentTarget?: unknown }) => {
+          void stopCurrentAudio(event.currentTarget ?? null);
+        },
         onError: () => setDidFailMediaLoad(true),
       });
     }
@@ -411,6 +439,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         style: {
           width: '100%',
           display: 'block',
+        },
+        onPlay: (event: { currentTarget?: unknown }) => {
+          void stopCurrentAudio(event.currentTarget ?? null);
         },
         onError: () => setDidFailMediaLoad(true),
       });
