@@ -327,6 +327,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           screenTemplate: screen.screenTemplate,
         },
       });
+      void learnerSession.recordProgress({
+        activityId: screen.id,
+        status: 'IN_PROGRESS',
+      });
     }, [learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate]),
   );
 
@@ -486,6 +490,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const goNextDefault = () => {
+    void learnerSession.recordProgress({
+      activityId: screen.id,
+      status: 'COMPLETED',
+    });
+
     if (screen.followUpActivity) {
       navigation.push('LearnerLessonActivity', {
         moduleId,
@@ -509,6 +518,19 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     }
 
     navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
+  };
+
+  const lockCurrentExercise = (message: string) => {
+    setExerciseLocked(true);
+    setExerciseFeedback({
+      type: 'error',
+      message,
+    });
+    void learnerSession.recordProgress({
+      activityId: screen.id,
+      status: 'LOCKED',
+    });
+    void learnerSession.requestHelp(message);
   };
 
   const canAdvanceMatchExercise =
@@ -601,11 +623,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     const nextAttempts = exerciseAttempts + 1;
     setExerciseAttempts(nextAttempts);
     if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
-      setExerciseLocked(true);
-      setExerciseFeedback({
-        type: 'error',
-        message: resolveLockMessage(screen.lockReason, screen.lockMessage),
-      });
+      lockCurrentExercise(resolveLockMessage(screen.lockReason, screen.lockMessage));
       return;
     }
 
@@ -708,11 +726,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       const nextAttempts = exerciseAttempts + 1;
       setExerciseAttempts(nextAttempts);
       if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
-        setExerciseLocked(true);
-        setExerciseFeedback({
-          type: 'error',
-          message: resolveLockMessage(screen.lockReason, screen.lockMessage),
-        });
+        lockCurrentExercise(resolveLockMessage(screen.lockReason, screen.lockMessage));
         return;
       }
 

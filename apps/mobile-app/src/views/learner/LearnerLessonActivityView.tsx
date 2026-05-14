@@ -54,6 +54,12 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
           screenIndex: safeIndex,
         },
       });
+      if (activity?.id) {
+        void learnerSession.recordProgress({
+          activityId: activity.id,
+          status: 'IN_PROGRESS',
+        });
+      }
     }, [activity?.id, learnerSession, lessonId, moduleId, safeIndex, screen.id]),
   );
 
@@ -148,6 +154,13 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
   const onContinue = () => {
     if (learnerSession.isLocked) {
       return;
+    }
+
+    if (activity?.id) {
+      void learnerSession.recordProgress({
+        activityId: activity.id,
+        status: 'COMPLETED',
+      });
     }
 
     if (safeIndex + 1 < totalScreens) {

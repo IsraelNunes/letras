@@ -4,6 +4,7 @@ import {
   AssignedLearnerTheme,
   BootstrappedLearnerSession,
   LearnerSessionRepository,
+  LearnerSessionStateSnapshot,
 } from '../../../domain/interfaces/learner/learner-session-repository';
 import { httpClient } from '../../../infra/api/http-client';
 import { SessionStorage } from '../../../infra/storage/session-storage';
@@ -58,6 +59,17 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
       return await httpClient.get<AssignedLearnerTheme[]>(`/learners/${learnerProfileId}/themes`);
     } catch {
       return [];
+    }
+  }
+
+  async getSessionState(learnerProfileId: string): Promise<LearnerSessionStateSnapshot | null> {
+    if (this.isLocalFallbackProfile(learnerProfileId)) {
+      return null;
+    }
+    try {
+      return await httpClient.get<LearnerSessionStateSnapshot>(`/painel/learner-sessions/${learnerProfileId}`);
+    } catch {
+      return null;
     }
   }
 

@@ -1,5 +1,5 @@
 import { SocketIdentity } from '@letras/shared-types';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
@@ -12,10 +12,11 @@ interface SyncCurrentStateInput {
 }
 
 type ProgressStatus = 'IN_PROGRESS' | 'COMPLETED';
+type ExtendedProgressStatus = ProgressStatus | 'LOCKED';
 
 interface RecordProgressInput {
   activityId: string;
-  status: ProgressStatus;
+  status: ExtendedProgressStatus;
   score?: number;
   elapsedSeconds?: number;
 }
@@ -30,6 +31,10 @@ export function useLearnerHomeViewModel() {
   const [themeNames, setThemeNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [polledIsLocked, setPolledIsLocked] = useState(false);
+  const lastStateRef = useRef<SyncCurrentStateInput>({
+    currentView: 'LearnerHome',
+  });
 
   const initialize = useCallback(async () => {
     try {
@@ -86,6 +91,12 @@ export function useLearnerHomeViewModel() {
         },
       };
 
+      lastStateRef.current = {
+        currentView: payload.currentView,
+        currentActivityId: payload.currentActivityId,
+        statePayload: payload.state,
+      };
+
       sendStateUpdate(payload);
 
       await repository.pushState(learnerProfileId, {
@@ -98,9 +109,29 @@ export function useLearnerHomeViewModel() {
   );
 
   const requestHelp = useCallback(
-    (message = 'Preciso de apoio na atividade atual.') => {
+    async (message = 'Preciso de apoio na atividade atual.') => {
       if (!learnerProfileId) {
         return;
+      }
+
+      const currentState = lastStateRef.current;
+      try {
+        await httpClient.post('/painel/support-requests', {
+          learnerProfileId,
+          currentView: currentState.currentView,
+          currentActivityId: currentState.currentActivityId,
+          activityId: currentState.currentActivityId,
+          message,
+          sourcePlatform: 'mobile',
+          metadata: {
+            deviceId,
+            statePayload: currentState.statePayload ?? {},
+          },
+        });
+      } catch (error) {
+        const normalizedMessage =
+          error instanceof Error ? error.message : 'Nao foi possivel enviar o pedido de ajuda.';
+        setErrorMessage(normalizedMessage);
       }
 
       emitHelp({
@@ -108,7 +139,7 @@ export function useLearnerHomeViewModel() {
         message,
       });
     },
-    [emitHelp, learnerProfileId],
+    [deviceId, emitHelp, learnerProfileId],
   );
 
   const recordProgress = useCallback(
@@ -151,13 +182,37 @@ export function useLearnerHomeViewModel() {
     disconnect();
   }, [disconnect]);
 
+  useEffect(() => {
+    if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) {
+      setPolledIsLocked(false);
+      return;
+    }
+
+    let active = true;
+    const pollLockState = async () => {
+      const snapshot = await repository.getSessionState(learnerProfileId);
+      if (!active) {
+        return;
+      }
+      setPolledIsLocked(Boolean(snapshot?.sessionState?.isLocked));
+    };
+
+    void pollLockState();
+    const timer = setInterval(pollLockState, 10000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [learnerProfileId, repository]);
+
   return {
     loading,
     errorMessage,
     learnerProfileId,
     deviceId,
     themeNames,
-    isLocked: realtime.isLocked,
+    isLocked: realtime.isLocked || polledIsLocked,
     presence: realtime.presence,
     helpAcknowledgedAt: realtime.helpAcknowledgedAt,
     initialize,
