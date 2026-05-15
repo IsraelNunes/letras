@@ -24,6 +24,15 @@ interface RecordProgressInput {
   lockReason?: string;
 }
 
+const UUID_PREFIX_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
+function resolveCanonicalActivityId(activityId: string): string | null {
+  const normalized = activityId.trim();
+  const match = normalized.match(UUID_PREFIX_PATTERN);
+  return match?.[0] ?? null;
+}
+
 export function useLearnerHomeViewModel() {
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
@@ -161,9 +170,14 @@ export function useLearnerHomeViewModel() {
         // Em producao o mobile aponta para o painel Express
         // (painel.letras.cloud/api/v1), que expoe POST /painel/progress
         // espelhando o contrato do POST /progress do backend NestJS.
+        const canonicalActivityId = resolveCanonicalActivityId(activityId);
+        if (!canonicalActivityId) {
+          return;
+        }
+
         await httpClient.post('/painel/progress', {
           learnerProfileId,
-          activityId,
+          activityId: canonicalActivityId,
           status,
           ...(typeof score === 'number' ? { score } : {}),
           ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
