@@ -72,6 +72,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda antes de iniciar esta aula.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>

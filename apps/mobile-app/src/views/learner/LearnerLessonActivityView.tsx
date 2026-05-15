@@ -189,6 +189,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda na atividade complementar.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>

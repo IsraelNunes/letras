@@ -89,6 +89,7 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para encerrar a aula.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>

@@ -10,12 +10,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Socket } from 'socket.io-client';
 import { createEducatorSocket } from '../../infra/realtime/session-socket';
 
+export interface LastHelpRequest {
+  message: string;
+  snapshot?: HelpPayload['snapshot'];
+  receivedAt: string;
+}
+
 export function useEducatorRealtime() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [presence, setPresence] = useState<PresencePayload | null>(null);
   const [lastLearnerState, setLastLearnerState] = useState<LearnerStateUpdatePayload | null>(null);
-  const [lastHelpRequest, setLastHelpRequest] = useState<string | null>(null);
+  const [lastHelpRequest, setLastHelpRequest] = useState<LastHelpRequest | null>(null);
 
   const connect = useCallback((identity: SocketIdentity) => {
     setSocket((current) => {
@@ -45,7 +51,11 @@ export function useEducatorRealtime() {
     };
 
     const onHelpRequested = (payload: HelpPayload) => {
-      setLastHelpRequest(payload.message ?? 'Aprendiz solicitou ajuda.');
+      setLastHelpRequest({
+        message: payload.message ?? 'Aprendiz solicitou ajuda.',
+        snapshot: payload.snapshot,
+        receivedAt: new Date().toISOString(),
+      });
     };
 
     const onLockedChanged = (payload: LockedChangedPayload) => {

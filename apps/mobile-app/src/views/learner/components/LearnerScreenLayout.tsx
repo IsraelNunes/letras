@@ -17,6 +17,7 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
   isSessionLocked?: boolean;
   onRequestHelp?: () => void;
   helpAcknowledgedAt?: string | null;
+  isHelpPending?: boolean;
   sessionErrorMessage?: string | null;
 }
 
@@ -32,6 +33,7 @@ export function LearnerScreenLayout({
   isSessionLocked = false,
   onRequestHelp,
   helpAcknowledgedAt,
+  isHelpPending = false,
   sessionErrorMessage,
 }: LearnerScreenLayoutProps) {
   return (
@@ -51,10 +53,18 @@ export function LearnerScreenLayout({
           ) : null}
           {onRequestHelp ? (
             <View style={styles.helpRow}>
-              <Pressable style={styles.helpButton} onPress={onRequestHelp}>
-                <Text style={styles.helpButtonText}>PEDIR AJUDA</Text>
+              <Pressable
+                style={[styles.helpButton, isHelpPending ? styles.helpButtonPending : null]}
+                onPress={onRequestHelp}
+                disabled={isHelpPending}
+              >
+                <Text style={[styles.helpButtonText, isHelpPending ? styles.helpButtonTextPending : null]}>
+                  {isHelpPending ? 'AGUARDANDO AJUDA' : 'PEDIR AJUDA'}
+                </Text>
               </Pressable>
-              {helpAcknowledgedAt ? <Text style={styles.helpAckText}>Ajuda recebida</Text> : null}
+              {!isHelpPending && helpAcknowledgedAt ? (
+                <Text style={styles.helpAckText}>Ajuda recebida</Text>
+              ) : null}
             </View>
           ) : null}
           <View style={styles.body}>{children}</View>
@@ -133,10 +143,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+  helpButtonPending: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fee2e2',
+  },
   helpButtonText: {
     color: learnerTheme.primary,
     fontSize: 11,
     fontWeight: '700',
+  },
+  helpButtonTextPending: {
+    color: '#991b1b',
   },
   helpAckText: {
     color: '#2f6a2f',

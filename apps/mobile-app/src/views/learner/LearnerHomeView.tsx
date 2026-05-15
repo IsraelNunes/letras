@@ -37,6 +37,7 @@ export function LearnerHomeView({ navigation }: Props) {
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de apoio para seguir na aula inicial.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>

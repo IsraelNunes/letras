@@ -1,4 +1,4 @@
-import { SocketIdentity } from '@letras/shared-types';
+import { LearnerScreenSnapshot, SocketIdentity } from '@letras/shared-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
@@ -44,6 +44,7 @@ export function useLearnerHomeViewModel() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [polledIsLocked, setPolledIsLocked] = useState(false);
+  const [helpRequestedAt, setHelpRequestedAt] = useState<string | null>(null);
   const lastStateRef = useRef<SyncCurrentStateInput>({
     currentView: 'LearnerHome',
   });
@@ -121,7 +122,10 @@ export function useLearnerHomeViewModel() {
   );
 
   const requestHelp = useCallback(
-    async (message = 'Preciso de apoio na atividade atual.') => {
+    async (
+      message = 'Preciso de apoio na atividade atual.',
+      snapshot?: LearnerScreenSnapshot,
+    ) => {
       if (!learnerProfileId) {
         return;
       }
@@ -138,6 +142,7 @@ export function useLearnerHomeViewModel() {
           metadata: {
             deviceId,
             statePayload: currentState.statePayload ?? {},
+            snapshot: snapshot ?? null,
           },
         });
       } catch (error) {
@@ -149,7 +154,13 @@ export function useLearnerHomeViewModel() {
       emitHelp({
         learnerProfileId,
         message,
+        snapshot,
       });
+
+      // Marca o pedido como pendente no app do aluno; o botao PEDIR AJUDA
+      // vira "AGUARDANDO AJUDA" ate o alfabetizador destravar (chega via
+      // help_received do realtime, que atualiza helpAcknowledgedAt).
+      setHelpRequestedAt(new Date().toISOString());
     },
     [deviceId, emitHelp, learnerProfileId],
   );
@@ -236,6 +247,14 @@ export function useLearnerHomeViewModel() {
     isLocked: realtime.isLocked || polledIsLocked,
     presence: realtime.presence,
     helpAcknowledgedAt: realtime.helpAcknowledgedAt,
+    helpRequestedAt,
+    // Ajuda pendente = pediu ajuda e ainda nao recebeu o ack (help_received).
+    // Quando o educator destrava, helpAcknowledgedAt > helpRequestedAt e a
+    // UI volta ao estado normal do botao "PEDIR AJUDA".
+    isHelpPending: Boolean(
+      helpRequestedAt &&
+        (!realtime.helpAcknowledgedAt || realtime.helpAcknowledgedAt < helpRequestedAt),
+    ),
     initialize,
     cleanup,
     syncCurrentState,

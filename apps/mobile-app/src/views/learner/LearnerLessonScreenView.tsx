@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio, ResizeMode, Video } from 'expo-av';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { LearnerScreenSnapshot } from '@letras/shared-types';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
@@ -540,6 +541,27 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
   };
 
+  const buildHelpSnapshot = (): LearnerScreenSnapshot => ({
+    moduleId,
+    lessonId,
+    moduleLabel,
+    moduleTitle,
+    lessonTitle: lesson.title,
+    screenIndex: safeIndex,
+    totalScreens,
+    // Por enquanto so a Etapa 2 esta no mobile. O painel pode consumir esse
+    // campo como pista, mas nao depende dele.
+    stage: '2',
+    screenId: screen.id,
+    screenTitle: screen.title,
+    screenTemplate: screen.screenTemplate,
+    mediaUrl: screen.mediaUrl,
+    mediaKind: screen.mediaKind,
+    learnerSpeech: screen.learnerSpeech,
+    highlightMessage: screen.highlightMessage,
+    exercise: screen.exercise ?? null,
+  });
+
   const lockCurrentExercise = (message: string) => {
     const nextAttempts = Math.max(exerciseAttempts, screen.exercise?.maxAttemptsBeforeLock ?? 1);
     setExerciseLocked(true);
@@ -555,7 +577,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       maxAttempts: screen.exercise?.maxAttemptsBeforeLock,
       lockReason: message,
     });
-    void learnerSession.requestHelp(message);
+    void learnerSession.requestHelp(message, buildHelpSnapshot());
   };
 
   const canAdvanceMatchExercise =
@@ -928,8 +950,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onMenuProfile={() => navigation.navigate('LearnerHome')}
       roleLabel="alfabetizando"
       isSessionLocked={learnerSession.isLocked}
-      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.')}
+      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
+      isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>

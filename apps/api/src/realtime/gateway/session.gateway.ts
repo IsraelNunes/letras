@@ -123,6 +123,7 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     this.server.to(payload.learnerProfileId).emit('help_requested', {
       learnerProfileId: payload.learnerProfileId,
       message: payload.message,
+      snapshot: payload.snapshot,
       sentBy: client.id,
       timestamp: new Date().toISOString(),
     });
