@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { API_BASE_URL } from '../api/http-client';
 
 function resolveRealtimeBaseUrl(): string {
-  return API_BASE_URL.replace(/\/$/, '');
+  return API_BASE_URL.replace(/\/api\/v1\/?$/i, '').replace(/\/$/, '');
 }
 
 function createSessionSocket(identity: SocketIdentity): Socket {

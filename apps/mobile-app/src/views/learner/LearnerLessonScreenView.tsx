@@ -188,6 +188,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [exerciseLocked, setExerciseLocked] = useState(false);
+  const [remoteLockWasObserved, setRemoteLockWasObserved] = useState(false);
   const [exerciseFeedback, setExerciseFeedback] = useState<ExerciseFeedback | null>(null);
   const [showReinforcement, setShowReinforcement] = useState(false);
   const [reinforcementMessage, setReinforcementMessage] = useState<string | null>(null);
@@ -346,6 +347,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setSelectedImageIds([]);
     setExerciseAttempts(0);
     setExerciseLocked(false);
+    setRemoteLockWasObserved(false);
     setExerciseFeedback(null);
     setShowReinforcement(false);
     setReinforcementMessage(null);
@@ -358,6 +360,24 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       reinforcementTimeoutRef.current = null;
     }
   }, [screen.id, screen.mediaKind, screen.mediaUrl, screen.screenTemplate, stopCurrentAudio]);
+
+  useEffect(() => {
+    if (learnerSession.isLocked) {
+      setRemoteLockWasObserved(true);
+      return;
+    }
+
+    if (!remoteLockWasObserved || !exerciseLocked) {
+      return;
+    }
+
+    setExerciseLocked(false);
+    setExerciseAttempts(0);
+    setExerciseFeedback({
+      type: 'ok',
+      message: 'Atividade liberada pelo alfabetizador. Voce ja pode continuar.',
+    });
+  }, [exerciseLocked, learnerSession.isLocked, remoteLockWasObserved]);
 
   useEffect(() => {
     return () => {

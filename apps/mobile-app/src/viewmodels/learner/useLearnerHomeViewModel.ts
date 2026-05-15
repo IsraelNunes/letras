@@ -1,6 +1,5 @@
 import { SocketIdentity } from '@letras/shared-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 import { httpClient } from '../../infra/api/http-client';
@@ -56,7 +55,7 @@ export function useLearnerHomeViewModel() {
       };
 
       const isLocalFallbackProfile = session.learnerProfileId.startsWith('learner-local-profile-');
-      const shouldConnectRealtime = Platform.OS !== 'web' && !isLocalFallbackProfile;
+      const shouldConnectRealtime = !isLocalFallbackProfile;
       if (shouldConnectRealtime) {
         connect(identity);
       }
