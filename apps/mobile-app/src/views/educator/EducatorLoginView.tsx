@@ -60,7 +60,7 @@ export function EducatorLoginView({ navigation }: Props) {
       const auth = await repository.loginEducator(identifier.trim(), password);
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);
-      navigation.replace('EducatorLearningMode', {
+      navigation.replace('EducatorHome', {
         fullName: auth.educator.fullName,
       });
     } catch (error) {

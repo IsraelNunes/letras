@@ -85,7 +85,7 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
 
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);
-      navigation.replace('EducatorLearningMode', {
+      navigation.replace('EducatorHome', {
         fullName: data.fullName,
       });
     } catch (error) {

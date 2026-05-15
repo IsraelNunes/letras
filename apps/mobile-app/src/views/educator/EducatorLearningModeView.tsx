@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,48 +18,30 @@ import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLearningMode'>;
 type LearningMode = 'individual' | 'group' | null;
 
-const DEFAULT_GROUPS = [
-  'Grupo de Alfabetizandos 3',
-  'Grupo de Alfabetizandos 4',
-  'Grupo de Alfabetizandos 5',
-] as const;
+// POC: o suporte a grupos esta desligado por enquanto (decisao registrada em
+// CLAUDE.md secao 2). A tela continua aparecendo no fluxo de vinculacao para
+// ja preparar o copy/visual do prototipo, mas a opcao "EM GRUPO" e a lista
+// de grupos ficam grayed-out com tag "em breve".
+const GROUPS_ENABLED = false;
 
 export function EducatorLearningModeView({ navigation, route }: Props) {
   const [mode, setMode] = useState<LearningMode>(null);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
-  const [groups, setGroups] = useState<string[]>([...DEFAULT_GROUPS]);
 
   const [assets] = useAssets([
     require('../../../assets/Logo-LETRAS.svg'),
     require('../../../assets/Person.svg'),
     require('../../../assets/Group.svg'),
-    require('../../../assets/avançar.svg'),
   ]);
 
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
   const personUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
   const groupUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
-  const arrowUri = assets?.[3]?.localUri ?? assets?.[3]?.uri;
 
   const educatorName = route.params?.fullName?.trim() || 'Educador';
-
-  const normalizedNewGroupName = newGroupName.trim();
-  const canCreateGroup = normalizedNewGroupName.length >= 2;
-
-  const repeatedGroupName = useMemo(
-    () => groups.some((item) => item.toLocaleLowerCase('pt-BR') === normalizedNewGroupName.toLocaleLowerCase('pt-BR')),
-    [groups, normalizedNewGroupName],
-  );
-
-  const handleCreateGroup = () => {
-    if (!canCreateGroup || repeatedGroupName) return;
-
-    setGroups((prev) => [normalizedNewGroupName, ...prev]);
-    setSelectedGroupName(normalizedNewGroupName);
-    setMode('group');
-    setNewGroupName('');
-  };
+  // Nome do alfabetizando contextual: vem do fluxo de vinculacao. Se ninguem
+  // setou ainda (caso o usuario abriu a tela diretamente pelo botao "novo
+  // alfabetizando"), usamos copy generico.
+  const learnerName = route.params?.learnerName?.trim() || 'O alfabetizando';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -84,16 +65,13 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
 
         <View style={styles.body}>
           <Text style={styles.questionText}>
-            {educatorName} sera alfabetizando{"\n"}
+            {learnerName} sera alfabetizando{"\n"}
             individualmente ou em um grupo?
           </Text>
 
           <Pressable
             style={[styles.modeOption, mode === 'individual' ? styles.modeOptionActive : null]}
-            onPress={() => {
-              setMode('individual');
-              setSelectedGroupName(null);
-            }}
+            onPress={() => setMode('individual')}
           >
             {personUri ? (
               <SvgUri uri={personUri} width={58} height={48} />
@@ -103,66 +81,39 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
             <Text style={styles.modeLabel}>INDIVIDUALMENTE</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.modeOption, styles.modeOptionGroup, mode === 'group' ? styles.modeOptionActive : null]}
-            onPress={() => setMode('group')}
+          <View
+            style={[
+              styles.modeOption,
+              styles.modeOptionGroup,
+              GROUPS_ENABLED ? null : styles.modeOptionDisabled,
+            ]}
           >
             {groupUri ? (
               <SvgUri uri={groupUri} width={76} height={50} />
             ) : (
               <ActivityIndicator size="small" color="#111111" />
             )}
-            <Text style={styles.modeLabel}>EM GRUPO</Text>
-          </Pressable>
-
-          <Text style={styles.sectionTitle}>CRIAR NOVO GRUPO</Text>
-          <Text style={styles.sectionLabel}>Informe o nome do novo grupo:</Text>
-
-          <View style={styles.inlineInputRow}>
-            <TextInput
-              value={newGroupName}
-              onChangeText={setNewGroupName}
-              style={styles.groupInput}
-              placeholder=""
-              placeholderTextColor="#8f8f8f"
-            />
-            <Pressable
-              style={[styles.arrowButton, !canCreateGroup || repeatedGroupName ? styles.arrowButtonDisabled : null]}
-              onPress={handleCreateGroup}
-              disabled={!canCreateGroup || repeatedGroupName}
-            >
-              {arrowUri ? (
-                <SvgUri uri={arrowUri} width={34} height={26} />
-              ) : (
-                <ActivityIndicator size="small" color="#20385f" />
-              )}
-            </Pressable>
+            <Text style={[styles.modeLabel, GROUPS_ENABLED ? null : styles.modeLabelDisabled]}>EM GRUPO</Text>
+            {GROUPS_ENABLED ? null : (
+              <View style={styles.soonBadge}>
+                <Text style={styles.soonBadgeText}>EM BREVE</Text>
+              </View>
+            )}
           </View>
 
-          <Text style={styles.ouText}>OU</Text>
-
-          <Text style={styles.sectionTitle}>INCLUIR NO GRUPO:</Text>
-          {groups.map((item) => (
-            <Pressable
-              key={item}
-              style={[styles.groupItem, selectedGroupName === item ? styles.groupItemSelected : null]}
-              onPress={() => {
-                setMode('group');
-                setSelectedGroupName(item);
-              }}
-            >
-              <Text style={styles.groupItemText}>{item}</Text>
-            </Pressable>
-          ))}
+          <Text style={styles.helperText}>
+            Por enquanto a alfabetizacao em grupo nao esta liberada. Siga com a opcao
+            individual.
+          </Text>
         </View>
       </ScrollView>
 
       <EducatorBottomMenu
         active="inicio"
-        onInicioPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
-        onTutorialPress={() => navigation.navigate('EducatorSplash')}
-        onAcompanharPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
-        onPontuacaoPress={() => navigation.navigate('EducatorLearningMode', { fullName: educatorName })}
+        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
+        onTutorialPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
+        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
+        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
@@ -240,6 +191,9 @@ const styles = StyleSheet.create({
   modeOptionActive: {
     backgroundColor: '#e4e4e4',
   },
+  modeOptionDisabled: {
+    opacity: 0.35,
+  },
   modeLabel: {
     marginTop: 8,
     color: '#111111',
@@ -247,57 +201,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.2,
   },
-  sectionTitle: {
-    marginTop: 18,
-    color: '#111111',
-    fontSize: 21 / 1.2,
+  modeLabelDisabled: {
+    color: '#5a5a5a',
+  },
+  soonBadge: {
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#9a9a9a',
+    backgroundColor: '#f3f3f3',
+  },
+  soonBadgeText: {
+    color: '#5a5a5a',
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  sectionLabel: {
-    marginTop: 7,
-    color: '#242424',
-    fontSize: 15,
-  },
-  inlineInputRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  groupInput: {
-    flex: 1,
-    height: 30,
-    borderRadius: 1,
-    backgroundColor: '#e4e4e4',
-    paddingHorizontal: 9,
-    color: '#111111',
-    fontSize: 14,
-  },
-  arrowButton: {
-    width: 38,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  arrowButtonDisabled: {
-    opacity: 0.4,
-  },
-  ouText: {
+  helperText: {
     marginTop: 22,
-    color: '#242424',
-    fontSize: 16,
-  },
-  groupItem: {
-    marginTop: 10,
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-    borderRadius: 4,
-  },
-  groupItemSelected: {
-    backgroundColor: '#e4e4e4',
-  },
-  groupItemText: {
-    color: '#1a1a1a',
-    fontSize: 17 / 1.2,
+    color: '#5a5a5a',
+    fontSize: 13,
+    lineHeight: 19,
   },
 });

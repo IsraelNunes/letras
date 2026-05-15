@@ -37,7 +37,7 @@ export function EducatorLoadingView({ navigation }: Props) {
         try {
           const me = await repository.fetchCurrentEducator();
           await EducatorStorage.saveAuthSession(token, me.expiresAt, me.educator);
-          navigation.replace('EducatorLearningMode', {
+          navigation.replace('EducatorHome', {
             fullName: me.educator.fullName,
           });
         } catch {

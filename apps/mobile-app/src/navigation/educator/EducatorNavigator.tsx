@@ -7,6 +7,7 @@ import { EducatorOnboardingStepTwoView } from '../../views/educator/EducatorOnbo
 import { EducatorOnboardingStepThreeView } from '../../views/educator/EducatorOnboardingStepThreeView';
 import { EducatorOnboardingConfirmView } from '../../views/educator/EducatorOnboardingConfirmView';
 import { EducatorLearningModeView } from '../../views/educator/EducatorLearningModeView';
+import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
 import { EducatorRootStackParamList } from '../../types';
 
 const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
@@ -64,6 +65,14 @@ export function EducatorNavigator() {
         component={EducatorOnboardingConfirmView}
         options={{
           headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="EducatorHome"
+        component={EducatorHomeView}
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
         }}
       />
       <Stack.Screen
