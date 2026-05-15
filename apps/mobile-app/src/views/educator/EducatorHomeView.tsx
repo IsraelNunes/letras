@@ -155,13 +155,13 @@ const styles = StyleSheet.create({
   },
   newLearnerButton: {
     marginTop: 22,
-    backgroundColor: '#fbbf24',
-    borderRadius: 8,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
   newLearnerButtonText: {
-    color: '#1a1a1a',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
