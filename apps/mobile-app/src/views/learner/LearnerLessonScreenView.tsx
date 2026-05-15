@@ -9,7 +9,7 @@ import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
-import { LearnerExerciseConfig } from './learnerFlowMapper';
+import { getLearnerVisibleExerciseLabel, LearnerExerciseConfig } from './learnerFlowMapper';
 import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonScreen'>;
@@ -885,8 +885,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </Text>
 
           <View style={styles.markGrid}>
-            {screen.exercise.items.map((item) => {
+            {screen.exercise.items.map((item, itemIndex) => {
               const isSelected = selectedImageIds.includes(item.id);
+              const visibleLabel = getLearnerVisibleExerciseLabel(item.label, itemIndex);
               return (
                 <Pressable
                   key={item.id}
@@ -899,10 +900,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                     <Image source={{ uri: item.imageUrl }} style={styles.markItemImage} resizeMode="contain" />
                   ) : (
                     <View style={styles.markItemFallback}>
-                      <Text style={styles.markItemFallbackText}>{item.label.slice(0, 1)}</Text>
+                      <Text style={styles.markItemFallbackText}>
+                        {(visibleLabel || `Imagem ${itemIndex + 1}`).slice(0, 1)}
+                      </Text>
                     </View>
                   )}
-                  <Text style={styles.markItemLabel}>{item.label}</Text>
+                  {visibleLabel ? <Text style={styles.markItemLabel}>{visibleLabel}</Text> : null}
                   <View style={[styles.markIndicator, isSelected ? styles.markIndicatorSelected : null]} />
                 </Pressable>
               );
