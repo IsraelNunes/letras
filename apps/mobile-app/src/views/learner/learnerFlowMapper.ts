@@ -108,6 +108,7 @@ interface PainelActivity {
   order?: number;
   sort_order?: number;
   title: string | null;
+  is_published?: boolean;
   prompt?: string;
   instructions?: string | null;
   content?: Record<string, unknown> | null;
@@ -122,6 +123,7 @@ interface PainelLearningUnit {
   stage_number?: number;
   order?: number;
   sort_order?: number;
+  is_active?: boolean;
   title: string;
   description: string | null;
   activities: PainelActivity[];
@@ -132,6 +134,7 @@ interface PainelTheme {
   title?: string;
   name: string;
   sort_order?: number;
+  is_active?: boolean;
   description: string | null;
   learningUnits?: PainelLearningUnit[];
 }
@@ -843,10 +846,20 @@ function buildFallbackModules(): LearnerFlowModule[] {
   return [];
 }
 
+function isActiveContent(value: { is_active?: boolean } | null | undefined): boolean {
+  return value?.is_active !== false;
+}
+
+function isPublishedActivity(value: { is_published?: boolean } | null | undefined): boolean {
+  return value?.is_published !== false;
+}
+
 export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {
-  const themes = [...(payload.themes || [])].sort((a, b) =>
-    compareWithIdTieBreaker(a.sort_order ?? 0, b.sort_order ?? 0, a.id, b.id),
-  );
+  const themes = [...(payload.themes || [])]
+    .filter(isActiveContent)
+    .sort((a, b) =>
+      compareWithIdTieBreaker(a.sort_order ?? 0, b.sort_order ?? 0, a.id, b.id),
+    );
   if (themes.length === 0) {
     return [];
   }
@@ -857,12 +870,14 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
     const mappedNested = themes.map((theme, themeIndex) => {
       const learningUnits = [...(theme.learningUnits || [])].sort((a, b) =>
         compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
-      );
+      ).filter((unit) => isActiveContent(unit) && (unit.activities || []).some(isPublishedActivity));
 
       const lessons: LearnerFlowLesson[] = learningUnits.map((unit) => {
-        const activities = [...(unit.activities || [])].sort((a, b) =>
-          compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
-        );
+        const activities = [...(unit.activities || [])]
+          .filter(isPublishedActivity)
+          .sort((a, b) =>
+            compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
+          );
 
         const screens: LearnerFlowScreen[] = activities.flatMap((activity, activityIndex): LearnerFlowScreen[] => {
           const normalizedAssets = (activity.assets || [])
@@ -985,7 +1000,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
   }
 
   const modules = payload.modules || [];
-  const activities = payload.activities || [];
+  const activities = (payload.activities || []).filter(isPublishedActivity);
   const assets = payload.assets || [];
   const blueprints = payload.blueprints || [];
 
@@ -1036,7 +1051,8 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
   const mappedFlat = themes
     .map((theme, themeIndex) => {
       const units = modules
-        .filter((unit) => unit.theme_id === theme.id)
+        .filter((unit) => unit.theme_id === theme.id && isActiveContent(unit))
+        .filter((unit) => (activitiesByModule.get(unit.id) ?? []).length > 0)
         .sort((a, b) => {
           const stageDiff = compareWithIdTieBreaker(
             a.stage_number ?? 0,
