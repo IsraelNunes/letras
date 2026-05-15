@@ -21,6 +21,10 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
       learnerProfileId = await this.provisionLearnerProfile(deviceId);
     }
 
+    if (this.isLocalFallbackProfile(learnerProfileId) && !this.shouldUseLocalProvisioningOnly()) {
+      learnerProfileId = await this.provisionLearnerProfile(deviceId);
+    }
+
     if (this.isLocalFallbackProfile(learnerProfileId)) {
       return {
         learnerProfileId,
@@ -93,8 +97,23 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
 
   private async createAndPersistLearnerProfile(deviceId: string): Promise<string> {
     const friendlySuffix = deviceId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || 'WEB';
+    const displayName = `Alfabetizando ${friendlySuffix}`;
+    const panelBody = {
+      deviceId,
+      displayName,
+    };
+
+    try {
+      const profile = await httpClient.post<LearnerProfile>('/cadastros/alfabetizandos/provisionar-mobile', panelBody);
+      await SessionStorage.setLearnerProfileId(profile.id);
+      return profile.id;
+    } catch {
+      // Mantem compatibilidade com o backend mobile Nest quando o app aponta
+      // para ele em desenvolvimento.
+    }
+
     const body: CreateLearnerProfileRequest = {
-      displayName: `Alfabetizando ${friendlySuffix}`,
+      displayName,
       notes: 'Provisionado automaticamente no primeiro acesso ao fluxo mobile.',
     };
 
@@ -126,8 +145,6 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
   }
 
   private shouldUseLocalProvisioningOnly(): boolean {
-    const runtime = globalThis as { window?: { location?: { hostname?: string } } };
-    const hostname = String(runtime.window?.location?.hostname || '').toLowerCase();
-    return hostname === 'mobile.letras.cloud' || hostname === 'app.letras.cloud';
+    return process.env.EXPO_PUBLIC_USE_LOCAL_LEARNER_PROFILE === 'true';
   }
 }

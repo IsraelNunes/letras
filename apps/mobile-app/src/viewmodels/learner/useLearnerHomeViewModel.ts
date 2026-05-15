@@ -19,6 +19,10 @@ interface RecordProgressInput {
   status: ExtendedProgressStatus;
   score?: number;
   elapsedSeconds?: number;
+  attempts?: number;
+  errorsCount?: number;
+  maxAttempts?: number;
+  lockReason?: string;
 }
 
 export function useLearnerHomeViewModel() {
@@ -143,7 +147,7 @@ export function useLearnerHomeViewModel() {
   );
 
   const recordProgress = useCallback(
-    async ({ activityId, status, score, elapsedSeconds }: RecordProgressInput) => {
+    async ({ activityId, status, score, elapsedSeconds, attempts, errorsCount, maxAttempts, lockReason }: RecordProgressInput) => {
       if (!learnerProfileId || !activityId) {
         return;
       }
@@ -164,6 +168,10 @@ export function useLearnerHomeViewModel() {
           status,
           ...(typeof score === 'number' ? { score } : {}),
           ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
+          ...(typeof attempts === 'number' ? { attempts } : {}),
+          ...(typeof errorsCount === 'number' ? { errorsCount } : {}),
+          ...(typeof maxAttempts === 'number' ? { maxAttempts } : {}),
+          ...(typeof lockReason === 'string' && lockReason.trim() ? { lockReason } : {}),
         });
       } catch (error) {
         // Falha de progresso nao deve quebrar a UI da aula. O proximo

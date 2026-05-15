@@ -521,6 +521,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const lockCurrentExercise = (message: string) => {
+    const nextAttempts = Math.max(exerciseAttempts, screen.exercise?.maxAttemptsBeforeLock ?? 1);
     setExerciseLocked(true);
     setExerciseFeedback({
       type: 'error',
@@ -529,6 +530,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     void learnerSession.recordProgress({
       activityId: screen.id,
       status: 'LOCKED',
+      attempts: nextAttempts,
+      errorsCount: nextAttempts,
+      maxAttempts: screen.exercise?.maxAttemptsBeforeLock,
+      lockReason: message,
     });
     void learnerSession.requestHelp(message);
   };
