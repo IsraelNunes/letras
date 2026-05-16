@@ -35,6 +35,48 @@ function PendingPhoneIcon() {
   );
 }
 
+// Icone visual de "preciso de ajuda" para o aluno que ainda nao sabe ler.
+// Maozinha levantada estilizada — sinaliza o gesto natural do aluno em sala
+// de aula para pedir apoio. Aparece apenas quando o exercicio trava (3
+// erros) para nao poluir a tela em estado normal.
+function RaisedHandIcon() {
+  return (
+    <Svg width={34} height={34} viewBox="0 0 32 32" fill="none">
+      <Path
+        d="M11 6 C11 4.8 12 4 13 4 C14 4 15 4.8 15 6 L15 14"
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M15 8 C15 6.8 16 6 17 6 C18 6 19 6.8 19 8 L19 15"
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M19 9 C19 7.8 20 7 21 7 C22 7 23 7.8 23 9 L23 16"
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M7 12 C7 10.8 8 10 9 10 C10 10 11 10.8 11 12 L11 18"
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+      />
+      <Path
+        d="M7 16 C7 18 7 22 9 24 C12 27 16 28 19 28 C23 28 26 25 26 21 L26 13"
+        stroke="#ffffff"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 type MenuKey = 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
 
 interface LearnerScreenLayoutProps extends PropsWithChildren {
@@ -49,6 +91,12 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
   onRequestHelp?: () => void;
   helpAcknowledgedAt?: string | null;
   isHelpPending?: boolean;
+  // Em telas comuns (video, imagem, texto, exercicio em andamento) o
+  // botao de pedir ajuda fica oculto: o alfabetizando ainda nao sabe ler
+  // e nao precisa de um botao textual disponivel o tempo todo. O botao
+  // visual de pedir apoio so aparece quando esta flag e true — usado pela
+  // tela de exercicio quando o aluno trava (3 erros).
+  canRequestHelp?: boolean;
   sessionErrorMessage?: string | null;
 }
 
@@ -65,6 +113,7 @@ export function LearnerScreenLayout({
   onRequestHelp,
   helpAcknowledgedAt,
   isHelpPending = false,
+  canRequestHelp = false,
   sessionErrorMessage,
 }: LearnerScreenLayoutProps) {
   return (
@@ -82,30 +131,37 @@ export function LearnerScreenLayout({
               <Text style={styles.alertLockText}>Sessao bloqueada pelo alfabetizador. Aguarde orientacao.</Text>
             </View>
           ) : null}
-          {onRequestHelp ? (
-            isHelpPending ? (
-              // Estado "tela bloqueada aguardando apoio". Banner grande
-              // vermelho com texto + X + telefone, ocupando a largura toda
-              // (Figma: Etapas 2 e 3 - Tela bloqueada).
-              <View style={styles.pendingBanner}>
-                <Text style={styles.pendingBannerText}>
-                  AGUARDANDO{"\n"}AJUDA
-                </Text>
-                <View style={styles.pendingBannerIcons}>
-                  <PendingCrossIcon />
-                  <PendingPhoneIcon />
-                </View>
+          {onRequestHelp && isHelpPending ? (
+            // Estado "tela bloqueada aguardando apoio". Banner grande
+            // vermelho com texto + X + telefone, ocupando a largura toda
+            // (Figma: Etapas 2 e 3 - Tela bloqueada).
+            <View style={styles.pendingBanner}>
+              <Text style={styles.pendingBannerText}>
+                AGUARDANDO{"\n"}AJUDA
+              </Text>
+              <View style={styles.pendingBannerIcons}>
+                <PendingCrossIcon />
+                <PendingPhoneIcon />
               </View>
-            ) : (
-              <View style={styles.helpRow}>
-                <Pressable style={styles.helpButton} onPress={onRequestHelp}>
-                  <Text style={styles.helpButtonText}>PEDIR AJUDA</Text>
-                </Pressable>
-                {helpAcknowledgedAt ? (
-                  <Text style={styles.helpAckText}>Ajuda recebida</Text>
-                ) : null}
-              </View>
-            )
+            </View>
+          ) : null}
+          {onRequestHelp && !isHelpPending && canRequestHelp ? (
+            // Botao visual de pedir ajuda. So aparece quando o aluno
+            // travou em um exercicio (3 erros). Visual (icone de mao
+            // levantada) em vez de texto, ja que o aluno nao le ainda.
+            <View style={styles.helpRow}>
+              <Pressable
+                style={styles.helpVisualButton}
+                onPress={onRequestHelp}
+                accessibilityLabel="Pedir ajuda ao alfabetizador"
+                accessibilityRole="button"
+              >
+                <RaisedHandIcon />
+              </Pressable>
+              {helpAcknowledgedAt ? (
+                <Text style={styles.helpAckText}>Ajuda recebida</Text>
+              ) : null}
+            </View>
           ) : null}
           <View style={styles.body}>{children}</View>
         </View>
@@ -175,18 +231,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  helpButton: {
-    borderWidth: 1,
-    borderColor: learnerTheme.primary,
-    backgroundColor: learnerTheme.primarySoft,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  helpButtonText: {
-    color: learnerTheme.primary,
-    fontSize: 11,
-    fontWeight: '700',
+  helpVisualButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#e30613',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   helpAckText: {
     color: '#2f6a2f',

@@ -577,7 +577,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       maxAttempts: screen.exercise?.maxAttemptsBeforeLock,
       lockReason: message,
     });
-    void learnerSession.requestHelp(message, buildHelpSnapshot());
+    // O pedido de ajuda nao e disparado automaticamente no lock — o aluno
+    // ve o icone de mao levantada (RaisedHandIcon) que aparece quando
+    // canRequestHelp passa a ser true e decide bater quando quiser apoio.
+    // Sem isso, o banner AGUARDANDO AJUDA virava o estado padrao ao errar
+    // tres vezes, sem dar voz ao aluno.
   };
 
   const canAdvanceMatchExercise =
@@ -953,6 +957,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
+      canRequestHelp={exerciseLocked}
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>
