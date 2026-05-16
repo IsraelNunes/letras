@@ -1,8 +1,39 @@
 import { PropsWithChildren } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { EducatorBottomMenu } from '../../educator/components/EducatorBottomMenu';
 import { LearnerHeaderBar } from './LearnerHeaderBar';
 import { learnerTheme } from '../learnerTheme';
+
+// Cruz grande sobreposta ao banner AGUARDANDO AJUDA. Segue o desenho do
+// Figma "Etapas 2 e 3 - Tela bloqueada": dois tracos diagonais brancos.
+function PendingCrossIcon() {
+  return (
+    <Svg width={42} height={42} viewBox="0 0 42 42" fill="none">
+      <Path d="M6 6 L36 36" stroke="#ffffff" strokeWidth={5} strokeLinecap="round" />
+      <Path d="M36 6 L6 36" stroke="#ffffff" strokeWidth={5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// Telefone com bolha de fala simplificado, tambem do Figma. O traco e
+// branco, igual ao texto, mantendo o contraste com o fundo vermelho.
+function PendingPhoneIcon() {
+  return (
+    <Svg width={32} height={32} viewBox="0 0 32 32" fill="none">
+      <Path
+        d="M6 9 C6 7 7 6 9 6 L11 6 C12 6 13 7 13 8 L13 11 C13 12 12 13 11 13 L10 13 C10 17 13 20 17 20 L17 19 C17 18 18 17 19 17 L22 17 C23 17 24 18 24 19 L24 21 C24 23 23 24 21 24 C12 24 6 18 6 9 Z"
+        fill="#ffffff"
+      />
+      <Path
+        d="M18 5 C23 5 27 9 27 14"
+        stroke="#ffffff"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
 
 type MenuKey = 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
 
@@ -52,20 +83,29 @@ export function LearnerScreenLayout({
             </View>
           ) : null}
           {onRequestHelp ? (
-            <View style={styles.helpRow}>
-              <Pressable
-                style={[styles.helpButton, isHelpPending ? styles.helpButtonPending : null]}
-                onPress={onRequestHelp}
-                disabled={isHelpPending}
-              >
-                <Text style={[styles.helpButtonText, isHelpPending ? styles.helpButtonTextPending : null]}>
-                  {isHelpPending ? 'AGUARDANDO AJUDA' : 'PEDIR AJUDA'}
+            isHelpPending ? (
+              // Estado "tela bloqueada aguardando apoio". Banner grande
+              // vermelho com texto + X + telefone, ocupando a largura toda
+              // (Figma: Etapas 2 e 3 - Tela bloqueada).
+              <View style={styles.pendingBanner}>
+                <Text style={styles.pendingBannerText}>
+                  AGUARDANDO{"\n"}AJUDA
                 </Text>
-              </Pressable>
-              {!isHelpPending && helpAcknowledgedAt ? (
-                <Text style={styles.helpAckText}>Ajuda recebida</Text>
-              ) : null}
-            </View>
+                <View style={styles.pendingBannerIcons}>
+                  <PendingCrossIcon />
+                  <PendingPhoneIcon />
+                </View>
+              </View>
+            ) : (
+              <View style={styles.helpRow}>
+                <Pressable style={styles.helpButton} onPress={onRequestHelp}>
+                  <Text style={styles.helpButtonText}>PEDIR AJUDA</Text>
+                </Pressable>
+                {helpAcknowledgedAt ? (
+                  <Text style={styles.helpAckText}>Ajuda recebida</Text>
+                ) : null}
+              </View>
+            )
           ) : null}
           <View style={styles.body}>{children}</View>
         </View>
@@ -143,21 +183,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  helpButtonPending: {
-    borderColor: '#dc2626',
-    backgroundColor: '#fee2e2',
-  },
   helpButtonText: {
     color: learnerTheme.primary,
     fontSize: 11,
     fontWeight: '700',
   },
-  helpButtonTextPending: {
-    color: '#991b1b',
-  },
   helpAckText: {
     color: '#2f6a2f',
     fontSize: 12,
     fontWeight: '600',
+  },
+  pendingBanner: {
+    marginTop: 12,
+    backgroundColor: '#e11d2c',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  pendingBannerText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    lineHeight: 21,
+    flexShrink: 1,
+  },
+  pendingBannerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });
