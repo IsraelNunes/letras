@@ -31,6 +31,14 @@
           "photosPermission": "Permitir acesso as fotos para enviar sua imagem.",
           "cameraPermission": "Permitir acesso a camera para tirar sua foto."
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "spin-xs"
+        }
       ]
     ]
   }
