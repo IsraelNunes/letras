@@ -4,10 +4,13 @@ import { SvgUri } from 'react-native-svg';
 import { learnerTheme } from '../learnerTheme';
 
 interface LearnerHeaderBarProps {
+  // Prop preservada por compatibilidade com chamadores existentes; nao
+  // e mais renderizada no header (Figma "Etapa 2 - Tela de Abertura"
+  // mostra apenas logo + sino, sem o rotulo "alfabetizando").
   roleLabel?: string;
 }
 
-export function LearnerHeaderBar({ roleLabel = 'alfabetizando' }: LearnerHeaderBarProps) {
+export function LearnerHeaderBar(_props: LearnerHeaderBarProps) {
   const [assets] = useAssets([require('../../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
@@ -23,7 +26,6 @@ export function LearnerHeaderBar({ roleLabel = 'alfabetizando' }: LearnerHeaderB
             <Text style={styles.badgeText}>1</Text>
           </View>
         </View>
-        <Text style={styles.roleLabel}>{roleLabel}</Text>
       </View>
     </View>
   );

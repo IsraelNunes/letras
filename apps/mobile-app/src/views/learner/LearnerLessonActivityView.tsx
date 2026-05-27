@@ -1,8 +1,27 @@
-import { createElement, useCallback, useEffect, useState } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ResizeMode, Video } from 'expo-av';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
+
+function pauseAllPageMedia() {
+  // No stack do React Navigation a tela continua montada em
+  // background quando o usuario navega. Sem este pause os
+  // elementos <audio>/<video> renderizados aqui seguiriam tocando
+  // ate o componente desmontar.
+  if (Platform.OS !== 'web') return;
+  const runtimeDocument = (globalThis as { document?: Document }).document;
+  if (!runtimeDocument) return;
+  runtimeDocument.querySelectorAll('audio, video').forEach((element) => {
+    const mediaElement = element as HTMLMediaElement;
+    if (mediaElement.paused) return;
+    try {
+      mediaElement.pause();
+    } catch {
+      // Elementos ainda nao prontos podem lancar; nao ha o que fazer aqui.
+    }
+  });
+}
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
@@ -29,6 +48,8 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
   const [didFailImageLoad, setDidFailImageLoad] = useState(false);
   const [didFailMediaLoad, setDidFailMediaLoad] = useState(false);
   const [mediaAspectRatio, setMediaAspectRatio] = useState(16 / 9);
+  const videoRef = useRef<Video | null>(null);
+  const audioRef = useRef<Video | null>(null);
 
   if (!lesson) {
     return (
@@ -60,6 +81,11 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
           status: 'IN_PROGRESS',
         });
       }
+      return () => {
+        void videoRef.current?.pauseAsync().catch(() => {});
+        void audioRef.current?.pauseAsync().catch(() => {});
+        pauseAllPageMedia();
+      };
     }, [activity?.id, learnerSession, lessonId, moduleId, safeIndex, screen.id]),
   );
 
@@ -122,6 +148,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
 
     return (
       <Video
+        ref={videoRef}
         source={{ uri: mediaUrl }}
         style={styles.videoMedia}
         useNativeControls
@@ -220,6 +247,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
               </View>
             ) : (
               <Video
+                ref={audioRef}
                 source={{ uri: activity.mediaUrl }}
                 style={styles.audioMedia}
                 useNativeControls

@@ -341,11 +341,15 @@ export class AuthService {
   }
 
   private normalizeOptionalValue(
-    incomingValue: string | undefined,
+    incomingValue: string | null | undefined,
     currentValue: string | null,
   ): string | null {
     if (incomingValue === undefined) {
       return currentValue;
+    }
+
+    if (incomingValue === null) {
+      return null;
     }
 
     const trimmed = incomingValue.trim();

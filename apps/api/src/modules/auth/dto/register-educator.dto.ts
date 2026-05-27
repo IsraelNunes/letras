@@ -1,4 +1,14 @@
+import { Transform } from 'class-transformer';
 import { IsEmail, IsOptional, IsString, Length, MinLength } from 'class-validator';
+
+function normalizeDigitsOrKeep(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const normalized = value.replace(/\D/g, '');
+  return normalized.length > 0 ? normalized : undefined;
+}
 
 export class RegisterEducatorDto {
   @IsString()
@@ -6,6 +16,7 @@ export class RegisterEducatorDto {
   fullName!: string;
 
   @IsOptional()
+  @Transform(({ value }) => normalizeDigitsOrKeep(value))
   @IsString()
   @Length(11, 11)
   cpf?: string;
@@ -15,6 +26,7 @@ export class RegisterEducatorDto {
   email?: string;
 
   @IsOptional()
+  @Transform(({ value }) => normalizeDigitsOrKeep(value))
   @IsString()
   @Length(11, 11)
   phoneDigits?: string;

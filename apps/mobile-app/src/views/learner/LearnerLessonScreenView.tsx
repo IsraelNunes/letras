@@ -10,7 +10,7 @@ import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
-import { getLearnerVisibleExerciseLabel, LearnerExerciseConfig } from './learnerFlowMapper';
+import { LearnerExerciseConfig } from './learnerFlowMapper';
 import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonScreen'>;
@@ -42,8 +42,10 @@ function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null)
   return Boolean(exercise);
 }
 
-function SoundWaveIcon({ large = false }: { large?: boolean }) {
-  const color = large ? '#2fa536' : '#9be39f';
+function SoundWaveIcon({ large = false, active = false }: { large?: boolean; active?: boolean }) {
+  // Verde escuro quando o audio esta tocando (ou e o audio principal,
+  // sempre destacado). Verde claro indica "tocavel mas inativo".
+  const color = large || active ? '#2fa536' : '#9be39f';
   const strokeWidth = large ? 4.5 : 4;
   return (
     <Svg width={large ? 66 : 38} height={large ? 54 : 32} viewBox="0 0 66 54" fill="none">
@@ -97,7 +99,7 @@ function SpeakerButton({
         disabled ? styles.audioBtnDisabled : null,
       ]}
     >
-      <SoundWaveIcon large={large} />
+      <SoundWaveIcon large={large} active={active} />
     </Pressable>
   );
 }
@@ -194,6 +196,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const [showReinforcement, setShowReinforcement] = useState(false);
   const [reinforcementMessage, setReinforcementMessage] = useState<string | null>(null);
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
+  // Trava didatica: no exercicio "match-letter" os audios das palavras
+  // individuais so liberam depois que o audio principal de instrucao
+  // (chave `instruction-<screen.id>`) terminou de tocar pelo menos uma
+  // vez. Garante a sequencia pedagogica pedida pelo alfabetizador.
+  const [instructionAudioPlayed, setInstructionAudioPlayed] = useState(false);
 
   if (!lesson) {
     return (
@@ -263,6 +270,15 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     async (url: string | null | undefined, fallbackText?: string | null, key?: string) => {
       const normalizedUrl = String(url || '').trim();
       const normalizedFallback = String(fallbackText || '').trim();
+      const audioKey = key || normalizedUrl;
+
+      // Toggle: clicar de novo no audio que esta tocando para o audio
+      // em vez de reiniciar. Resolve a queixa "clicando uma segunda vez
+      // ele tem que parar".
+      if (audioKey && audioKey === playingAudioKey) {
+        await stopCurrentAudio();
+        return;
+      }
 
       await stopCurrentAudio();
       const requestId = audioRequestIdRef.current;
@@ -274,7 +290,6 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         return;
       }
 
-      const audioKey = key || normalizedUrl;
       try {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: false,
@@ -304,6 +319,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             activeAudioRef.current = null;
             setPlayingAudioKey(null);
           }
+          // Marca a instrucao como "ja ouvida" para liberar os audios
+          // individuais das palavras (gate didatico do match-letter).
+          if (audioKey.startsWith('instruction-')) {
+            setInstructionAudioPlayed(true);
+          }
         });
       } catch {
         if (requestId !== audioRequestIdRef.current) {
@@ -314,7 +334,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         speakWithBrowserVoice(normalizedFallback);
       }
     },
-    [stopCurrentAudio],
+    [playingAudioKey, stopCurrentAudio],
   );
 
   useFocusEffect(
@@ -333,7 +353,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         activityId: screen.id,
         status: 'IN_PROGRESS',
       });
-    }, [learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate]),
+      // Quando esta tela perde o foco (navegacao para Conclusion,
+      // Home, ou menu inferior) o stack do React Navigation mantem
+      // o componente montado em background. Sem este cleanup o
+      // audio do expo-av (activeAudioRef) seguiria tocando ate o
+      // usuario voltar para a tela — exatamente o sintoma "depois
+      // de mudar de pagina o audio continua rolando".
+      return () => {
+        void stopCurrentAudio();
+      };
+    }, [learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate, stopCurrentAudio]),
   );
 
   useEffect(() => {
@@ -352,6 +381,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setExerciseFeedback(null);
     setShowReinforcement(false);
     setReinforcementMessage(null);
+    setInstructionAudioPlayed(false);
     if (wrongSelectionTimeoutRef.current) {
       clearTimeout(wrongSelectionTimeoutRef.current);
       wrongSelectionTimeoutRef.current = null;
@@ -813,7 +843,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             const word = String(item.label || '').toUpperCase();
             const wordLetters = word.split('').filter(Boolean);
             const audioUrl = item.wordAudioUrl || item.audioUrl;
-            const isEnabled = !isInteractionLocked;
+            // Audios individuais bloqueados ate o aluno ouvir o audio
+            // principal da instrucao pelo menos uma vez (sequencia
+            // pedagogica).
+            const isWordAudioEnabled = !isInteractionLocked && instructionAudioPlayed;
 
             return (
               <View key={item.id} style={styles.matchItem}>
@@ -845,6 +878,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                     onPress={() => {
                       void playAudioUrl(audioUrl, item.label, `word-${item.id}`);
                     }}
+                    disabled={!isWordAudioEnabled}
                     active={playingAudioKey === `word-${item.id}`}
                   />
                 </View>
@@ -856,26 +890,26 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       isWrongFlash &&
                       Boolean(selectedLetter) &&
                       wordLetters.indexOf(selectedLetter) === squareIndex;
-                    const isTargetLetter = isCompleted && item.correctOptions.includes(letter);
 
                     return (
                       <Pressable
                         key={`${item.id}-sq-${squareIndex}`}
                         onPress={() => handleMatchOptionPress(itemIndex, item.id, letter)}
-                        disabled={!isEnabled || isCompleted}
+                        disabled={isInteractionLocked || isCompleted}
                         hitSlop={4}
                         style={[
                           styles.letterSquare,
                           isWrongSquare ? styles.letterSquareWrong : null,
+                          // Verde = simbolo de acerto. (Antes ficava amarelo
+                          // no quadrado da letra-alvo, o que confundia
+                          // acerto com selecao.)
                           isCompleted ? styles.letterSquareFilled : null,
-                          isCompleted && isTargetLetter ? styles.letterSquareTarget : null,
                         ]}
                       >
                         <Text
                           style={[
                             styles.letterSquareText,
                             isCompleted ? styles.letterSquareTextFilled : null,
-                            isCompleted && isTargetLetter ? styles.letterSquareTextTarget : null,
                           ]}
                         >
                           {isCompleted ? letter : ''}
@@ -894,26 +928,22 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     if (screen.screenTemplate === 'exercise-mark-images') {
       return (
         <View style={styles.exerciseCard}>
-          <View style={styles.exerciseTopRow}>
-            <Text style={styles.exerciseTitle}>
-              {screen.exercise.instructionText || 'Marque as imagens corretas para continuar.'}
-            </Text>
-            {isInstructionAudioButtonVisible(screen.exercise) ? (
+          {/* Apenas o icone de audio grande centralizado (sem texto de
+              instrucao escrito): o aluno ainda nao le, a orientacao vem
+              pelo audio. */}
+          {isInstructionAudioButtonVisible(screen.exercise) ? (
+            <View style={styles.instructionAudioRow}>
               <SpeakerButton
                 onPress={handleInstructionAudioPress}
+                large
                 active={playingAudioKey === `instruction-${screen.id}`}
               />
-            ) : null}
-          </View>
-
-          <Text style={styles.selectionHint}>
-            Selecione {expectedSelections} imagem(ns). Selecionado: {selectedImageCount}
-          </Text>
+            </View>
+          ) : null}
 
           <View style={styles.markGrid}>
-            {screen.exercise.items.map((item, itemIndex) => {
+            {screen.exercise.items.map((item) => {
               const isSelected = selectedImageIds.includes(item.id);
-              const visibleLabel = getLearnerVisibleExerciseLabel(item.label, itemIndex);
               return (
                 <Pressable
                   key={item.id}
@@ -926,13 +956,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                     <Image source={{ uri: item.imageUrl }} style={styles.markItemImage} resizeMode="contain" />
                   ) : (
                     <View style={styles.markItemFallback}>
-                      <Text style={styles.markItemFallbackText}>
-                        {(visibleLabel || `Imagem ${itemIndex + 1}`).slice(0, 1)}
-                      </Text>
+                      <Text style={styles.markItemFallbackText}>?</Text>
                     </View>
                   )}
-                  {visibleLabel ? <Text style={styles.markItemLabel}>{visibleLabel}</Text> : null}
-                  <View style={[styles.markIndicator, isSelected ? styles.markIndicatorSelected : null]} />
+                  {/* Sem nome do animal e sem marcador numerico: o
+                      Robertinho pediu para nao "entregar" a resposta
+                      via texto e remover o circulo de selecao
+                      redundante. O feedback visual fica todo na borda
+                      amarela da imagem. */}
                 </Pressable>
               );
             })}
@@ -1444,8 +1475,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   markItemSelected: {
-    borderColor: learnerTheme.selectedBorder,
-    backgroundColor: learnerTheme.selectedBg,
+    // Amarelo = "selecionei esta imagem" no Figma. Quando o aluno
+    // toca em uma imagem ela ganha borda amarela mais grossa e um
+    // fundo amarelo bem suave; nenhum outro feedback escrito.
+    borderColor: '#f59e0b',
+    borderWidth: 3,
+    backgroundColor: '#fef3c7',
   },
   markItemImage: {
     width: 78,
