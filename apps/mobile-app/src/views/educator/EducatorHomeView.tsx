@@ -1,4 +1,5 @@
 import { useAssets } from 'expo-asset';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,30 +12,64 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { httpClient } from '../../infra/api/http-client';
 import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorHome'>;
 
-// Por enquanto a lista de alfabetizandos vinculados ainda nao tem fonte de
-// dados real (vai chegar com a integracao do realtime/painel). Renderizamos
-// um estado vazio amigavel ate la, em vez de inventar dados placeholder.
-const HAS_LEARNERS = false;
+interface LearnerItem {
+  id: string;
+  displayName: string;
+  city?: string | null;
+  uf?: string | null;
+  cpfOrPassport?: string | null;
+}
 
 export function EducatorHomeView({ navigation, route }: Props) {
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   const educatorName = route.params?.fullName?.trim() || 'Educador';
+  const educatorId = route.params?.educatorId;
+
+  const [learners, setLearners] = useState<LearnerItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchLearners = useCallback(async () => {
+    if (!educatorId) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      setFetchError(null);
+      const data = await httpClient.get<LearnerItem[]>(
+        `/cadastros/alfabetizandos?educatorId=${educatorId}`,
+      );
+      setLearners(data);
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Erro ao carregar lista.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [educatorId]);
+
+  useEffect(() => {
+    void fetchLearners();
+  }, [fetchLearners]);
+
+  // Recarrega ao voltar para esta tela (após cadastrar um novo)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      void fetchLearners();
+    });
+    return unsubscribe;
+  }, [fetchLearners, navigation]);
 
   const handleNewLearner = () => {
-    // O fluxo completo de cadastro/vinculacao ainda nao existe; por enquanto
-    // mandamos direto pra tela de escolha "individualmente ou em grupo" como
-    // primeiro passo, passando o contexto de que e um novo aluno (sem nome
-    // ainda — sera capturado na vinculacao).
-    navigation.navigate('EducatorLearningMode', {
-      fullName: educatorName,
-    });
+    navigation.navigate('LearnerOnboardingStep1', { isEducatorFlow: true });
   };
 
   return (
@@ -67,7 +102,14 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
           <Text style={styles.sectionTitle}>Alfabetizandos</Text>
 
-          {HAS_LEARNERS ? null : (
+          {isLoading ? (
+            <ActivityIndicator style={{ marginTop: 20 }} color="#111111" />
+          ) : fetchError ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>Erro ao carregar.</Text>
+              <Text style={styles.emptyText}>{fetchError}</Text>
+            </View>
+          ) : learners.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Nenhum alfabetizando vinculado.</Text>
               <Text style={styles.emptyText}>
@@ -75,16 +117,44 @@ export function EducatorHomeView({ navigation, route }: Props) {
                 de alfabetizacao.
               </Text>
             </View>
+          ) : (
+            <View style={styles.learnerList}>
+              {learners.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.learnerCard}
+                  onPress={() => navigation.navigate('EducatorLearningMode', {
+                    fullName: educatorName,
+                    educatorId,
+                    learnerName: item.displayName,
+                    learnerId: item.id,
+                  })}
+                >
+                  <View style={styles.learnerAvatar}>
+                    <Text style={styles.learnerAvatarText}>
+                      {item.displayName.trim().charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.learnerInfo}>
+                    <Text style={styles.learnerName}>{item.displayName}</Text>
+                    {item.city && item.uf ? (
+                      <Text style={styles.learnerLocation}>
+                        {item.city}, {item.uf}
+                      </Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
 
       <EducatorBottomMenu
         active="inicio"
-        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
-        onTutorialPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
-        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
-        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: educatorName })}
+        onTutorialPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
+        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
+        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
@@ -190,5 +260,46 @@ const styles = StyleSheet.create({
     color: '#5a5a5a',
     fontSize: 13,
     lineHeight: 20,
+  },
+  learnerList: {
+    marginTop: 12,
+    gap: 8,
+  },
+  learnerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  learnerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0f172a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  learnerAvatarText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  learnerInfo: {
+    flex: 1,
+  },
+  learnerName: {
+    color: '#1a1a1a',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  learnerLocation: {
+    marginTop: 2,
+    color: '#5a5a5a',
+    fontSize: 12,
   },
 });

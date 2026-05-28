@@ -21,8 +21,8 @@ export class CadastrosController {
   }
 
   @Get('alfabetizandos')
-  getAlfabetizandos() {
-    return this.cadastrosService.listAlfabetizandos();
+  getAlfabetizandos(@Query('educatorId') educatorId?: string) {
+    return this.cadastrosService.listAlfabetizandos(educatorId);
   }
 
   @Get('alfabetizandos/:id')

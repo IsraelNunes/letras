@@ -28,8 +28,20 @@ export interface LearnerSessionStateSnapshot {
   } | null;
 }
 
+export interface RegisterLearnerInput {
+  cpfOrPassport: string;
+  phoneDigits: string;
+  fullName: string;
+  birthDate: string;
+  uf: string;
+  city: string;
+  photoUri?: string | null;
+  educatorId?: string;
+}
+
 export interface LearnerSessionRepository {
   bootstrapPersistentSession(): Promise<BootstrappedLearnerSession>;
+  registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string>;
   getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]>;
   getSessionState(learnerProfileId: string): Promise<LearnerSessionStateSnapshot | null>;
   pushState(

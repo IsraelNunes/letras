@@ -29,16 +29,36 @@ export type EducatorRootStackParamList = {
     'cpf' | 'email' | 'password' | 'phoneDigits' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
   >;
   EducatorOnboardingConfirm: EducatorOnboardingData;
+  LearnerOnboardingStep1: { isEducatorFlow?: boolean } | undefined;
+  LearnerOnboardingStep2: Pick<LearnerOnboardingData, 'cpfOrPassport' | 'phoneDigits'> & { isEducatorFlow?: boolean };
+  LearnerOnboardingConfirm: LearnerOnboardingData & { isEducatorFlow?: boolean };
   EducatorHome: {
     fullName?: string;
+    educatorId?: string;
   };
   EducatorLearningMode: {
     fullName?: string;
     learnerName?: string;
+    learnerId?: string;
+    educatorId?: string;
   };
 };
 
+export interface LearnerOnboardingData {
+  cpfOrPassport: string;
+  phoneDigits: string;
+  fullName: string;
+  birthDate: string;
+  uf: string;
+  city: string;
+  photoUri?: string | null;
+}
+
 export type LearnerRootStackParamList = {
+  LearnerLoading: undefined;
+  LearnerOnboardingStep1: { isEducatorFlow?: boolean } | undefined;
+  LearnerOnboardingStep2: Pick<LearnerOnboardingData, 'cpfOrPassport' | 'phoneDigits'> & { isEducatorFlow?: boolean };
+  LearnerOnboardingConfirm: LearnerOnboardingData & { isEducatorFlow?: boolean };
   LearnerHome: undefined;
   LearnerLessonIntro: {
     moduleId: string;

@@ -568,10 +568,10 @@ export function EducatorProfileView({ navigation }: Props) {
 
       <EducatorBottomMenu
         active="perfil"
-        onInicioPress={() => navigation.navigate('EducatorLearningMode', { fullName: fullName.trim() || 'Educador' })}
+        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
         onTutorialPress={() => navigation.navigate('EducatorSplash')}
-        onAcompanharPress={() => navigation.navigate('EducatorLearningMode', { fullName: fullName.trim() || 'Educador' })}
-        onPontuacaoPress={() => navigation.navigate('EducatorLearningMode', { fullName: fullName.trim() || 'Educador' })}
+        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
+        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>

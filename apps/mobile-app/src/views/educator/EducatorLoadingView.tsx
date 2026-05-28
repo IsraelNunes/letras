@@ -39,6 +39,7 @@ export function EducatorLoadingView({ navigation }: Props) {
           await EducatorStorage.saveAuthSession(token, me.expiresAt, me.educator);
           navigation.replace('EducatorHome', {
             fullName: me.educator.fullName,
+            educatorId: me.educator.id,
           });
         } catch {
           await EducatorStorage.clearAuthSession();

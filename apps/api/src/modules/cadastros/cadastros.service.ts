@@ -69,70 +69,19 @@ export class CadastrosService {
     }
   }
 
-  async listAlfabetizandos() {
-    const learners = await this.prisma.learnerProfile.findMany({
-      include: {
-        completions: {
-          select: {
-            status: true,
-            updatedAt: true,
-          },
-        },
-        tutorLearnerLinks: {
-          orderBy: {
-            requestedAt: 'desc',
-          },
-          take: 1,
-          include: {
-            educator: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        learnerThemes: {
-          include: {
-            theme: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
+  async listAlfabetizandos(educatorId?: string) {
+    return this.prisma.learnerProfile.findMany({
+      where: educatorId ? { educatorId } : undefined,
+      select: {
+        id: true,
+        displayName: true,
+        city: true,
+        uf: true,
+        cpfOrPassport: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        displayName: 'asc',
       },
-    });
-
-    return learners.map((learner) => {
-      const totalTracked = learner.completions.length;
-      const completedCount = learner.completions.filter((completion) => completion.status === 'COMPLETED').length;
-      const progressPercent = totalTracked === 0 ? 0 : Math.round((completedCount / totalTracked) * 100);
-      const latestCompletion = learner.completions.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
-      const latestLink = learner.tutorLearnerLinks[0];
-
-      return {
-        ...learner,
-        progresso: {
-          totalTracked,
-          completedCount,
-          progressPercent,
-          lastInteractionAt: latestCompletion?.updatedAt ?? learner.updatedAt,
-        },
-        vinculoAtual: latestLink
-          ? {
-              id: latestLink.id,
-              status: latestLink.status,
-              educator: latestLink.educator,
-              requestedAt: latestLink.requestedAt,
-              respondedAt: latestLink.respondedAt,
-            }
-          : null,
-      };
     });
   }
 

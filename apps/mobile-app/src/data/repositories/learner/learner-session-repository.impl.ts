@@ -5,6 +5,7 @@ import {
   BootstrappedLearnerSession,
   LearnerSessionRepository,
   LearnerSessionStateSnapshot,
+  RegisterLearnerInput,
 } from '../../../domain/interfaces/learner/learner-session-repository';
 import { httpClient } from '../../../infra/api/http-client';
 import { SessionStorage } from '../../../infra/storage/session-storage';
@@ -89,6 +90,21 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
     } catch {
       // Mantem o fluxo local quando o backend de sessao nao estiver pronto.
     }
+  }
+
+  async registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string> {
+    const profile = await httpClient.post<LearnerProfile>('/cadastros/alfabetizandos', {
+      displayName: input.fullName,
+      cpfOrPassport: input.cpfOrPassport,
+      phoneDigits: input.phoneDigits,
+      birthDate: input.birthDate,
+      uf: input.uf,
+      city: input.city,
+      ...(input.photoUri ? { photoUri: input.photoUri } : {}),
+      ...(input.educatorId ? { educatorId: input.educatorId } : {}),
+      notes: `Cadastro via app mobile. Dispositivo: ${deviceId}`,
+    });
+    return profile.id;
   }
 
   private createOrRefreshSession(body: CreateLearnerSessionRequest) {
