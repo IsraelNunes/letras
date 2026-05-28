@@ -163,7 +163,14 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
               <ActivityIndicator size="small" color="#111827" />
             )}
           </View>
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
+          <Pressable
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('EducatorHome', {
+              fullName: educatorName,
+              educatorId,
+              openNotifications: true,
+            })}
+          >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>1</Text>
@@ -243,7 +250,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                 </Pressable>
               </View>
 
-              {hasSession ? (
+              {false ? (
                 <View style={[styles.supportCard, sessionState?.isLocked ? styles.supportCardLocked : null]}>
                   <Text style={styles.supportEyebrow}>
                     {sessionState?.isLocked ? 'PEDIDO DE APOIO ATIVO' : 'ULTIMA TELA REGISTRADA'}

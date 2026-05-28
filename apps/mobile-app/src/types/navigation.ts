@@ -35,6 +35,7 @@ export type EducatorRootStackParamList = {
   EducatorHome: {
     fullName?: string;
     educatorId?: string;
+    openNotifications?: boolean;
   };
   EducatorLearningMode: {
     fullName?: string;

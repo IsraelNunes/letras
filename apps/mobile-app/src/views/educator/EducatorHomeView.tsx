@@ -65,6 +65,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(Boolean(route.params?.openNotifications));
 
   // Restaura educatorId do AsyncStorage se não veio nos params (ex: navegação por URL)
   useEffect(() => {
@@ -130,6 +131,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
   }
 
   const visibleLockedSessions = lockedSessions.filter((s) => !dismissedLockedIds.has(s.id));
+  const notificationCount = helpAlerts.length + visibleLockedSessions.length;
+
+  useEffect(() => {
+    if (route.params?.openNotifications) setIsNotificationsOpen(true);
+  }, [route.params?.openNotifications]);
 
   const filteredLearners = searchQuery
     ? learners.filter((l) => l.displayName.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -152,18 +158,13 @@ export function EducatorHomeView({ navigation, route }: Props) {
           </View>
           <Pressable
             style={styles.notificationButton}
-            onPress={() =>
-              navigation.navigate('EducatorLinkConfirm', {
-                educatorId: educatorId ?? '',
-                fullName: educatorName,
-              })
-            }
+            onPress={() => setIsNotificationsOpen((current) => !current)}
           >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            {(helpAlerts.length > 0 || visibleLockedSessions.length > 0) && (
+            {notificationCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {helpAlerts.length + visibleLockedSessions.length}
+                  {notificationCount}
                 </Text>
               </View>
             )}
@@ -171,7 +172,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
         </View>
 
         {/* Alertas — bloqueios (HTTP) + pedidos de ajuda (socket). Só aparece quando há itens */}
-        {(visibleLockedSessions.length > 0 || helpAlerts.length > 0) && (
+        {false && (
           <View style={styles.alertsSection}>
             <Text style={styles.alertsTitle}>
               Pedidos de apoio e bloqueios preventivos de tela:
@@ -223,6 +224,86 @@ export function EducatorHomeView({ navigation, route }: Props) {
         )}
 
         {/* Botão novo alfabetizando */}
+        {isNotificationsOpen && (
+          <View style={styles.notificationsPanel}>
+            <View style={styles.notificationsHeader}>
+              <View style={styles.notificationsTitleBlock}>
+                <Text style={styles.notificationsTitle}>Notificacoes</Text>
+                <Text style={styles.notificationsSubtitle}>
+                  Pedidos de apoio e bloqueios preventivos aparecem no sino.
+                </Text>
+              </View>
+              <Pressable style={styles.notificationsClose} onPress={() => setIsNotificationsOpen(false)}>
+                <Text style={styles.notificationsCloseText}>Fechar</Text>
+              </Pressable>
+            </View>
+
+            {notificationCount === 0 ? (
+              <View style={styles.notificationEmpty}>
+                <Text style={styles.notificationEmptyTitle}>Nenhum pedido agora</Text>
+                <Text style={styles.notificationEmptyText}>Quando um alfabetizando precisar de apoio, o aviso aparece aqui.</Text>
+              </View>
+            ) : (
+              <>
+                {helpAlerts.map((item: HelpAlert) => (
+                  <NotificationRow
+                    key={`help-${item.learnerId}`}
+                    name={item.displayName}
+                    date={formatDate(item.timestamp)}
+                    title="Pedido de apoio"
+                    desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
+                    phoneDigits={item.phoneDigits}
+                    onContactPress={() => clearHelpAlert(item.learnerId)}
+                    onPress={() => {
+                      clearHelpAlert(item.learnerId);
+                      setIsNotificationsOpen(false);
+                      navigation.navigate('EducatorLearningMode', {
+                        fullName: educatorName,
+                        educatorId,
+                        learnerName: item.displayName,
+                        learnerId: item.learnerId,
+                      });
+                    }}
+                  />
+                ))}
+
+                {visibleLockedSessions.map((item) => (
+                  <NotificationRow
+                    key={`lock-${item.id}`}
+                    name={item.displayName}
+                    date={item.session?.sessionState?.updatedAt
+                      ? formatDate(item.session.sessionState.updatedAt)
+                      : undefined}
+                    title="Tela bloqueada"
+                    desc="Abra os detalhes para orientar o atendimento deste alfabetizando."
+                    phoneDigits={item.phoneDigits}
+                    onContactPress={() => dismissLockedSession(item.id)}
+                    onPress={() => {
+                      setIsNotificationsOpen(false);
+                      navigation.navigate('EducatorLearningMode', {
+                        fullName: educatorName,
+                        educatorId,
+                        learnerName: item.displayName,
+                        learnerId: item.id,
+                      });
+                    }}
+                  />
+                ))}
+              </>
+            )}
+
+            <Pressable
+              style={styles.linkInvitesButton}
+              onPress={() => navigation.navigate('EducatorLinkConfirm', {
+                educatorId: educatorId ?? '',
+                fullName: educatorName,
+              })}
+            >
+              <Text style={styles.linkInvitesText}>VER VINCULOS E CONVITES</Text>
+            </Pressable>
+          </View>
+        )}
+
         <Pressable style={styles.newLearnerBtn} onPress={handleNewLearner}>
           <SvgXml xml={ICON_PLUS} width={14} height={14} />
           <Text style={styles.newLearnerLabel}>NOVO ALFABETIZANDO</Text>
@@ -311,6 +392,69 @@ export function EducatorHomeView({ navigation, route }: Props) {
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
+  );
+}
+
+function NotificationRow({
+  name,
+  date,
+  title,
+  desc,
+  phoneDigits,
+  onPress,
+  onContactPress,
+}: {
+  name: string;
+  date?: string;
+  title: string;
+  desc: string;
+  phoneDigits: string | null;
+  onPress: () => void;
+  onContactPress?: () => void;
+}) {
+  return (
+    <View style={styles.notificationRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir notificacao de ${name}`}
+        style={styles.notificationTextBlock}
+        onPress={onPress}
+      >
+        <View style={styles.notificationMetaLine}>
+          <Text style={styles.notificationType}>{title}</Text>
+          <Text style={styles.notificationDate}>{date ? `dia ${date}` : 'agora'}</Text>
+        </View>
+        <Text style={styles.notificationName}>{name}</Text>
+        <Text style={styles.notificationDesc}>{desc}</Text>
+        <Text style={styles.notificationLink}>Ver detalhes</Text>
+      </Pressable>
+      <View style={styles.notificationActions}>
+        <Pressable
+          hitSlop={10}
+          style={styles.notificationIconAction}
+          onPress={() => {
+            if (phoneDigits) {
+              void Linking.openURL(`tel:+55${phoneDigits}`);
+              onContactPress?.();
+            }
+          }}
+        >
+          <SvgXml xml={ICON_PHONE} width={20} height={20} />
+        </Pressable>
+        <Pressable
+          hitSlop={10}
+          style={styles.notificationIconAction}
+          onPress={() => {
+            if (phoneDigits) {
+              void Linking.openURL(`https://wa.me/55${phoneDigits}`);
+              onContactPress?.();
+            }
+          }}
+        >
+          <SvgXml xml={ICON_WHATSAPP} width={20} height={20} />
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -445,6 +589,86 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   alertIcons: { gap: 14, alignItems: 'center' },
+  notificationsPanel: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 22,
+  },
+  notificationsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
+  },
+  notificationsTitleBlock: { flex: 1 },
+  notificationsTitle: { color: '#111111', fontSize: 18, fontWeight: '800' },
+  notificationsSubtitle: { color: '#555555', fontSize: 13, lineHeight: 18, marginTop: 3 },
+  notificationsClose: {
+    borderWidth: 1,
+    borderColor: '#c8d0dd',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  notificationsCloseText: { color: '#20385f', fontSize: 12, fontWeight: '700' },
+  notificationEmpty: { paddingVertical: 18 },
+  notificationEmptyTitle: { color: '#111111', fontSize: 15, fontWeight: '700' },
+  notificationEmptyText: { color: '#666666', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  notificationRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
+  },
+  notificationTextBlock: { flex: 1 },
+  notificationMetaLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  notificationType: {
+    color: '#20385f',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  notificationDate: { color: '#777777', fontSize: 11 },
+  notificationName: { color: '#111111', fontSize: 15, fontWeight: '800', lineHeight: 21 },
+  notificationDesc: { color: '#333333', fontSize: 13, lineHeight: 19, marginTop: 3 },
+  notificationLink: { color: '#20385f', fontSize: 12, fontWeight: '800', marginTop: 8 },
+  notificationActions: { gap: 8, alignItems: 'center', justifyContent: 'center' },
+  notificationIconAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  linkInvitesButton: {
+    marginTop: 14,
+    borderRadius: 7,
+    backgroundColor: '#0f172a',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  linkInvitesText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
 
   // Botão NOVO ALFABETIZANDO
   newLearnerBtn: {
