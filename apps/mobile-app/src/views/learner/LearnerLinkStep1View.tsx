@@ -41,8 +41,9 @@ function formatPhone(digits: string) {
 }
 
 
-export function LearnerLinkStep1View({ navigation }: Props) {
+export function LearnerLinkStep1View({ navigation, route }: Props) {
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
+  const cpfOnly = route.params?.cpfOnly ?? false;
 
   const [cpfOrPassport, setCpfOrPassport] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
@@ -68,7 +69,7 @@ export function LearnerLinkStep1View({ navigation }: Props) {
 
   const isPhoneValid = useMemo(() => phoneDigits.length === 11, [phoneDigits]);
 
-  const canProceed = isCpfOrPassportValid || isPhoneValid;
+  const canProceed = isCpfOrPassportValid || (!cpfOnly && isPhoneValid);
 
   const phoneDisplay = useMemo(
     () => (phoneDigits.length === 11 ? formatPhone(phoneDigits) : phoneDigits),
@@ -88,7 +89,7 @@ export function LearnerLinkStep1View({ navigation }: Props) {
     setIsLoading(true);
     try {
       const cpfRaw = isCpfOrPassportValid ? cpfOrPassport.trim() : undefined;
-      const phoneRaw = isPhoneValid ? phoneDigits : undefined;
+      const phoneRaw = !cpfOnly && isPhoneValid ? phoneDigits : undefined;
 
       const learner = await repository.lookupLearner(cpfRaw, phoneRaw);
 
@@ -134,16 +135,20 @@ export function LearnerLinkStep1View({ navigation }: Props) {
             autoCapitalize="characters"
           />
 
-          <Text style={styles.orLabel}>ou</Text>
-          <Text style={styles.label}>Insira o número do telefone celular do alfabetizando:</Text>
-          <TextInput
-            value={phoneDisplay}
-            onChangeText={(text) => setPhoneDigits(normalizeDigits(text).slice(0, 11))}
-            style={styles.input}
-            keyboardType="phone-pad"
-            placeholder="(XX) XXXXX-XXXX"
-            placeholderTextColor="#7a7a7a"
-          />
+          {!cpfOnly && (
+            <>
+              <Text style={styles.orLabel}>ou</Text>
+              <Text style={styles.label}>Insira o número do telefone celular do alfabetizando:</Text>
+              <TextInput
+                value={phoneDisplay}
+                onChangeText={(text) => setPhoneDigits(normalizeDigits(text).slice(0, 11))}
+                style={styles.input}
+                keyboardType="phone-pad"
+                placeholder="(XX) XXXXX-XXXX"
+                placeholderTextColor="#7a7a7a"
+              />
+            </>
+          )}
         </View>
 
         <Pressable
