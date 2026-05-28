@@ -46,19 +46,19 @@ export function LearnerHomeView({ navigation }: Props) {
 
         {!loading && modules.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>Nenhum conteudo publicado</Text>
+            <Text style={styles.emptyStateTitle}>Nenhum conteúdo publicado</Text>
             <Text style={styles.emptyStateText}>
-              Crie no painel um tema, depois um modulo e as telas da aula com os audios, imagens e interacoes.
+              Crie no painel um tema, depois um módulo e as telas da aula com os áudios, imagens e interações.
             </Text>
             <Pressable style={styles.retryButton} onPress={() => void refresh()}>
-              <Text style={styles.retryText}>Recarregar conteudo</Text>
+              <Text style={styles.retryText}>Recarregar conteúdo</Text>
             </Pressable>
           </View>
         ) : null}
 
         {modules.map((moduleItem, moduleIndex) => {
           const firstLesson = moduleItem.lessons[0] ?? null;
-          const moduleLabel = firstLesson?.moduleLabel ?? `MODULO ${moduleIndex + 1}`;
+          const moduleLabel = firstLesson?.moduleLabel ?? `MÓDULO ${moduleIndex + 1}`;
           return (
             <View key={moduleItem.id} style={styles.moduleBlock}>
               <Text style={styles.moduleLabel}>{moduleLabel}</Text>
@@ -93,7 +93,7 @@ export function LearnerHomeView({ navigation }: Props) {
         })}
 
         <View style={styles.motivationBox}>
-          <Text style={styles.motivationText}>Cada aula e um passo a mais na sua jornada.</Text>
+          <Text style={styles.motivationText}>Cada aula é um passo a mais na sua jornada.</Text>
         </View>
       </View>
     </LearnerScreenLayout>

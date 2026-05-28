@@ -876,12 +876,12 @@ function buildLessonObjective(
     return candidate;
   }
 
-  return 'Objetivo da aula em configuracao.';
+  return 'Objetivo da aula em configuração.';
 }
 
 function withSequentialModuleLabels(modules: LearnerFlowModule[]): LearnerFlowModule[] {
   return modules.map((moduleItem, moduleIndex) => {
-    const moduleLabel = `MODULO ${moduleIndex + 1}`;
+    const moduleLabel = `MÓDULO ${moduleIndex + 1}`;
     return {
       ...moduleItem,
       lessons: moduleItem.lessons.map((lesson) => ({
@@ -993,7 +993,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
                     followUpAsset.kind,
                     followUpAsset.sourceUrl || followUpAsset.storage_path || null,
                   ),
-                  completionMessage: 'Muito bem! Continue para a proxima etapa da aula.',
+                  completionMessage: 'Muito bem! Continue para a próxima etapa da aula.',
                   screenTemplate: 'default',
                   lockReason: null,
                   lockMessage: null,
@@ -1012,7 +1012,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
         const fallbackScreen: LearnerFlowScreen = {
           id: `${unit.id}-screen-1`,
           title: normalizeText(unit.title, 'Aula'),
-          educatorGuidance: normalizeText(unit.description, 'Siga a orientacao desta aula.').trim(),
+          educatorGuidance: normalizeText(unit.description, 'Siga a orientação desta aula.').trim(),
           learnerSpeech: null,
           mediaUrl: null,
           mediaKind: null,
@@ -1031,19 +1031,19 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           id: unit.id,
           title: normalizeText(unit.title, 'Aula'),
           objective: buildLessonObjective(unit.description, safeScreens[0]),
-          moduleLabel: `MODULO ${themeIndex + 1}`,
-          moduleTitle: normalizeText(theme.name || theme.title, 'Modulo'),
+          moduleLabel: `MÓDULO ${themeIndex + 1}`,
+          moduleTitle: normalizeText(theme.name || theme.title, 'Módulo'),
           screens: safeScreens,
-          conclusionTitle: 'Aula Concluida!',
+          conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
-            'Parabens! Voce concluiu esta aula. Continue praticando para avancar no modulo.',
+            'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
         };
       });
 
       return {
         id: theme.id,
-        title: normalizeText(theme.name || theme.title, `Modulo ${themeIndex + 1}`),
-        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponivel' : 'aulas disponiveis'}`,
+        title: normalizeText(theme.name || theme.title, `Módulo ${themeIndex + 1}`),
+        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponível' : 'aulas disponíveis'}`,
         lessons,
       };
     });
@@ -1174,7 +1174,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
                     followUpAsset.kind,
                     followUpAsset.sourceUrl || followUpAsset.storage_path || null,
                   ),
-                  completionMessage: 'Muito bem! Continue para a proxima etapa da aula.',
+                  completionMessage: 'Muito bem! Continue para a próxima etapa da aula.',
                   screenTemplate: 'default',
                   lockReason: null,
                   lockMessage: null,
@@ -1216,19 +1216,19 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           id: unit.id,
           title: normalizeText(primaryActivityTitle, normalizeText(unit.title, 'Aula')),
           objective: buildLessonObjective(unit.description, safeScreens[0]),
-          moduleLabel: `MODULO ${themeIndex + 1}`,
-          moduleTitle: normalizeText(theme.title || theme.name, 'Modulo'),
+          moduleLabel: `MÓDULO ${themeIndex + 1}`,
+          moduleTitle: normalizeText(theme.title || theme.name, 'Módulo'),
           screens: safeScreens,
-          conclusionTitle: 'Aula Concluida!',
+          conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
-            'Parabens! Voce concluiu esta aula. Continue praticando para avancar no modulo.',
+            'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
         };
       });
 
       return {
         id: theme.id,
-        title: normalizeText(theme.title || theme.name, `Modulo ${themeIndex + 1}`),
-        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponivel' : 'aulas disponiveis'}`,
+        title: normalizeText(theme.title || theme.name, `Módulo ${themeIndex + 1}`),
+        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponível' : 'aulas disponíveis'}`,
         lessons,
       };
     })

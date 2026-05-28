@@ -45,7 +45,7 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
   if (!lesson) {
     return (
       <LearnerScreenLayout activeMenu="acompanhar" onMenuHome={() => navigation.navigate('LearnerHome')}>
-        <Text style={styles.error}>Conclusao indisponivel.</Text>
+        <Text style={styles.error}>Conclusão indisponível.</Text>
       </LearnerScreenLayout>
     );
   }
@@ -94,7 +94,7 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
     >
       <View style={styles.wrapper}>
         <View style={styles.iconWrap}>
-          <Text style={styles.icon}>T</Text>
+          <Text style={styles.icon}>★</Text>
         </View>
 
         <Text style={styles.title}>{lesson.conclusionTitle}</Text>
@@ -116,12 +116,12 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
           <Text style={styles.pointsText}>+50 pontos conquistados</Text>
         </View>
 
-        <Text style={styles.motivation}>Foco e dedicacao levam longe!</Text>
+        <Text style={styles.motivation}>Foco e dedicação levam longe!</Text>
 
         <LearnerActionButtons
           onBack={onBack}
           onNext={onFinish}
-          nextLabel="VOLTAR AOS MODULOS"
+          nextLabel="VOLTAR AOS MÓDULOS"
         />
       </View>
     </LearnerScreenLayout>
