@@ -1,3 +1,4 @@
+CLAUDE.md
 node_modules
 .pnpm-store
 .env
@@ -22,6 +23,9 @@ apps/mobile-app/dist-web-*
 
 # Prisma
 apps/api/prisma/dev.db
+
+# Backup do .env do Supabase gerado pelo script use-local-db.sh
+apps/api/.env.supabase.bak
 
 # Logs
 npm-debug.log*

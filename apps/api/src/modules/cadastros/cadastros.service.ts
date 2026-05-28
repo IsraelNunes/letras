@@ -75,12 +75,36 @@ export class CadastrosService {
       select: {
         id: true,
         displayName: true,
-        city: true,
-        uf: true,
-        cpfOrPassport: true,
+        phoneDigits: true,
+        learnerThemes: {
+          select: { theme: { select: { name: true } } },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: {
         displayName: 'asc',
+      },
+    });
+  }
+
+  async getLockedSessions(educatorId: string) {
+    return this.prisma.learnerProfile.findMany({
+      where: {
+        educatorId,
+        session: { sessionState: { isLocked: true } },
+      },
+      select: {
+        id: true,
+        displayName: true,
+        phoneDigits: true,
+        session: {
+          select: {
+            sessionState: {
+              select: { currentView: true, updatedAt: true },
+            },
+          },
+        },
       },
     });
   }
@@ -201,10 +225,11 @@ export class CadastrosService {
     }
   }
 
-  listVinculos(status?: TutorLearnerLinkStatus) {
+  listVinculos(status?: TutorLearnerLinkStatus, educatorId?: string) {
     return this.prisma.tutorLearnerLink.findMany({
       where: {
         ...(status ? { status } : {}),
+        ...(educatorId ? { educatorId } : {}),
       },
       include: {
         educator: {
@@ -221,6 +246,7 @@ export class CadastrosService {
             displayName: true,
             cpfOrPassport: true,
             phoneDigits: true,
+            birthDate: true,
             uf: true,
             city: true,
           },

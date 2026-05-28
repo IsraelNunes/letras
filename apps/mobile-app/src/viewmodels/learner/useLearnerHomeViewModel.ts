@@ -222,6 +222,14 @@ export function useLearnerHomeViewModel() {
     [learnerProfileId],
   );
 
+  const setSessionLocked = useCallback(
+    async (isLocked: boolean) => {
+      if (!learnerProfileId) return;
+      await repository.setLocked(learnerProfileId, isLocked);
+    },
+    [learnerProfileId, repository],
+  );
+
   const cleanup = useCallback(() => {
     disconnect();
   }, [disconnect]);
@@ -272,5 +280,6 @@ export function useLearnerHomeViewModel() {
     syncCurrentState,
     requestHelp,
     recordProgress,
+    setSessionLocked,
   };
 }

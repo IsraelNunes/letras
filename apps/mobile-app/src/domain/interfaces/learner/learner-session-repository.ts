@@ -56,4 +56,5 @@ export interface LearnerSessionRepository {
     learnerProfileId: string,
     payload: { currentView?: string; currentActivityId?: string; statePayload?: Record<string, unknown> },
   ): Promise<void>;
+  setLocked(learnerProfileId: string, isLocked: boolean): Promise<void>;
 }

@@ -1,18 +1,21 @@
 import { useAssets } from 'expo-asset';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SvgUri } from 'react-native-svg';
+import { SvgUri, SvgXml } from 'react-native-svg';
 import { httpClient } from '../../infra/api/http-client';
+import { HelpAlert, useEducatorHomeRealtime } from '../../hooks/useEducatorHomeRealtime';
 import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
@@ -21,52 +24,93 @@ type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorHome'>;
 interface LearnerItem {
   id: string;
   displayName: string;
-  city?: string | null;
-  uf?: string | null;
-  cpfOrPassport?: string | null;
+  phoneDigits: string | null;
+  learnerThemes: Array<{ theme: { name: string } }>;
+}
+
+interface LockedSession {
+  id: string;
+  displayName: string;
+  phoneDigits: string | null;
+  session: {
+    sessionState: { currentView: string; updatedAt: string } | null;
+  } | null;
+}
+
+const ICON_PLUS = `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M10 1H6V6L1 6V10H6V15H10V10H15V6L10 6V1Z" fill="#111111"/></svg>`;
+
+const ICON_SEARCH = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="11" cy="11" r="7" stroke="#111111" stroke-width="2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#111111" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+const ICON_PHONE = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.6 10.8c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1H5.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.24 1.02L6.6 10.8z" fill="#111111"/></svg>`;
+
+const ICON_WHATSAPP = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#111111"/></svg>`;
+
+const ICON_GROUP = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="#555" stroke-width="2"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#555" stroke-width="2" stroke-linecap="round"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg>`;
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function EducatorHomeView({ navigation, route }: Props) {
-  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
-  const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
+  const [logoAsset] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
+  const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
   const educatorName = route.params?.fullName?.trim() || 'Educador';
   const educatorId = route.params?.educatorId;
 
   const [learners, setLearners] = useState<LearnerItem[]>([]);
+  const [lockedSessions, setLockedSessions] = useState<LockedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
 
   const fetchLearners = useCallback(async () => {
-    if (!educatorId) {
-      setIsLoading(false);
-      return;
-    }
+    if (!educatorId) { setIsLoading(false); return; }
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setFetchError(null);
-      const data = await httpClient.get<LearnerItem[]>(
-        `/cadastros/alfabetizandos?educatorId=${educatorId}`,
-      );
+      const data = await httpClient.get<LearnerItem[]>(`/cadastros/alfabetizandos?educatorId=${educatorId}`);
       setLearners(data);
-    } catch (err) {
-      setFetchError(err instanceof Error ? err.message : 'Erro ao carregar lista.');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { /* ignora — lista permanece vazia */ }
+    setIsLoading(false);
+  }, [educatorId]);
+
+  const fetchLockedSessions = useCallback(async () => {
+    if (!educatorId) return;
+    try {
+      const data = await httpClient.get<LockedSession[]>(`/cadastros/sessoes-bloqueadas?educatorId=${educatorId}`);
+      setLockedSessions(data);
+    } catch { /* ignora */ }
   }, [educatorId]);
 
   useEffect(() => {
     void fetchLearners();
-  }, [fetchLearners]);
+    void fetchLockedSessions();
+  }, [fetchLearners, fetchLockedSessions]);
 
-  // Recarrega ao voltar para esta tela (após cadastrar um novo)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       void fetchLearners();
+      void fetchLockedSessions();
     });
     return unsubscribe;
-  }, [fetchLearners, navigation]);
+  }, [fetchLearners, fetchLockedSessions, navigation]);
+
+  // Mapa de lookup learnerId → {displayName, phoneDigits} para o hook de socket
+  const learnerMap = useMemo(
+    () => new Map(learners.map((l) => [l.id, { displayName: l.displayName, phoneDigits: l.phoneDigits }])),
+    [learners],
+  );
+
+  const { helpAlerts, clearHelpAlert } = useEducatorHomeRealtime({
+    educatorId,
+    getLearnerInfo: (id) => learnerMap.get(id),
+    onLockEvent: () => { void fetchLockedSessions(); },
+  });
+
+  const filteredLearners = searchQuery
+    ? learners.filter((l) => l.displayName.toLowerCase().includes(searchQuery.toLowerCase()))
+    : learners;
 
   const handleNewLearner = () => {
     navigation.navigate('LearnerOnboardingStep1', { isEducatorFlow: true });
@@ -75,16 +119,23 @@ export function EducatorHomeView({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoWrap}>
-            {logoUri ? (
-              <SvgUri uri={logoUri} width={84} height={50} />
-            ) : (
-              <ActivityIndicator size="small" color="#111827" />
-            )}
+            {logoUri
+              ? <SvgUri uri={logoUri} width={84} height={50} />
+              : <ActivityIndicator size="small" color="#111827" />}
           </View>
-
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
+          <Pressable
+            style={styles.notificationButton}
+            onPress={() =>
+              navigation.navigate('EducatorLinkConfirm', {
+                educatorId: educatorId ?? '',
+                fullName: educatorName,
+              })
+            }
+          >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>1</Text>
@@ -92,72 +143,179 @@ export function EducatorHomeView({ navigation, route }: Props) {
           </Pressable>
         </View>
 
-        <View style={styles.body}>
-          <Text style={styles.greeting}>Ola, {educatorName}.</Text>
-          <Text style={styles.subtitle}>Acompanhe seus alfabetizandos.</Text>
+        {/* Alertas — bloqueios (HTTP) + pedidos de ajuda (socket). Só aparece quando há itens */}
+        {(lockedSessions.length > 0 || helpAlerts.length > 0) && (
+          <View style={styles.alertsSection}>
+            <Text style={styles.alertsTitle}>
+              Pedidos de apoio e bloqueios preventivos de tela:
+            </Text>
 
-          <Pressable style={styles.newLearnerButton} onPress={handleNewLearner}>
-            <Text style={styles.newLearnerButtonText}>+ NOVO ALFABETIZANDO</Text>
-          </Pressable>
+            {/* Pedidos de ajuda em tempo real (via socket, não persistidos) */}
+            {helpAlerts.map((item: HelpAlert) => (
+              <AlertRow
+                key={`help-${item.learnerId}`}
+                name={item.displayName}
+                date={formatDate(item.timestamp)}
+                desc="Clique para ver a tela em que este alfabetizando precisa de apoio. Em seguida, ligue por telefone ou Whatsapp."
+                phoneDigits={item.phoneDigits}
+                onPress={() => {
+                  clearHelpAlert(item.learnerId);
+                  navigation.navigate('EducatorLearningMode', {
+                    fullName: educatorName,
+                    educatorId,
+                    learnerName: item.displayName,
+                    learnerId: item.learnerId,
+                  });
+                }}
+              />
+            ))}
 
-          <Text style={styles.sectionTitle}>Alfabetizandos</Text>
-
-          {isLoading ? (
-            <ActivityIndicator style={{ marginTop: 20 }} color="#111111" />
-          ) : fetchError ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Erro ao carregar.</Text>
-              <Text style={styles.emptyText}>{fetchError}</Text>
-            </View>
-          ) : learners.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Nenhum alfabetizando vinculado.</Text>
-              <Text style={styles.emptyText}>
-                Quando voce vincular um alfabetizando, ele aparece aqui com a etapa atual
-                de alfabetizacao.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.learnerList}>
-              {learners.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={styles.learnerCard}
-                  onPress={() => navigation.navigate('EducatorLearningMode', {
+            {/* Sessões bloqueadas (via HTTP, persistidas, atualizadas em tempo real via socket) */}
+            {lockedSessions.map((item) => (
+              <AlertRow
+                key={`lock-${item.id}`}
+                name={item.displayName}
+                date={item.session?.sessionState?.updatedAt
+                  ? formatDate(item.session.sessionState.updatedAt)
+                  : undefined}
+                desc="Clique para ver a tela em que este alfabetizando precisa foi bloqueado. Em seguida, ligue por telefone ou Whatsapp."
+                phoneDigits={item.phoneDigits}
+                onPress={() =>
+                  navigation.navigate('EducatorLearningMode', {
                     fullName: educatorName,
                     educatorId,
                     learnerName: item.displayName,
                     learnerId: item.id,
-                  })}
-                >
-                  <View style={styles.learnerAvatar}>
-                    <Text style={styles.learnerAvatarText}>
-                      {item.displayName.trim().charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
-                  <View style={styles.learnerInfo}>
-                    <Text style={styles.learnerName}>{item.displayName}</Text>
-                    {item.city && item.uf ? (
-                      <Text style={styles.learnerLocation}>
-                        {item.city}, {item.uf}
-                      </Text>
-                    ) : null}
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
+                  })
+                }
+              />
+            ))}
+          </View>
+        )}
+
+        {/* Botão novo alfabetizando */}
+        <Pressable style={styles.newLearnerBtn} onPress={handleNewLearner}>
+          <SvgXml xml={ICON_PLUS} width={14} height={14} />
+          <Text style={styles.newLearnerLabel}>NOVO ALFABETIZANDO</Text>
+        </Pressable>
+
+        {/* Cabeçalho da lista */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Alfabetizandos</Text>
+          <Pressable
+            hitSlop={8}
+            onPress={() => {
+              setIsSearchVisible((v) => !v);
+              setSearchQuery('');
+            }}
+          >
+            <SvgXml xml={ICON_SEARCH} width={22} height={22} />
+          </Pressable>
         </View>
+
+        {isSearchVisible && (
+          <TextInput
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Buscar..."
+            placeholderTextColor="#888"
+            autoFocus
+          />
+        )}
+
+        {/* Lista de alfabetizandos */}
+        {isLoading ? (
+          <ActivityIndicator style={styles.loader} color="#111111" />
+        ) : (
+          <View>
+            {filteredLearners.map((item) => {
+              const themeName = item.learnerThemes?.[0]?.theme?.name;
+              return (
+                <Pressable
+                  key={item.id}
+                  style={styles.learnerRow}
+                  onPress={() =>
+                    navigation.navigate('EducatorLearningMode', {
+                      fullName: educatorName,
+                      educatorId,
+                      learnerName: item.displayName,
+                      learnerId: item.id,
+                    })
+                  }
+                >
+                  <Text style={styles.learnerName}>
+                    {item.displayName}
+                    {themeName ? ` (${themeName})` : ''}
+                  </Text>
+                  {/* Placeholder para grupos — será implementado quando o backend suportar */}
+                  {false && <SvgXml xml={ICON_GROUP} width={20} height={20} />}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Botão + na base da lista */}
+        <Pressable style={styles.bottomPlus} onPress={handleNewLearner}>
+          <SvgXml xml={ICON_PLUS} width={20} height={20} />
+        </Pressable>
+
       </ScrollView>
 
       <EducatorBottomMenu
         active="inicio"
-        onTutorialPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
-        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
-        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
+        onTutorialPress={() =>
+          navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
+        }
+        onAcompanharPress={() =>
+          navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
+        }
+        onPontuacaoPress={() =>
+          navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
+        }
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
+  );
+}
+
+function AlertRow({
+  name,
+  date,
+  desc,
+  phoneDigits,
+  onPress,
+}: {
+  name: string;
+  date?: string;
+  desc: string;
+  phoneDigits: string | null;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.alertRow} onPress={onPress}>
+      <View style={styles.alertTextBlock}>
+        <Text style={styles.alertName}>
+          {name}{date ? `, dia ${date}.` : '.'}
+        </Text>
+        <Text style={styles.alertDesc}>{desc}</Text>
+      </View>
+      <View style={styles.alertIcons}>
+        <Pressable
+          hitSlop={10}
+          onPress={() => phoneDigits && void Linking.openURL(`tel:+55${phoneDigits}`)}
+        >
+          <SvgXml xml={ICON_PHONE} width={24} height={24} />
+        </Pressable>
+        <Pressable
+          hitSlop={10}
+          onPress={() => phoneDigits && void Linking.openURL(`https://wa.me/55${phoneDigits}`)}
+        >
+          <SvgXml xml={ICON_WHATSAPP} width={24} height={24} />
+        </Pressable>
+      </View>
+    </Pressable>
   );
 }
 
@@ -168,31 +326,22 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingTop: 28,
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 130,
     backgroundColor: '#ededed',
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 20,
   },
-  logoWrap: {
-    minHeight: 50,
-    justifyContent: 'center',
-  },
-  notificationButton: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
+  logoWrap: { minHeight: 50, justifyContent: 'center' },
+  notificationButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  notificationIcon: { width: 22, height: 22, resizeMode: 'contain' },
   badge: {
     position: 'absolute',
     right: 1,
@@ -205,101 +354,83 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  body: {
-    marginTop: 28,
-  },
-  greeting: {
-    color: '#1a1a1a',
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: '#3a3a3a',
-    fontSize: 14,
-  },
-  newLearnerButton: {
-    marginTop: 22,
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  newLearnerButtonText: {
-    color: '#ffffff',
+  badgeText: { color: '#ffffff', fontSize: 9, fontWeight: '700' },
+
+  // Alertas
+  alertsSection: { marginBottom: 24 },
+  alertsTitle: {
     fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  sectionTitle: {
-    marginTop: 26,
-    color: '#1a1a1a',
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  emptyCard: {
-    marginTop: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    gap: 6,
-  },
-  emptyTitle: {
-    color: '#1a1a1a',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyText: {
-    color: '#5a5a5a',
-    fontSize: 13,
+    color: '#111111',
+    marginBottom: 14,
     lineHeight: 20,
   },
-  learnerList: {
-    marginTop: 12,
-    gap: 8,
-  },
-  learnerCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+  alertRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginBottom: 20,
   },
-  learnerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#0f172a',
+  alertTextBlock: { flex: 1 },
+  alertName: { fontSize: 14, fontWeight: '600', color: '#111111', lineHeight: 20 },
+  alertDesc: { fontSize: 13, lineHeight: 19, color: '#222222', marginTop: 2 },
+  alertIcons: { gap: 14, alignItems: 'center' },
+
+  // Botão NOVO ALFABETIZANDO
+  newLearnerBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    gap: 10,
+    backgroundColor: '#f0e8b8',
+    borderRadius: 6,
+    paddingVertical: 13,
+    marginBottom: 24,
   },
-  learnerAvatarText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  learnerInfo: {
-    flex: 1,
-  },
-  learnerName: {
-    color: '#1a1a1a',
+  newLearnerLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#111111',
+    letterSpacing: 0.4,
   },
-  learnerLocation: {
-    marginTop: 2,
-    color: '#5a5a5a',
-    fontSize: 12,
+
+  // Cabeçalho da seção
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
+
+  // Busca
+  searchInput: {
+    height: 36,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    color: '#111111',
+    fontSize: 14,
+    marginBottom: 6,
+  },
+
+  // Linha da lista
+  learnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#bdbdbd',
+  },
+  learnerName: { flex: 1, fontSize: 14, color: '#111111' },
+
+  loader: { marginTop: 20 },
+
+  // Botão + da base
+  bottomPlus: {
+    marginTop: 28,
+    alignSelf: 'center',
+    padding: 8,
   },
 });

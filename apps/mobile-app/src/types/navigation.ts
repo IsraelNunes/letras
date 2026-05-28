@@ -42,6 +42,15 @@ export type EducatorRootStackParamList = {
     learnerId?: string;
     educatorId?: string;
   };
+  EducatorLinkConfirm: {
+    educatorId: string;
+    fullName: string;
+  };
+  EducatorLinkSuccess: {
+    learnerName: string;
+    educatorId: string;
+    fullName: string;
+  };
 };
 
 export interface LearnerOnboardingData {

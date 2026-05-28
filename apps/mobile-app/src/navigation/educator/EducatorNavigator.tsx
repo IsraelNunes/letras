@@ -9,6 +9,8 @@ import { EducatorOnboardingStepThreeView } from '../../views/educator/EducatorOn
 import { EducatorOnboardingConfirmView } from '../../views/educator/EducatorOnboardingConfirmView';
 import { EducatorLearningModeView } from '../../views/educator/EducatorLearningModeView';
 import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
+import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfirmView';
+import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
@@ -100,6 +102,16 @@ export function EducatorNavigator() {
         options={{
           headerShown: false,
         }}
+      />
+      <Stack.Screen
+        name="EducatorLinkConfirm"
+        component={EducatorLinkConfirmView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorLinkSuccess"
+        component={EducatorLinkSuccessView}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

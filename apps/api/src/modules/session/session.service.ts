@@ -1,12 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SessionRole } from '@prisma/client';
+import { Server } from 'socket.io';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateLearnerSessionDto, SessionParticipantRole } from './dto/create-learner-session.dto';
 import { UpdateSessionStateDto } from './dto/update-session-state.dto';
 
 @Injectable()
 export class SessionService {
+  private _socketServer: Server | null = null;
+
   constructor(private readonly prisma: PrismaService) {}
+
+  setSocketServer(server: Server) {
+    this._socketServer = server;
+  }
 
   async createSession(dto: CreateLearnerSessionDto) {
     const normalizedRole = this.toSessionRole(dto.role);
@@ -122,20 +129,34 @@ export class SessionService {
       throw new NotFoundException(`Sessao do learnerProfile ${learnerProfileId} nao encontrada.`);
     }
 
-    return this.prisma.sessionState.upsert({
-      where: {
-        sessionId: session.id,
-      },
-      create: {
-        sessionId: session.id,
-        currentView: 'home',
-        statePayload: {},
-        isLocked,
-      },
-      update: {
-        isLocked,
-      },
+    const result = await this.prisma.sessionState.upsert({
+      where: { sessionId: session.id },
+      create: { sessionId: session.id, currentView: 'home', statePayload: {}, isLocked },
+      update: { isLocked },
     });
+
+    if (this._socketServer) {
+      const educatorId = await this.getEducatorIdForLearner(learnerProfileId);
+      const event = { learnerProfileId, sentBy: 'server', timestamp: new Date().toISOString() };
+      const lockEvent = isLocked ? 'lock_set' : 'lock_release';
+
+      this._socketServer.to(learnerProfileId).emit(lockEvent, event);
+      this._socketServer.to(learnerProfileId).emit('locked_changed', { ...event, isLocked });
+
+      if (educatorId) {
+        this._socketServer.to(`educator-${educatorId}`).emit(lockEvent, event);
+      }
+    }
+
+    return result;
+  }
+
+  async getEducatorIdForLearner(learnerProfileId: string): Promise<string | null> {
+    const profile = await this.prisma.learnerProfile.findUnique({
+      where: { id: learnerProfileId },
+      select: { educatorId: true },
+    });
+    return profile?.educatorId ?? null;
   }
 
   private toSessionRole(role?: SessionParticipantRole): SessionRole {

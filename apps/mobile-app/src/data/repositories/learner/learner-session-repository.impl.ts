@@ -80,7 +80,7 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
       return null;
     }
     try {
-      return await httpClient.get<LearnerSessionStateSnapshot>(`/painel/learner-sessions/${learnerProfileId}`);
+      return await httpClient.get<LearnerSessionStateSnapshot>(`/sessions/${learnerProfileId}`);
     } catch {
       return null;
     }
@@ -97,6 +97,17 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
       await httpClient.patch(`/sessions/${learnerProfileId}/state`, payload);
     } catch {
       // Mantem o fluxo local quando o backend de sessao nao estiver pronto.
+    }
+  }
+
+  async setLocked(learnerProfileId: string, isLocked: boolean): Promise<void> {
+    if (this.isLocalFallbackProfile(learnerProfileId)) {
+      return;
+    }
+    try {
+      await httpClient.put(`/sessions/${learnerProfileId}/lock`, { isLocked });
+    } catch {
+      // Falha silenciosa — o estado local ja reflete o lock.
     }
   }
 

@@ -46,9 +46,18 @@ export class CadastrosController {
     return this.cadastrosService.createAlfabetizando(dto);
   }
 
+  @Get('sessoes-bloqueadas')
+  getLockedSessions(@Query('educatorId') educatorId: string) {
+    if (!educatorId) throw new BadRequestException('educatorId é obrigatório.');
+    return this.cadastrosService.getLockedSessions(educatorId);
+  }
+
   @Get('vinculos')
-  getVinculos(@Query('status') status?: TutorLearnerLinkStatus) {
-    return this.cadastrosService.listVinculos(status);
+  getVinculos(
+    @Query('status') status?: TutorLearnerLinkStatus,
+    @Query('educatorId') educatorId?: string,
+  ) {
+    return this.cadastrosService.listVinculos(status, educatorId);
   }
 
   @Post('vinculos')
