@@ -13,6 +13,13 @@ export function LearnerFirstAccessGateView({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        <Pressable
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : null}
+          style={styles.backButton}
+        >
+          <Text style={styles.backText}>← Trocar perfil</Text>
+        </Pressable>
+
         <View style={styles.logoWrap}>
           {logoUri ? (
             <SvgUri uri={logoUri} width={84} height={50} />
@@ -53,6 +60,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingTop: 28,
   },
+  backButton: { paddingVertical: 6, alignSelf: 'flex-start', marginBottom: 4 },
+  backText: { fontSize: 14, color: '#20385f', fontWeight: '500' },
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',

@@ -58,6 +58,10 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
+        <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton}>
+          <Text style={styles.backText}>← Voltar</Text>
+        </Pressable>
+
         <View style={styles.header}>
           <View style={styles.logoWrap}>
             {logoUri ? (
@@ -239,6 +243,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
+  backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 4 },
+  backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',

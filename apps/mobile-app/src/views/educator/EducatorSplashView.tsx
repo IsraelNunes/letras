@@ -68,6 +68,9 @@ export function EducatorSplashView({ navigation }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
+          <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton}>
+            <Text style={styles.backText}>← Voltar</Text>
+          </Pressable>
           <View style={styles.logoWrap}>
             {logoUri ? (
               <SvgUri uri={logoUri} width={84} height={50} />
@@ -75,18 +78,11 @@ export function EducatorSplashView({ navigation }: Props) {
               <ActivityIndicator size="small" color="#111827" />
             )}
           </View>
-
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
-          </Pressable>
         </View>
 
         <View style={styles.body}>
           <Text style={styles.paragraph}>
-            Receba nossas boas-vindas. E muito bom ter voce neste projeto. Vamos unir forcas e transformar a vida de
+            Receba nossas boas-vindas. É muito bom ter você neste projeto. Vamos unir forças e transformar a vida de
             pessoas.
           </Text>
 
@@ -187,41 +183,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#ededed',
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  backButton: {
+    paddingVertical: 4,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    fontSize: 15,
+    color: '#20385f',
+    fontWeight: '500',
   },
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',
-  },
-  notificationButton: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
   },
   body: {
     marginTop: 58,

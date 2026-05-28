@@ -95,6 +95,10 @@ export function LearnerOnboardingStep1View({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton}>
+          <Text style={styles.backText}>← Voltar</Text>
+        </Pressable>
+
         <View style={styles.header}>
           <View style={styles.logoWrap}>
             {logoUri ? (
@@ -179,6 +183,8 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     backgroundColor: '#ededed',
   },
+  backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 4 },
+  backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

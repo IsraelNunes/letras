@@ -16,11 +16,58 @@ if (sentryDsn) {
   });
 }
 
+const linking = {
+  prefixes: ['https://mobile.letras.cloud', 'mobile.letras.cloud://'],
+  config: {
+    screens: {
+      AppModeGate: '',
+      EducatorFlow: {
+        path: 'educador',
+        screens: {
+          EducatorLoading: '',
+          EducatorLogin: 'login',
+          EducatorSplash: 'cadastro',
+          EducatorProfile: 'perfil',
+          EducatorOnboardingStepTwo: 'cadastro/passo-2',
+          EducatorOnboardingStepThree: 'cadastro/passo-3',
+          EducatorOnboardingConfirm: 'cadastro/confirmar',
+          EducatorHome: 'inicio',
+          EducatorLearningMode: 'aula',
+          EducatorLinkConfirm: 'vincular',
+          EducatorLinkSuccess: 'vincular/sucesso',
+          LearnerOnboardingStep1: 'novo-aluno/passo-1',
+          LearnerOnboardingStep2: 'novo-aluno/passo-2',
+          LearnerOnboardingConfirm: 'novo-aluno/confirmar',
+        },
+      },
+      LearnerFlow: {
+        path: 'aluno',
+        screens: {
+          LearnerLoading: '',
+          LearnerFirstAccessGate: 'boas-vindas',
+          LearnerCpfLogin: 'login',
+          LearnerLinkStep1: 'vincular',
+          LearnerLinkSuccess: 'vincular/sucesso',
+          LearnerOnboardingStep1: 'cadastro/passo-1',
+          LearnerOnboardingStep2: 'cadastro/passo-2',
+          LearnerOnboardingConfirm: 'cadastro/confirmar',
+          LearnerHome: 'inicio',
+          LearnerProfile: 'perfil',
+          LearnerLessonIntro: 'aula/:lessonId',
+          LearnerLessonScreen: 'aula/:lessonId/tela/:screenIndex',
+          LearnerLessonActivity: 'aula/:lessonId/atividade/:screenIndex',
+          LearnerLessonConclusion: 'aula/:lessonId/conclusao',
+        },
+      },
+    },
+  },
+};
+
 export default Sentry.wrap(function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           <StatusBar style="auto" />
           <RootNavigator />
         </NavigationContainer>
