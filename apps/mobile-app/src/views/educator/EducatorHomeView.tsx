@@ -70,7 +70,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
     setIsLoading(true);
     try {
       const raw = await httpClient.get<LearnerItem[] | { items: LearnerItem[] }>(
-        `/cadastros/alfabetizandos?tutorId=${educatorId}`,
+        `/cadastros/alfabetizandos?educatorId=${educatorId}`,
       );
       const items = Array.isArray(raw) ? raw : (raw as { items?: LearnerItem[] }).items ?? [];
       setLearners(items);

@@ -62,6 +62,7 @@ export function EducatorLoginView({ navigation }: Props) {
       httpClient.setAuthToken(auth.token);
       navigation.replace('EducatorHome', {
         fullName: auth.educator.fullName,
+        educatorId: auth.educator.id,
       });
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel entrar.');
