@@ -11,7 +11,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.innerHTML = [
-    '* { user-select: none !important; -webkit-user-select: none !important; }',
+    '* { user-select: none; -webkit-user-select: none; cursor: default; }',
     'input, textarea, [contenteditable] {',
     '  user-select: text !important;',
     '  -webkit-user-select: text !important;',

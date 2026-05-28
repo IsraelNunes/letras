@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -52,6 +53,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
   const [learner, setLearner] = useState<LearnerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(route.params?.learnerId));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
@@ -88,6 +90,24 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
   const titleName = learner?.nome || learnerName;
   const phoneDigits = normalizeDigits(learner?.telefone);
 
+  const copyValue = async (key: string, value: string) => {
+    const text = value.trim();
+    if (!text || text === '-') return;
+
+    try {
+      if (Platform.OS === 'web') {
+        const nav = globalThis.navigator as
+          | (Navigator & { clipboard?: { writeText?: (text: string) => Promise<void> } })
+          | undefined;
+        await nav?.clipboard?.writeText?.(text);
+      }
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1400);
+    } catch {
+      setCopiedKey(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -122,12 +142,48 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
           ) : (
             <>
               <View style={styles.infoCard}>
-                <InfoRow label="CPF ou passaporte" value={fallbackValue(learner?.cpf)} />
-                <InfoRow label="Celular" value={formatPhone(learner?.telefone)} />
-                <InfoRow label="Email" value={fallbackValue(learner?.email)} />
-                <InfoRow label="Tutor" value={fallbackValue(learner?.tutor || educatorName)} />
-                <InfoRow label="Etapa" value={fallbackValue(learner?.etapa || 'Etapa 1')} />
-                <InfoRow label="Status" value={fallbackValue(learner?.status)} />
+                <InfoRow
+                  label="CPF ou passaporte"
+                  value={fallbackValue(learner?.cpf)}
+                  copyKey="cpf"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
+                <InfoRow
+                  label="Celular"
+                  value={formatPhone(learner?.telefone)}
+                  copyKey="telefone"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
+                <InfoRow
+                  label="Email"
+                  value={fallbackValue(learner?.email)}
+                  copyKey="email"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
+                <InfoRow
+                  label="Tutor"
+                  value={fallbackValue(learner?.tutor || educatorName)}
+                  copyKey="tutor"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
+                <InfoRow
+                  label="Etapa"
+                  value={fallbackValue(learner?.etapa || 'Etapa 1')}
+                  copyKey="etapa"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
+                <InfoRow
+                  label="Status"
+                  value={fallbackValue(learner?.status)}
+                  copyKey="status"
+                  copiedKey={copiedKey}
+                  onCopy={copyValue}
+                />
               </View>
 
               <View style={styles.actions}>
@@ -192,11 +248,42 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+  copyKey,
+  copiedKey,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  copyKey: string;
+  copiedKey: string | null;
+  onCopy: (key: string, value: string) => void;
+}) {
+  const canCopy = value.trim().length > 0 && value !== '-';
+  const isCopied = copiedKey === copyKey;
+
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <View style={styles.infoValueLine}>
+        <Text selectable style={styles.infoValue}>
+          {value}
+        </Text>
+        {canCopy ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Copiar ${label}`}
+            onPress={() => onCopy(copyKey, value)}
+            style={[styles.copyButton, isCopied ? styles.copyButtonDone : null]}
+          >
+            <Text style={[styles.copyButtonText, isCopied ? styles.copyButtonTextDone : null]}>
+              {isCopied ? 'Copiado' : 'Copiar'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -297,9 +384,36 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   infoValue: {
+    flex: 1,
     fontSize: 15,
     color: '#111111',
     fontWeight: '600',
+  },
+  infoValueLine: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  copyButton: {
+    borderWidth: 1,
+    borderColor: '#c8d0dd',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f8fafc',
+  },
+  copyButtonDone: {
+    borderColor: '#1f7a4d',
+    backgroundColor: '#e9f7ef',
+  },
+  copyButtonText: {
+    color: '#20385f',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  copyButtonTextDone: {
+    color: '#1f7a4d',
   },
   actions: {
     flexDirection: 'row',
