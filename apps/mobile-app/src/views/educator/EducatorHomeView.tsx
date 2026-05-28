@@ -206,7 +206,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                 date={item.session?.sessionState?.updatedAt
                   ? formatDate(item.session.sessionState.updatedAt)
                   : undefined}
-                desc="Clique para ver a tela em que este alfabetizando precisa foi bloqueado. Em seguida, ligue por telefone ou Whatsapp."
+                desc="Clique para ver a tela em que este alfabetizando teve a tela bloqueada. Em seguida, ligue por telefone ou Whatsapp."
                 phoneDigits={item.phoneDigits}
                 onContactPress={() => dismissLockedSession(item.id)}
                 onPress={() =>
