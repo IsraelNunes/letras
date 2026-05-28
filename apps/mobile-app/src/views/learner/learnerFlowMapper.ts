@@ -258,7 +258,7 @@ function resolveAssetKind(kind: string | null | undefined, url: string | null | 
 }
 
 function toOptionalText(value: unknown): string | null {
-  const text = String(value ?? '').trim();
+  const text = sanitizeText(String(value ?? '').trim());
   return text.length > 0 ? text : null;
 }
 
@@ -854,8 +854,15 @@ function mapCompositeBlockToScreen(
   };
 }
 
+function sanitizeText(text: string): string {
+  // Remove U+FFFD (replacement character) que aparece quando o banco tem
+  // bytes UTF-8 corrompidos. Substitui por string vazia para não exibir
+  // caixinhas no app mobile.
+  return text.replace(/�/g, '').replace(/\s{2,}/g, ' ').trim();
+}
+
 function normalizeText(value: string | null | undefined, fallback: string): string {
-  const text = String(value || '').trim();
+  const text = sanitizeText(String(value || '').trim());
   return text.length > 0 ? text : fallback;
 }
 
