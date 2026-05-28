@@ -69,8 +69,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
     if (!educatorId) { setIsLoading(false); return; }
     setIsLoading(true);
     try {
-      const data = await httpClient.get<LearnerItem[]>(`/cadastros/alfabetizandos?educatorId=${educatorId}`);
-      setLearners(data);
+      const raw = await httpClient.get<LearnerItem[] | { items: LearnerItem[] }>(
+        `/cadastros/alfabetizandos?tutorId=${educatorId}`,
+      );
+      const items = Array.isArray(raw) ? raw : (raw as { items?: LearnerItem[] }).items ?? [];
+      setLearners(items);
     } catch { /* ignora — lista permanece vazia */ }
     setIsLoading(false);
   }, [educatorId]);
