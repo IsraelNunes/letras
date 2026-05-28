@@ -102,7 +102,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
     [learners],
   );
 
-  const { helpAlerts, clearHelpAlert } = useEducatorHomeRealtime({
+  const { helpAlerts, clearHelpAlert, onlineLearnerIds } = useEducatorHomeRealtime({
     educatorId,
     getLearnerInfo: (id) => learnerMap.get(id),
     onLockEvent: () => { void fetchLockedSessions(); },
@@ -244,12 +244,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     })
                   }
                 >
+                  <View style={[styles.presenceDot, onlineLearnerIds.has(item.id) ? styles.presenceDotOnline : styles.presenceDotOffline]} />
                   <Text style={styles.learnerName}>
                     {item.displayName}
                     {themeName ? ` (${themeName})` : ''}
                   </Text>
-                  {/* Placeholder para grupos — será implementado quando o backend suportar */}
-                  {false && <SvgXml xml={ICON_GROUP} width={20} height={20} />}
                 </Pressable>
               );
             })}
@@ -424,6 +423,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#bdbdbd',
   },
   learnerName: { flex: 1, fontSize: 14, color: '#111111' },
+  presenceDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  presenceDotOnline: { backgroundColor: '#22c55e' },
+  presenceDotOffline: { backgroundColor: '#9ca3af' },
 
   loader: { marginTop: 20 },
 

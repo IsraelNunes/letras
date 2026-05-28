@@ -51,25 +51,49 @@ export class SessionGateway implements OnGatewayInit, OnGatewayConnection, OnGat
       learnerProfileId: identity.learnerProfileId,
     });
 
-    // Não emite presence_changed para salas de educador (educator-{id})
-    if (!identity.learnerProfileId.startsWith('educator-')) {
-      this.server
-        .to(identity.learnerProfileId)
-        .emit('presence_changed', this.presenceService.getRoomPresence(identity.learnerProfileId));
+    if (identity.role === 'educator') {
+      // Envia snapshot inicial de todos os aprendizes online para o educador
+      this.server.to(client.id).emit('learner_presence_snapshot', {
+        onlineIds: this.presenceService.getOnlineLearnerIds(),
+      });
+      return;
+    }
+
+    // Aprendiz conectou — notifica educador responsável
+    this.server
+      .to(identity.learnerProfileId)
+      .emit('presence_changed', this.presenceService.getRoomPresence(identity.learnerProfileId));
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(identity.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('learner_presence_changed', {
+        learnerProfileId: identity.learnerProfileId,
+        online: true,
+      });
     }
   }
 
-  handleDisconnect(client: Socket): void {
+  async handleDisconnect(client: Socket): Promise<void> {
     const disconnected = this.presenceService.unregisterParticipant(client.id);
 
     if (!disconnected) {
       return;
     }
 
-    if (!disconnected.learnerProfileId.startsWith('educator-')) {
-      this.server
-        .to(disconnected.learnerProfileId)
-        .emit('presence_changed', this.presenceService.getRoomPresence(disconnected.learnerProfileId));
+    if (disconnected.role === 'educator') {
+      return;
+    }
+
+    this.server
+      .to(disconnected.learnerProfileId)
+      .emit('presence_changed', this.presenceService.getRoomPresence(disconnected.learnerProfileId));
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(disconnected.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('learner_presence_changed', {
+        learnerProfileId: disconnected.learnerProfileId,
+        online: false,
+      });
     }
   }
 

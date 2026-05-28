@@ -1,4 +1,4 @@
-import { HelpPayload, REALTIME_EVENTS } from '@letras/shared-types';
+import { HelpPayload, LearnerPresenceChangedPayload, LearnerPresenceSnapshotPayload, REALTIME_EVENTS } from '@letras/shared-types';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createEducatorHomeSocket } from '../../infra/realtime/session-socket';
 
@@ -28,6 +28,7 @@ export function useEducatorHomeRealtime({
 }: UseEducatorHomeRealtimeParams) {
   const [helpAlerts, setHelpAlerts] = useState<HelpAlert[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [onlineLearnerIds, setOnlineLearnerIds] = useState<Set<string>>(new Set());
 
   // Refs estáveis para callbacks — evitam reconexão ao socket quando as
   // funções são recriadas pelo React entre re-renders
@@ -52,6 +53,22 @@ export function useEducatorHomeRealtime({
 
     socket.on(REALTIME_EVENTS.LOCK_RELEASE, () => {
       onLockEventRef.current();
+    });
+
+    socket.on(REALTIME_EVENTS.LEARNER_PRESENCE_SNAPSHOT, (payload: LearnerPresenceSnapshotPayload) => {
+      setOnlineLearnerIds(new Set(payload.onlineIds));
+    });
+
+    socket.on(REALTIME_EVENTS.LEARNER_PRESENCE_CHANGED, (payload: LearnerPresenceChangedPayload) => {
+      setOnlineLearnerIds((prev) => {
+        const next = new Set(prev);
+        if (payload.online) {
+          next.add(payload.learnerProfileId);
+        } else {
+          next.delete(payload.learnerProfileId);
+        }
+        return next;
+      });
     });
 
     socket.on(REALTIME_EVENTS.HELP_REQUESTED, (payload: HelpPayload & { timestamp: string }) => {
@@ -82,5 +99,5 @@ export function useEducatorHomeRealtime({
     setHelpAlerts((prev) => prev.filter((a) => a.learnerId !== learnerId));
   };
 
-  return { helpAlerts, clearHelpAlert, isConnected };
+  return { helpAlerts, clearHelpAlert, isConnected, onlineLearnerIds };
 }
