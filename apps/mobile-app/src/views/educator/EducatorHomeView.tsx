@@ -330,13 +330,21 @@ function AlertRow({
   onContactPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.alertRow} onPress={onPress}>
-      <View style={styles.alertTextBlock}>
+    <View style={styles.alertRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Ver tela de ${name}`}
+        style={styles.alertTextBlock}
+        onPress={onPress}
+      >
         <Text style={styles.alertName}>
           {name}{date ? `, dia ${date}.` : '.'}
         </Text>
         <Text style={styles.alertDesc}>{desc}</Text>
-      </View>
+        <View style={styles.alertOpenButton}>
+          <Text style={styles.alertOpenButtonText}>VER TELA</Text>
+        </View>
+      </Pressable>
       <View style={styles.alertIcons}>
         <Pressable
           hitSlop={10}
@@ -361,7 +369,7 @@ function AlertRow({
           <SvgXml xml={ICON_WHATSAPP} width={24} height={24} />
         </Pressable>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -417,9 +425,25 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  alertTextBlock: { flex: 1 },
+  alertTextBlock: { flex: 1, paddingVertical: 4 },
   alertName: { fontSize: 14, fontWeight: '600', color: '#111111', lineHeight: 20 },
   alertDesc: { fontSize: 13, lineHeight: 19, color: '#222222', marginTop: 2 },
+  alertOpenButton: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#111111',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#ffffff',
+  },
+  alertOpenButtonText: {
+    color: '#111111',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   alertIcons: { gap: 14, alignItems: 'center' },
 
   // Botão NOVO ALFABETIZANDO

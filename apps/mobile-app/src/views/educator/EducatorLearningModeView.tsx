@@ -34,6 +34,19 @@ interface LearnerDetail {
   historico?: Array<{ id: string; tipo: string; data: string; obs: string; status: string }>;
 }
 
+interface LearnerSessionState {
+  currentView?: string | null;
+  currentActivityId?: string | null;
+  statePayload?: Record<string, unknown> | null;
+  isLocked?: boolean;
+  updatedAt?: string;
+}
+
+interface LearnerSession {
+  updatedAt?: string;
+  sessionState?: LearnerSessionState | null;
+}
+
 function normalizeDigits(value?: string | null) {
   return String(value ?? '').replace(/\D/g, '');
 }
@@ -49,11 +62,31 @@ function fallbackValue(value?: string | null) {
   return normalized.length > 0 ? normalized : '-';
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function formatCurrentView(value?: string | null) {
+  const normalized = fallbackValue(value);
+  const labels: Record<string, string> = {
+    LearnerHome: 'Inicio do alfabetizando',
+    LearnerLessonIntro: 'Introducao da aula',
+    LearnerLessonScreen: 'Tela de aula',
+    LearnerLessonActivity: 'Atividade da aula',
+    LearnerLessonConclusion: 'Conclusao da aula',
+  };
+  return labels[normalized] ?? normalized;
+}
+
 export function EducatorLearningModeView({ navigation, route }: Props) {
   const [learner, setLearner] = useState<LearnerDetail | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(route.params?.learnerId));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [learnerSession, setLearnerSession] = useState<LearnerSession | null>(null);
 
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
@@ -74,8 +107,12 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
     try {
       setErrorMessage(null);
       setIsLoading(true);
-      const data = await httpClient.get<LearnerDetail>(`/cadastros/alfabetizandos/${learnerId}`);
+      const [data, session] = await Promise.all([
+        httpClient.get<LearnerDetail>(`/cadastros/alfabetizandos/${learnerId}`),
+        httpClient.get<LearnerSession>(`/painel/learner-sessions/${learnerId}`).catch(() => null),
+      ]);
       setLearner(data);
+      setLearnerSession(session);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel carregar o alfabetizando.');
     } finally {
@@ -89,6 +126,9 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
 
   const titleName = learner?.nome || learnerName;
   const phoneDigits = normalizeDigits(learner?.telefone);
+  const sessionState = learnerSession?.sessionState ?? null;
+  const hasSession = Boolean(sessionState?.currentView || sessionState?.currentActivityId);
+  const sessionUpdatedAt = sessionState?.updatedAt ?? learnerSession?.updatedAt;
 
   const copyValue = async (key: string, value: string) => {
     const text = value.trim();
@@ -202,6 +242,34 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                   <Text style={styles.actionText}>WHATSAPP</Text>
                 </Pressable>
               </View>
+
+              {hasSession ? (
+                <View style={[styles.supportCard, sessionState?.isLocked ? styles.supportCardLocked : null]}>
+                  <Text style={styles.supportEyebrow}>
+                    {sessionState?.isLocked ? 'PEDIDO DE APOIO ATIVO' : 'ULTIMA TELA REGISTRADA'}
+                  </Text>
+                  <Text style={styles.supportTitle}>
+                    {sessionState?.isLocked
+                      ? 'Este alfabetizando esta com a tela bloqueada.'
+                      : 'Ultima tela vista pelo alfabetizando.'}
+                  </Text>
+                  <View style={styles.supportInfoRow}>
+                    <Text style={styles.supportLabel}>Tela</Text>
+                    <Text selectable style={styles.supportValue}>{formatCurrentView(sessionState?.currentView)}</Text>
+                  </View>
+                  <View style={styles.supportInfoRow}>
+                    <Text style={styles.supportLabel}>Atividade</Text>
+                    <Text selectable style={styles.supportValue}>{fallbackValue(sessionState?.currentActivityId)}</Text>
+                  </View>
+                  <View style={styles.supportInfoRow}>
+                    <Text style={styles.supportLabel}>Atualizado</Text>
+                    <Text style={styles.supportValue}>{formatDateTime(sessionUpdatedAt)}</Text>
+                  </View>
+                  <Pressable style={styles.supportRefreshButton} onPress={() => void loadLearner()}>
+                    <Text style={styles.supportRefreshText}>ATUALIZAR SITUACAO</Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Progresso</Text>
@@ -434,6 +502,62 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
+  },
+  supportCard: {
+    marginTop: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d3d7de',
+    backgroundColor: '#ffffff',
+    padding: 14,
+  },
+  supportCardLocked: {
+    borderColor: '#e1c46b',
+    backgroundColor: '#fff8d6',
+  },
+  supportEyebrow: {
+    color: '#20385f',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  supportTitle: {
+    color: '#111111',
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+    marginTop: 5,
+    marginBottom: 10,
+  },
+  supportInfoRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#e9e9e9',
+    paddingTop: 9,
+    paddingBottom: 8,
+  },
+  supportLabel: {
+    color: '#606060',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  supportValue: {
+    color: '#111111',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+  },
+  supportRefreshButton: {
+    marginTop: 10,
+    borderRadius: 7,
+    backgroundColor: '#0f172a',
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  supportRefreshText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   section: {
     marginTop: 24,
