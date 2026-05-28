@@ -14,9 +14,11 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner/learner-session-repository.impl';
+import { SessionStorage } from '../../infra/storage/session-storage';
 import { LearnerRootStackParamList } from '../../types';
+import { useOptionalLearnerSession } from './learnerSessionContext';
 
-type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLinkStep1'>;
+type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerCpfLogin'>;
 
 function normalizeDigits(value: string) {
   return value.replace(/\D/g, '');
@@ -34,18 +36,11 @@ function isAllDigits(value: string) {
   return /^\d+$/.test(value.replace(/[.\-\s]/g, ''));
 }
 
-function formatPhone(digits: string) {
-  const d = digits.slice(0, 11);
-  if (d.length < 11) return d;
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-}
-
-
-export function LearnerLinkStep1View({ navigation }: Props) {
+export function LearnerCpfLoginView({ navigation }: Props) {
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
+  const session = useOptionalLearnerSession();
 
   const [cpfOrPassport, setCpfOrPassport] = useState('');
-  const [phoneDigits, setPhoneDigits] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const [assets] = useAssets([
@@ -60,20 +55,11 @@ export function LearnerLinkStep1View({ navigation }: Props) {
     [cpfOrPassport],
   );
 
-  const isCpfOrPassportValid = useMemo(() => {
+  const isValid = useMemo(() => {
     if (!cpfOrPassport) return false;
     if (looksLikeCpf) return normalizeDigits(cpfOrPassport).length === 11;
     return cpfOrPassport.trim().length >= 6;
   }, [cpfOrPassport, looksLikeCpf]);
-
-  const isPhoneValid = useMemo(() => phoneDigits.length === 11, [phoneDigits]);
-
-  const canProceed = isCpfOrPassportValid || isPhoneValid;
-
-  const phoneDisplay = useMemo(
-    () => (phoneDigits.length === 11 ? formatPhone(phoneDigits) : phoneDigits),
-    [phoneDigits],
-  );
 
   const handleCpfChange = (text: string) => {
     if (isAllDigits(text.replace(/[.\-]/g, '')) || text === '') {
@@ -83,20 +69,14 @@ export function LearnerLinkStep1View({ navigation }: Props) {
     }
   };
 
-  const handleAvançar = async () => {
-    if (!canProceed || isLoading) return;
+  const handleEntrar = async () => {
+    if (!isValid || isLoading) return;
     setIsLoading(true);
     try {
-      const cpfRaw = isCpfOrPassportValid ? cpfOrPassport.trim() : undefined;
-      const phoneRaw = isPhoneValid ? phoneDigits : undefined;
-
-      const learner = await repository.lookupLearner(cpfRaw, phoneRaw);
-
-      navigation.navigate('LearnerLinkSuccess', {
-        learnerId: learner.id,
-        learnerName: learner.displayName,
-        educatorName: learner.educator?.name ?? 'Educador',
-      });
+      const learner = await repository.lookupLearner(cpfOrPassport.trim(), undefined);
+      await SessionStorage.setLearnerProfileId(learner.id);
+      if (session) await session.initialize();
+      navigation.reset({ index: 0, routes: [{ name: 'LearnerHome' }] });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Não foi possível localizar o cadastro.';
       Alert.alert('Cadastro não encontrado', msg);
@@ -117,12 +97,10 @@ export function LearnerLinkStep1View({ navigation }: Props) {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.intro}>
-            O cadastro do alfabetizando já foi feito no celular do alfabetizador. Agora, é só vincular.
-          </Text>
+          <Text style={styles.intro}>Informe seu CPF ou passaporte para continuar.</Text>
 
           <Text style={styles.label}>
-            Insira o CPF ou passaporte do alfabetizando: <Text style={styles.required}>*</Text>
+            CPF ou passaporte: <Text style={styles.required}>*</Text>
           </Text>
           <TextInput
             value={cpfOrPassport}
@@ -132,24 +110,14 @@ export function LearnerLinkStep1View({ navigation }: Props) {
             placeholderTextColor="#7a7a7a"
             keyboardType="default"
             autoCapitalize="characters"
-          />
-
-          <Text style={styles.orLabel}>ou</Text>
-          <Text style={styles.label}>Insira o número do telefone celular do alfabetizando:</Text>
-          <TextInput
-            value={phoneDisplay}
-            onChangeText={(text) => setPhoneDigits(normalizeDigits(text).slice(0, 11))}
-            style={styles.input}
-            keyboardType="phone-pad"
-            placeholder="(XX) XXXXX-XXXX"
-            placeholderTextColor="#7a7a7a"
+            autoFocus
           />
         </View>
 
         <Pressable
-          style={[styles.advanceButton, (!canProceed || isLoading) ? styles.advanceButtonDisabled : null]}
-          disabled={!canProceed || isLoading}
-          onPress={() => void handleAvançar()}
+          style={[styles.advanceButton, (!isValid || isLoading) ? styles.advanceButtonDisabled : null]}
+          disabled={!isValid || isLoading}
+          onPress={() => void handleEntrar()}
         >
           {isLoading ? (
             <ActivityIndicator size="small" color="#20385f" />
@@ -158,7 +126,7 @@ export function LearnerLinkStep1View({ navigation }: Props) {
           ) : (
             <ActivityIndicator size="small" color="#20385f" />
           )}
-          <Text style={styles.advanceLabel}>AVANÇAR</Text>
+          <Text style={styles.advanceLabel}>ENTRAR</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -195,7 +163,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#141414',
-    fontWeight: '400',
   },
   required: {
     color: '#b91c1c',
@@ -208,12 +175,6 @@ const styles = StyleSheet.create({
     color: '#111111',
     fontSize: 16,
     fontWeight: '500',
-  },
-  orLabel: {
-    fontSize: 14,
-    color: '#555555',
-    marginTop: 8,
-    marginBottom: 4,
   },
   advanceButton: {
     marginTop: 48,

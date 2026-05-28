@@ -33,7 +33,7 @@ export function LearnerFirstAccessGateView({ navigation }: Props) {
 
           <Pressable
             style={[styles.button, styles.buttonSecondary]}
-            onPress={() => navigation.navigate('LearnerLinkStep1', { cpfOnly: true })}
+            onPress={() => navigation.navigate('LearnerCpfLogin')}
           >
             <Text style={[styles.buttonLabel, styles.buttonLabelSecondary]}>NÃO</Text>
           </Pressable>

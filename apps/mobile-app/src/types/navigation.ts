@@ -66,7 +66,8 @@ export interface LearnerOnboardingData {
 export type LearnerRootStackParamList = {
   LearnerLoading: undefined;
   LearnerFirstAccessGate: undefined;
-  LearnerLinkStep1: { cpfOnly?: boolean } | undefined;
+  LearnerCpfLogin: undefined;
+  LearnerLinkStep1: undefined;
   LearnerLinkSuccess: {
     learnerName: string;
     educatorName: string;
