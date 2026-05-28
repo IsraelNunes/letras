@@ -47,7 +47,7 @@ const linking = {
           EducatorOnboardingStepThree: 'cadastro/passo-3',
           EducatorOnboardingConfirm: 'cadastro/confirmar',
           EducatorHome: 'inicio',
-          EducatorLearningMode: 'aula',
+          EducatorLearningMode: 'alfabetizando/:learnerId',
           EducatorLinkConfirm: 'vincular',
           EducatorLinkSuccess: 'vincular/sucesso',
           LearnerOnboardingStep1: 'novo-aluno/passo-1',

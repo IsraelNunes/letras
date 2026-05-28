@@ -1,48 +1,97 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
   Image,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { SvgUri, SvgXml } from 'react-native-svg';
+import { SvgUri } from 'react-native-svg';
+import { httpClient } from '../../infra/api/http-client';
 import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLearningMode'>;
-type LearningMode = 'individual' | 'group' | null;
 
-const ICON_PERSON = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5zm0 2c-3.333 0-10 1.667-10 5v1h20v-1c0-3.333-6.667-5-10-5z" fill="currentColor"/></svg>`;
+interface LearnerDetail {
+  id: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  cpf?: string;
+  tutor?: string;
+  grupo?: string;
+  etapa?: string;
+  status?: string;
+  progresso?: Array<{ etapa: string; progresso: number; atividades: number; concluidas: number }>;
+  historico?: Array<{ id: string; tipo: string; data: string; obs: string; status: string }>;
+}
 
-const ICON_GROUP = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" fill="currentColor"/></svg>`;
+function normalizeDigits(value?: string | null) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+function formatPhone(phone?: string | null) {
+  const digits = normalizeDigits(phone).slice(0, 11);
+  if (digits.length !== 11) return phone || '-';
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function fallbackValue(value?: string | null) {
+  const normalized = String(value ?? '').trim();
+  return normalized.length > 0 ? normalized : '-';
+}
 
 export function EducatorLearningModeView({ navigation, route }: Props) {
-  const [mode, setMode] = useState<LearningMode>(null);
-  const [newGroupName, setNewGroupName] = useState('');
+  const [learner, setLearner] = useState<LearnerDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(route.params?.learnerId));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   const educatorName = route.params?.fullName?.trim() || 'Educador';
   const educatorId = route.params?.educatorId;
+  const learnerId = route.params?.learnerId;
   const learnerName = route.params?.learnerName?.trim() || 'O alfabetizando';
 
-  // Groups fetched from backend — stub until backend supports learner groups
-  const groups: string[] = [];
-
   const goHome = () => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId });
+
+  const loadLearner = useCallback(async () => {
+    if (!learnerId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setErrorMessage(null);
+      setIsLoading(true);
+      const data = await httpClient.get<LearnerDetail>(`/cadastros/alfabetizandos/${learnerId}`);
+      setLearner(data);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel carregar o alfabetizando.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [learnerId]);
+
+  useEffect(() => {
+    void loadLearner();
+  }, [loadLearner]);
+
+  const titleName = learner?.nome || learnerName;
+  const phoneDigits = normalizeDigits(learner?.telefone);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton}>
+        <Pressable onPress={() => (navigation.canGoBack() ? navigation.goBack() : goHome())} style={styles.backButton}>
           <Text style={styles.backText}>← Voltar</Text>
         </Pressable>
 
@@ -63,61 +112,76 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.questionText}>
-            {learnerName} sera alfabetizado individualmente ou em um grupo?
-          </Text>
+          <Text style={styles.screenTitle}>Detalhes do alfabetizando</Text>
+          <Text style={styles.learnerTitle}>{titleName}</Text>
 
-          <Pressable
-            style={[styles.modeOption, mode === 'individual' ? styles.modeOptionActive : null]}
-            onPress={goHome}
-          >
-            <SvgXml xml={ICON_PERSON} width={48} height={48} color="#111111" />
-            <Text style={styles.modeLabel}>INDIVIDUALMENTE</Text>
-          </Pressable>
+          {isLoading ? (
+            <ActivityIndicator style={styles.loader} color="#111827" />
+          ) : errorMessage ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          ) : (
+            <>
+              <View style={styles.infoCard}>
+                <InfoRow label="CPF ou passaporte" value={fallbackValue(learner?.cpf)} />
+                <InfoRow label="Celular" value={formatPhone(learner?.telefone)} />
+                <InfoRow label="Email" value={fallbackValue(learner?.email)} />
+                <InfoRow label="Tutor" value={fallbackValue(learner?.tutor || educatorName)} />
+                <InfoRow label="Etapa" value={fallbackValue(learner?.etapa || 'Etapa 1')} />
+                <InfoRow label="Status" value={fallbackValue(learner?.status)} />
+              </View>
 
-          <Pressable
-            style={[styles.modeOption, styles.modeOptionGroup, mode === 'group' ? styles.modeOptionActive : null]}
-            onPress={() => setMode('group')}
-          >
-            <SvgXml xml={ICON_GROUP} width={60} height={50} color="#111111" />
-            <Text style={styles.modeLabel}>EM GRUPO</Text>
-          </Pressable>
-
-          {mode === 'group' && (
-            <View style={styles.groupSection}>
-              <Text style={styles.groupSectionTitle}>CRIAR NOVO GRUPO</Text>
-              <View style={styles.groupInputRow}>
-                <TextInput
-                  style={styles.groupInput}
-                  placeholder="Informe o nome do novo grupo:"
-                  placeholderTextColor="#9a9a9a"
-                  value={newGroupName}
-                  onChangeText={setNewGroupName}
-                />
-                <Pressable style={styles.groupArrowButton} onPress={() => {}}>
-                  <Text style={styles.groupArrowText}>{'→'}</Text>
+              <View style={styles.actions}>
+                <Pressable
+                  style={[styles.actionButton, !phoneDigits ? styles.actionButtonDisabled : null]}
+                  disabled={!phoneDigits}
+                  onPress={() => phoneDigits && Linking.openURL(`tel:+55${phoneDigits}`)}
+                >
+                  <Text style={styles.actionText}>LIGAR</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.actionButton, !phoneDigits ? styles.actionButtonDisabled : null]}
+                  disabled={!phoneDigits}
+                  onPress={() => phoneDigits && Linking.openURL(`https://wa.me/55${phoneDigits}`)}
+                >
+                  <Text style={styles.actionText}>WHATSAPP</Text>
                 </Pressable>
               </View>
 
-              <Text style={styles.groupOrText}>OU</Text>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Progresso</Text>
+                {learner?.progresso?.length ? (
+                  learner.progresso.map((item) => (
+                    <View key={item.etapa} style={styles.progressRow}>
+                      <Text style={styles.progressLabel}>{item.etapa}</Text>
+                      <Text style={styles.progressValue}>{item.progresso}%</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.mutedText}>Ainda nao ha progresso registrado.</Text>
+                )}
+              </View>
 
-              <Text style={styles.groupListTitle}>INCLUIR NO GRUPO:</Text>
-              {groups.length === 0 ? (
-                <Text style={styles.groupEmptyText}>Nenhum grupo criado ainda.</Text>
-              ) : (
-                groups.map((g, i) => (
-                  <Pressable key={i} style={styles.groupItem} onPress={goHome}>
-                    <Text style={styles.groupItemText}>{g}</Text>
-                  </Pressable>
-                ))
-              )}
-            </View>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Historico recente</Text>
+                {learner?.historico?.length ? (
+                  learner.historico.slice(0, 3).map((item) => (
+                    <View key={item.id} style={styles.historyItem}>
+                      <Text style={styles.historyType}>{item.tipo}</Text>
+                      <Text style={styles.historyObs}>{item.obs}</Text>
+                      <Text style={styles.historyDate}>{item.data}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.mutedText}>Nenhum historico recente.</Text>
+                )}
+              </View>
+            </>
           )}
         </View>
       </ScrollView>
 
       <EducatorBottomMenu
-        active="inicio"
+        active="acompanhar"
         onInicioPress={goHome}
         onTutorialPress={goHome}
         onAcompanharPress={goHome}
@@ -125,6 +189,15 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -140,13 +213,13 @@ const styles = StyleSheet.create({
     paddingBottom: 130,
     backgroundColor: '#ededed',
   },
+  backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 4 },
+  backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 4 },
-  backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',
@@ -182,105 +255,120 @@ const styles = StyleSheet.create({
   body: {
     marginTop: 28,
   },
-  questionText: {
-    color: '#1a1a1a',
-    fontSize: 19,
-    lineHeight: 27,
-    maxWidth: 320,
+  loader: {
+    marginTop: 32,
   },
-  modeOption: {
-    marginTop: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  modeOptionGroup: {
-    marginTop: 20,
-  },
-  modeOptionActive: {
-    backgroundColor: '#e4e4e4',
-  },
-  modeLabel: {
-    marginTop: 8,
-    color: '#111111',
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  groupSection: {
-    marginTop: 24,
-    gap: 0,
-  },
-  groupSectionTitle: {
-    color: '#1a1a1a',
+  screenTitle: {
+    color: '#505050',
     fontSize: 13,
     fontWeight: '700',
+    textTransform: 'uppercase',
     letterSpacing: 0.4,
-    marginBottom: 8,
   },
-  groupInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  learnerTitle: {
+    color: '#1a1a1a',
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 20,
   },
-  groupInput: {
-    flex: 1,
-    height: 40,
+  errorText: {
+    color: '#b42318',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  infoCard: {
     backgroundColor: '#ffffff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingHorizontal: 12,
-    fontSize: 13,
-    color: '#1a1a1a',
+    borderColor: '#d8d8d8',
+    paddingHorizontal: 14,
+    paddingVertical: 2,
   },
-  groupArrowButton: {
-    width: 40,
-    height: 40,
+  infoRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: '#646464',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#111111',
+    fontWeight: '600',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  actionButton: {
+    flex: 1,
     backgroundColor: '#0f172a',
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  groupArrowText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  groupOrText: {
-    marginTop: 16,
-    marginBottom: 12,
-    textAlign: 'center',
-    color: '#5a5a5a',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  groupListTitle: {
-    color: '#1a1a1a',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    marginBottom: 8,
-  },
-  groupEmptyText: {
-    color: '#9a9a9a',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  groupItem: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginBottom: 6,
+    alignItems: 'center',
   },
-  groupItemText: {
-    color: '#1a1a1a',
+  actionButtonDisabled: {
+    opacity: 0.35,
+  },
+  actionText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  section: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    color: '#111111',
+    fontWeight: '700',
+    marginBottom: 10,
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#d8d8d8',
+    paddingVertical: 9,
+  },
+  progressLabel: {
+    color: '#111111',
     fontSize: 14,
+  },
+  progressValue: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  mutedText: {
+    color: '#666666',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  historyItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#d8d8d8',
+    paddingVertical: 10,
+  },
+  historyType: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  historyObs: {
+    color: '#333333',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  historyDate: {
+    color: '#666666',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
