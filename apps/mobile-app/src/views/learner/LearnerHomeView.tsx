@@ -32,7 +32,7 @@ export function LearnerHomeView({ navigation }: Props) {
       onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
-      onMenuProfile={() => navigation.navigate('LearnerHome')}
+      onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de apoio para seguir na aula inicial.')}

@@ -67,7 +67,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
       onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
-      onMenuProfile={() => navigation.navigate('LearnerHome')}
+      onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda antes de iniciar esta aula.')}

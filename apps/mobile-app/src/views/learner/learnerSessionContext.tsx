@@ -24,3 +24,7 @@ export function useLearnerSession() {
   }
   return context;
 }
+
+export function useOptionalLearnerSession() {
+  return useContext(LearnerSessionContext);
+}

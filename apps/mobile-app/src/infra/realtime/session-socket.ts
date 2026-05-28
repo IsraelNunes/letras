@@ -21,6 +21,17 @@ export function createEducatorSocket(identity: SocketIdentity): Socket {
   return createSessionSocket(identity);
 }
 
+export function createEducatorHomeSocket(educatorId: string, participantId: string): Socket {
+  return io(`${resolveRealtimeBaseUrl()}/realtime`, {
+    transports: ['websocket'],
+    query: {
+      educatorId,
+      participantId,
+      role: 'educator',
+    },
+  });
+}
+
 export function createLearnerSocket(identity: SocketIdentity): Socket {
   return createSessionSocket(identity);
 }

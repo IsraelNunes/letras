@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SyncAction, SyncEntityType, TutorLearnerLinkStatus } from '@prisma/client';
 import { hashPassword } from '../../common/security/password-hash';
 import { SyncEventService } from '../../common/sync/sync-event.service';
@@ -69,113 +69,104 @@ export class CadastrosService {
     }
   }
 
-  async listAlfabetizandos() {
-    const learners = await this.prisma.learnerProfile.findMany({
-      include: {
-        completions: {
-          select: {
-            status: true,
-            updatedAt: true,
-          },
-        },
-        tutorLearnerLinks: {
-          orderBy: {
-            requestedAt: 'desc',
-          },
-          take: 1,
-          include: {
-            educator: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
+  async listAlfabetizandos(educatorId?: string) {
+    return this.prisma.learnerProfile.findMany({
+      where: educatorId ? { educatorId } : undefined,
+      select: {
+        id: true,
+        displayName: true,
+        phoneDigits: true,
         learnerThemes: {
-          include: {
-            theme: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+          select: { theme: { select: { name: true } } },
+          orderBy: { assignedAt: 'desc' },
+          take: 1,
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        displayName: 'asc',
+      },
+    });
+  }
+
+  async getLockedSessions(educatorId: string) {
+    return this.prisma.learnerProfile.findMany({
+      where: {
+        educatorId,
+        session: { sessionState: { isLocked: true } },
+      },
+      select: {
+        id: true,
+        displayName: true,
+        phoneDigits: true,
+        session: {
+          select: {
+            sessionState: {
+              select: { currentView: true, updatedAt: true },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async buscarAlfabetizando({ cpfOrPassport, phoneDigits }: { cpfOrPassport?: string; phoneDigits?: string }) {
+    if (!cpfOrPassport && !phoneDigits) {
+      throw new BadRequestException('Forneça cpfOrPassport ou phoneDigits para buscar.');
+    }
+
+    const where = cpfOrPassport ? { cpfOrPassport } : { phoneDigits };
+
+    const learner = await this.prisma.learnerProfile.findFirst({
+      where,
+      select: {
+        id: true,
+        displayName: true,
+        phoneDigits: true,
+        educator: {
+          select: { id: true, name: true },
+        },
       },
     });
 
-    return learners.map((learner) => {
-      const totalTracked = learner.completions.length;
-      const completedCount = learner.completions.filter((completion) => completion.status === 'COMPLETED').length;
-      const progressPercent = totalTracked === 0 ? 0 : Math.round((completedCount / totalTracked) * 100);
-      const latestCompletion = learner.completions.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
-      const latestLink = learner.tutorLearnerLinks[0];
+    if (!learner) {
+      throw new NotFoundException('Alfabetizando não encontrado. Verifique os dados ou entre em contato com seu educador.');
+    }
 
-      return {
-        ...learner,
-        progresso: {
-          totalTracked,
-          completedCount,
-          progressPercent,
-          lastInteractionAt: latestCompletion?.updatedAt ?? learner.updatedAt,
-        },
-        vinculoAtual: latestLink
-          ? {
-              id: latestLink.id,
-              status: latestLink.status,
-              educator: latestLink.educator,
-              requestedAt: latestLink.requestedAt,
-              respondedAt: latestLink.respondedAt,
-            }
-          : null,
-      };
-    });
+    return learner;
   }
 
   async getAlfabetizandoById(id: string) {
     const learner = await this.prisma.learnerProfile.findUnique({
       where: { id },
-      include: {
-        educator: true,
+      select: {
+        id: true,
+        displayName: true,
+        cpfOrPassport: true,
+        phoneDigits: true,
+        birthDate: true,
+        uf: true,
+        city: true,
+        photoUri: true,
+        notes: true,
+        createdAt: true,
+        educatorId: true,
+        educator: {
+          select: { id: true, name: true, email: true, phoneDigits: true },
+        },
         learnerThemes: {
           include: {
             theme: {
               include: {
                 learningUnits: {
-                  include: {
-                    activities: true,
-                  },
+                  include: { activities: true },
                 },
               },
             },
           },
         },
         completions: {
-          include: {
-            activity: true,
-          },
-          orderBy: {
-            updatedAt: 'desc',
-          },
-        },
-        tutorLearnerLinks: {
-          include: {
-            educator: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phoneDigits: true,
-              },
-            },
-          },
-          orderBy: {
-            requestedAt: 'desc',
-          },
+          include: { activity: true },
+          orderBy: { updatedAt: 'desc' },
         },
       },
     });
@@ -234,10 +225,11 @@ export class CadastrosService {
     }
   }
 
-  listVinculos(status?: TutorLearnerLinkStatus) {
+  listVinculos(status?: TutorLearnerLinkStatus, educatorId?: string) {
     return this.prisma.tutorLearnerLink.findMany({
       where: {
         ...(status ? { status } : {}),
+        ...(educatorId ? { educatorId } : {}),
       },
       include: {
         educator: {
@@ -254,6 +246,7 @@ export class CadastrosService {
             displayName: true,
             cpfOrPassport: true,
             phoneDigits: true,
+            birthDate: true,
             uf: true,
             city: true,
           },

@@ -42,6 +42,16 @@ export class PresenceService {
     };
   }
 
+  getOnlineLearnerIds(): string[] {
+    return [
+      ...new Set(
+        [...this.participantsBySocketId.values()]
+          .filter((p) => p.role === 'learner')
+          .map((p) => p.learnerProfileId),
+      ),
+    ];
+  }
+
   getGlobalPresence() {
     const participants = [...this.participantsBySocketId.values()];
 

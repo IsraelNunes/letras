@@ -3,6 +3,7 @@ import {
   MessageBody,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -20,7 +21,7 @@ import { PresenceRole, PresenceService } from '../presence/presence.service';
     origin: '*',
   },
 })
-export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class SessionGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -28,6 +29,10 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     private readonly sessionService: SessionService,
     private readonly presenceService: PresenceService,
   ) {}
+
+  afterInit(server: Server): void {
+    this.sessionService.setSocketServer(server);
+  }
 
   async handleConnection(client: Socket): Promise<void> {
     const identity = this.resolveIdentity(client);
@@ -46,19 +51,50 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
       learnerProfileId: identity.learnerProfileId,
     });
 
-    this.server.to(identity.learnerProfileId).emit('presence_changed', this.presenceService.getRoomPresence(identity.learnerProfileId));
+    if (identity.role === 'educator') {
+      // Envia snapshot inicial de todos os aprendizes online para o educador
+      this.server.to(client.id).emit('learner_presence_snapshot', {
+        onlineIds: this.presenceService.getOnlineLearnerIds(),
+      });
+      return;
+    }
+
+    // Aprendiz conectou — notifica educador responsável
+    this.server
+      .to(identity.learnerProfileId)
+      .emit('presence_changed', this.presenceService.getRoomPresence(identity.learnerProfileId));
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(identity.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('learner_presence_changed', {
+        learnerProfileId: identity.learnerProfileId,
+        online: true,
+      });
+    }
   }
 
-  handleDisconnect(client: Socket): void {
+  async handleDisconnect(client: Socket): Promise<void> {
     const disconnected = this.presenceService.unregisterParticipant(client.id);
 
     if (!disconnected) {
       return;
     }
 
+    if (disconnected.role === 'educator') {
+      return;
+    }
+
     this.server
       .to(disconnected.learnerProfileId)
       .emit('presence_changed', this.presenceService.getRoomPresence(disconnected.learnerProfileId));
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(disconnected.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('learner_presence_changed', {
+        learnerProfileId: disconnected.learnerProfileId,
+        online: false,
+      });
+    }
   }
 
   @SubscribeMessage('learner_state_update')
@@ -82,18 +118,19 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   async handleLockSet(@ConnectedSocket() client: Socket, @MessageBody() payload: RoomEventDto) {
     await this.sessionService.setLockState(payload.learnerProfileId, true);
 
-    this.server.to(payload.learnerProfileId).emit('lock_set', {
+    const event = {
       learnerProfileId: payload.learnerProfileId,
       sentBy: client.id,
       timestamp: new Date().toISOString(),
-    });
+    };
 
-    this.server.to(payload.learnerProfileId).emit('locked_changed', {
-      learnerProfileId: payload.learnerProfileId,
-      isLocked: true,
-      sentBy: client.id,
-      timestamp: new Date().toISOString(),
-    });
+    this.server.to(payload.learnerProfileId).emit('lock_set', event);
+    this.server.to(payload.learnerProfileId).emit('locked_changed', { ...event, isLocked: true });
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(payload.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('lock_set', event);
+    }
 
     return { ok: true };
   }
@@ -102,31 +139,39 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
   async handleLockRelease(@ConnectedSocket() client: Socket, @MessageBody() payload: RoomEventDto) {
     await this.sessionService.setLockState(payload.learnerProfileId, false);
 
-    this.server.to(payload.learnerProfileId).emit('lock_release', {
+    const event = {
       learnerProfileId: payload.learnerProfileId,
       sentBy: client.id,
       timestamp: new Date().toISOString(),
-    });
+    };
 
-    this.server.to(payload.learnerProfileId).emit('locked_changed', {
-      learnerProfileId: payload.learnerProfileId,
-      isLocked: false,
-      sentBy: client.id,
-      timestamp: new Date().toISOString(),
-    });
+    this.server.to(payload.learnerProfileId).emit('lock_release', event);
+    this.server.to(payload.learnerProfileId).emit('locked_changed', { ...event, isLocked: false });
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(payload.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('lock_release', event);
+    }
 
     return { ok: true };
   }
 
   @SubscribeMessage('help_requested')
-  handleHelpRequested(@ConnectedSocket() client: Socket, @MessageBody() payload: HelpEventDto) {
-    this.server.to(payload.learnerProfileId).emit('help_requested', {
+  async handleHelpRequested(@ConnectedSocket() client: Socket, @MessageBody() payload: HelpEventDto) {
+    const event = {
       learnerProfileId: payload.learnerProfileId,
       message: payload.message,
       snapshot: payload.snapshot,
       sentBy: client.id,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    this.server.to(payload.learnerProfileId).emit('help_requested', event);
+
+    const educatorId = await this.sessionService.getEducatorIdForLearner(payload.learnerProfileId);
+    if (educatorId) {
+      this.server.to(`educator-${educatorId}`).emit('help_requested', event);
+    }
 
     return { ok: true };
   }
@@ -143,24 +188,29 @@ export class SessionGateway implements OnGatewayConnection, OnGatewayDisconnect 
     return { ok: true };
   }
 
-  private resolveIdentity(client: Socket): { learnerProfileId: string; role: PresenceRole; participantId: string } | null {
+  private resolveIdentity(
+    client: Socket,
+  ): { learnerProfileId: string; role: PresenceRole; participantId: string } | null {
     const learnerProfileId = this.getQueryValue(client, 'learnerProfileId');
+    const educatorId = this.getQueryValue(client, 'educatorId');
     const role = this.getQueryValue(client, 'role');
     const participantId = this.getQueryValue(client, 'participantId') ?? client.id;
 
-    if (!learnerProfileId || !role) {
+    if (!role || (role !== 'learner' && role !== 'educator')) {
       return null;
     }
 
-    if (role !== 'learner' && role !== 'educator') {
+    // Conexão de educador na home view: usa sala educator-{id} para receber
+    // eventos de todos os seus aprendizes sem precisar de um learnerProfileId específico
+    if (!learnerProfileId && educatorId && role === 'educator') {
+      return { learnerProfileId: `educator-${educatorId}`, role, participantId };
+    }
+
+    if (!learnerProfileId) {
       return null;
     }
 
-    return {
-      learnerProfileId,
-      role,
-      participantId,
-    };
+    return { learnerProfileId, role, participantId };
   }
 
   private getQueryValue(client: Socket, key: string): string | null {

@@ -113,15 +113,22 @@ class HttpClient {
     for (const baseUrl of baseUrls) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const url = this.buildUrl(baseUrl, path);
+
+      // eslint-disable-next-line no-console
+      console.log(`[http] ${init.method ?? 'GET'} ${url}`);
 
       try {
-        const response = await fetch(this.buildUrl(baseUrl, path), {
+        const response = await fetch(url, {
           ...init,
           headers,
           signal: controller.signal,
         });
 
         const contentType = response.headers.get('content-type') ?? '';
+
+        // eslint-disable-next-line no-console
+        console.log(`[http] ${response.status} ${url}`);
 
         if (response.ok && !contentType.includes('text/html')) {
           return (await response.json()) as T;
@@ -130,6 +137,8 @@ class HttpClient {
         lastResponseStatus = response.status;
         lastResponseText = await response.text();
       } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn(`[http] ERRO ${url}`, error);
         lastError = error;
       } finally {
         clearTimeout(timeout);

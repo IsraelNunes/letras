@@ -8,6 +8,8 @@ export const REALTIME_EVENTS = {
   LOCK_SET: 'lock_set',
   LOCK_RELEASE: 'lock_release',
   PRESENCE_CHANGED: 'presence_changed',
+  LEARNER_PRESENCE_CHANGED: 'learner_presence_changed',
+  LEARNER_PRESENCE_SNAPSHOT: 'learner_presence_snapshot',
 } as const;
 
 export interface SocketIdentity {
@@ -70,4 +72,13 @@ export interface PresencePayload {
   learnerProfileId: string;
   learnersOnline: string[];
   educatorsOnline: string[];
+}
+
+export interface LearnerPresenceChangedPayload {
+  learnerProfileId: string;
+  online: boolean;
+}
+
+export interface LearnerPresenceSnapshotPayload {
+  onlineIds: string[];
 }

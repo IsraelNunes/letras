@@ -28,12 +28,33 @@ export interface LearnerSessionStateSnapshot {
   } | null;
 }
 
+export interface LearnerLookupResult {
+  id: string;
+  displayName: string;
+  phoneDigits: string | null;
+  educator: { id: string; name: string } | null;
+}
+
+export interface RegisterLearnerInput {
+  cpfOrPassport: string;
+  phoneDigits: string;
+  fullName: string;
+  birthDate: string;
+  uf: string;
+  city: string;
+  photoUri?: string | null;
+  educatorId?: string;
+}
+
 export interface LearnerSessionRepository {
   bootstrapPersistentSession(): Promise<BootstrappedLearnerSession>;
+  lookupLearner(cpfOrPassport?: string, phoneDigits?: string): Promise<LearnerLookupResult>;
+  registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string>;
   getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]>;
   getSessionState(learnerProfileId: string): Promise<LearnerSessionStateSnapshot | null>;
   pushState(
     learnerProfileId: string,
     payload: { currentView?: string; currentActivityId?: string; statePayload?: Record<string, unknown> },
   ): Promise<void>;
+  setLocked(learnerProfileId: string, isLocked: boolean): Promise<void>;
 }

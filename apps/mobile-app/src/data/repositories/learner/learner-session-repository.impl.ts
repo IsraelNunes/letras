@@ -3,8 +3,10 @@ import { createLocalId } from '@letras/shared-utils';
 import {
   AssignedLearnerTheme,
   BootstrappedLearnerSession,
+  LearnerLookupResult,
   LearnerSessionRepository,
   LearnerSessionStateSnapshot,
+  RegisterLearnerInput,
 } from '../../../domain/interfaces/learner/learner-session-repository';
 import { httpClient } from '../../../infra/api/http-client';
 import { SessionStorage } from '../../../infra/storage/session-storage';
@@ -55,6 +57,13 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
     }
   }
 
+  async lookupLearner(cpfOrPassport?: string, phoneDigits?: string): Promise<LearnerLookupResult> {
+    const params = new URLSearchParams();
+    if (cpfOrPassport) params.set('cpfOrPassport', cpfOrPassport);
+    if (phoneDigits) params.set('phoneDigits', phoneDigits);
+    return httpClient.get<LearnerLookupResult>(`/cadastros/alfabetizandos/buscar?${params.toString()}`);
+  }
+
   async getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]> {
     if (this.isLocalFallbackProfile(learnerProfileId)) {
       return [];
@@ -71,7 +80,7 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
       return null;
     }
     try {
-      return await httpClient.get<LearnerSessionStateSnapshot>(`/painel/learner-sessions/${learnerProfileId}`);
+      return await httpClient.get<LearnerSessionStateSnapshot>(`/sessions/${learnerProfileId}`);
     } catch {
       return null;
     }
@@ -89,6 +98,32 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
     } catch {
       // Mantem o fluxo local quando o backend de sessao nao estiver pronto.
     }
+  }
+
+  async setLocked(learnerProfileId: string, isLocked: boolean): Promise<void> {
+    if (this.isLocalFallbackProfile(learnerProfileId)) {
+      return;
+    }
+    try {
+      await httpClient.put(`/sessions/${learnerProfileId}/lock`, { isLocked });
+    } catch {
+      // Falha silenciosa — o estado local ja reflete o lock.
+    }
+  }
+
+  async registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string> {
+    const profile = await httpClient.post<LearnerProfile>('/cadastros/alfabetizandos', {
+      displayName: input.fullName,
+      cpfOrPassport: input.cpfOrPassport,
+      phoneDigits: input.phoneDigits,
+      birthDate: input.birthDate,
+      uf: input.uf,
+      city: input.city,
+      ...(input.photoUri ? { photoUri: input.photoUri } : {}),
+      ...(input.educatorId ? { educatorId: input.educatorId } : {}),
+      notes: `Cadastro via app mobile. Dispositivo: ${deviceId}`,
+    });
+    return profile.id;
   }
 
   private createOrRefreshSession(body: CreateLearnerSessionRequest) {

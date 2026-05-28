@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { TutorLearnerLinkStatus } from '@prisma/client';
 import { CadastrosService } from './cadastros.service';
 import { CreateAlfabetizadorDto } from './dto/create-alfabetizador.dto';
@@ -21,8 +21,19 @@ export class CadastrosController {
   }
 
   @Get('alfabetizandos')
-  getAlfabetizandos() {
-    return this.cadastrosService.listAlfabetizandos();
+  getAlfabetizandos(@Query('educatorId') educatorId?: string) {
+    return this.cadastrosService.listAlfabetizandos(educatorId);
+  }
+
+  @Get('alfabetizandos/buscar')
+  buscarAlfabetizando(
+    @Query('cpfOrPassport') cpfOrPassport?: string,
+    @Query('phoneDigits') phoneDigits?: string,
+  ) {
+    if (!cpfOrPassport && !phoneDigits) {
+      throw new BadRequestException('Forneça cpfOrPassport ou phoneDigits para buscar.');
+    }
+    return this.cadastrosService.buscarAlfabetizando({ cpfOrPassport, phoneDigits });
   }
 
   @Get('alfabetizandos/:id')
@@ -35,9 +46,18 @@ export class CadastrosController {
     return this.cadastrosService.createAlfabetizando(dto);
   }
 
+  @Get('sessoes-bloqueadas')
+  getLockedSessions(@Query('educatorId') educatorId: string) {
+    if (!educatorId) throw new BadRequestException('educatorId é obrigatório.');
+    return this.cadastrosService.getLockedSessions(educatorId);
+  }
+
   @Get('vinculos')
-  getVinculos(@Query('status') status?: TutorLearnerLinkStatus) {
-    return this.cadastrosService.listVinculos(status);
+  getVinculos(
+    @Query('status') status?: TutorLearnerLinkStatus,
+    @Query('educatorId') educatorId?: string,
+  ) {
+    return this.cadastrosService.listVinculos(status, educatorId);
   }
 
   @Post('vinculos')
