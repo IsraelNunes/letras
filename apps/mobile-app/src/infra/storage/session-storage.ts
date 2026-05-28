@@ -10,6 +10,13 @@ export class SessionStorage {
     await AsyncStorage.setItem(STORAGE_KEYS.LEARNER_PROFILE_ID, learnerProfileId);
   }
 
+  static async clearLearnerSession(): Promise<void> {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.LEARNER_PROFILE_ID,
+      STORAGE_KEYS.LEARNER_DEVICE_ID,
+    ]);
+  }
+
   static async getOrCreateLearnerDeviceId(): Promise<string> {
     const existing = await AsyncStorage.getItem(STORAGE_KEYS.LEARNER_DEVICE_ID);
 

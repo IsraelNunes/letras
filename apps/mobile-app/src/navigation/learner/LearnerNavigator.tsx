@@ -1,10 +1,14 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerLoadingView } from '../../views/learner/LearnerLoadingView';
+import { LearnerFirstAccessGateView } from '../../views/learner/LearnerFirstAccessGateView';
+import { LearnerLinkStep1View } from '../../views/learner/LearnerLinkStep1View';
+import { LearnerLinkSuccessView } from '../../views/learner/LearnerLinkSuccessView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
 import { LearnerHomeView } from '../../views/learner/LearnerHomeView';
+import { LearnerProfileView } from '../../views/learner/LearnerProfileView';
 import { LearnerLessonIntroView } from '../../views/learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../../views/learner/LearnerLessonScreenView';
 import { LearnerLessonActivityView } from '../../views/learner/LearnerLessonActivityView';
@@ -20,6 +24,21 @@ export function LearnerNavigator() {
         <Stack.Screen
           name="LearnerLoading"
           component={LearnerLoadingView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerFirstAccessGate"
+          component={LearnerFirstAccessGateView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerLinkStep1"
+          component={LearnerLinkStep1View}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerLinkSuccess"
+          component={LearnerLinkSuccessView}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -40,6 +59,11 @@ export function LearnerNavigator() {
         <Stack.Screen
           name="LearnerHome"
           component={LearnerHomeView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerProfile"
+          component={LearnerProfileView}
           options={{ headerShown: false }}
         />
         <Stack.Screen

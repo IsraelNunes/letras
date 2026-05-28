@@ -28,6 +28,13 @@ export interface LearnerSessionStateSnapshot {
   } | null;
 }
 
+export interface LearnerLookupResult {
+  id: string;
+  displayName: string;
+  phoneDigits: string | null;
+  educator: { id: string; name: string } | null;
+}
+
 export interface RegisterLearnerInput {
   cpfOrPassport: string;
   phoneDigits: string;
@@ -41,6 +48,7 @@ export interface RegisterLearnerInput {
 
 export interface LearnerSessionRepository {
   bootstrapPersistentSession(): Promise<BootstrappedLearnerSession>;
+  lookupLearner(cpfOrPassport?: string, phoneDigits?: string): Promise<LearnerLookupResult>;
   registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string>;
   getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]>;
   getSessionState(learnerProfileId: string): Promise<LearnerSessionStateSnapshot | null>;

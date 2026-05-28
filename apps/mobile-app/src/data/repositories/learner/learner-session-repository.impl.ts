@@ -3,6 +3,7 @@ import { createLocalId } from '@letras/shared-utils';
 import {
   AssignedLearnerTheme,
   BootstrappedLearnerSession,
+  LearnerLookupResult,
   LearnerSessionRepository,
   LearnerSessionStateSnapshot,
   RegisterLearnerInput,
@@ -54,6 +55,13 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
         sessionId: createLocalId(LOCAL_SESSION_PREFIX),
       };
     }
+  }
+
+  async lookupLearner(cpfOrPassport?: string, phoneDigits?: string): Promise<LearnerLookupResult> {
+    const params = new URLSearchParams();
+    if (cpfOrPassport) params.set('cpfOrPassport', cpfOrPassport);
+    if (phoneDigits) params.set('phoneDigits', phoneDigits);
+    return httpClient.get<LearnerLookupResult>(`/cadastros/alfabetizandos/buscar?${params.toString()}`);
   }
 
   async getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]> {

@@ -56,10 +56,18 @@ export interface LearnerOnboardingData {
 
 export type LearnerRootStackParamList = {
   LearnerLoading: undefined;
+  LearnerFirstAccessGate: undefined;
+  LearnerLinkStep1: undefined;
+  LearnerLinkSuccess: {
+    learnerName: string;
+    educatorName: string;
+    learnerId: string;
+  };
   LearnerOnboardingStep1: { isEducatorFlow?: boolean } | undefined;
   LearnerOnboardingStep2: Pick<LearnerOnboardingData, 'cpfOrPassport' | 'phoneDigits'> & { isEducatorFlow?: boolean };
   LearnerOnboardingConfirm: LearnerOnboardingData & { isEducatorFlow?: boolean };
   LearnerHome: undefined;
+  LearnerProfile: undefined;
   LearnerLessonIntro: {
     moduleId: string;
     lessonId: string;

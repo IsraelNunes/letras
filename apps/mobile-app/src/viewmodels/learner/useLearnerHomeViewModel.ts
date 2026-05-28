@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 import { httpClient } from '../../infra/api/http-client';
+import { SessionStorage } from '../../infra/storage/session-storage';
+
+const LOCAL_PROFILE_PREFIX = 'learner-local-profile';
 
 interface SyncCurrentStateInput {
   currentView?: string;
@@ -53,6 +56,15 @@ export function useLearnerHomeViewModel() {
     try {
       setLoading(true);
       setErrorMessage(null);
+
+      // Só inicializa se já existe um perfil vinculado no storage.
+      // Sem esse guarda, bootstrapPersistentSession() criaria um perfil
+      // automático no servidor, bypassando o fluxo de vínculo CPF/telefone.
+      const storedId = await SessionStorage.getLearnerProfileId();
+      if (!storedId || storedId.startsWith(`${LOCAL_PROFILE_PREFIX}-`)) {
+        setLoading(false);
+        return;
+      }
 
       const session = await repository.bootstrapPersistentSession();
       setLearnerProfileId(session.learnerProfileId);

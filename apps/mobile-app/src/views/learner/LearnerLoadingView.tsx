@@ -15,7 +15,7 @@ export function LearnerLoadingView({ navigation }: Props) {
       if (hasRealProfile) {
         navigation.replace('LearnerHome');
       } else {
-        navigation.replace('LearnerOnboardingStep1');
+        navigation.replace('LearnerFirstAccessGate');
       }
     });
   }, [navigation]);

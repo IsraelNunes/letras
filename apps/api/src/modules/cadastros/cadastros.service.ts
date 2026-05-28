@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, SyncAction, SyncEntityType, TutorLearnerLinkStatus } from '@prisma/client';
 import { hashPassword } from '../../common/security/password-hash';
 import { SyncEventService } from '../../common/sync/sync-event.service';
@@ -85,46 +85,64 @@ export class CadastrosService {
     });
   }
 
+  async buscarAlfabetizando({ cpfOrPassport, phoneDigits }: { cpfOrPassport?: string; phoneDigits?: string }) {
+    if (!cpfOrPassport && !phoneDigits) {
+      throw new BadRequestException('Forneça cpfOrPassport ou phoneDigits para buscar.');
+    }
+
+    const where = cpfOrPassport ? { cpfOrPassport } : { phoneDigits };
+
+    const learner = await this.prisma.learnerProfile.findFirst({
+      where,
+      select: {
+        id: true,
+        displayName: true,
+        phoneDigits: true,
+        educator: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (!learner) {
+      throw new NotFoundException('Alfabetizando não encontrado. Verifique os dados ou entre em contato com seu educador.');
+    }
+
+    return learner;
+  }
+
   async getAlfabetizandoById(id: string) {
     const learner = await this.prisma.learnerProfile.findUnique({
       where: { id },
-      include: {
-        educator: true,
+      select: {
+        id: true,
+        displayName: true,
+        cpfOrPassport: true,
+        phoneDigits: true,
+        birthDate: true,
+        uf: true,
+        city: true,
+        photoUri: true,
+        notes: true,
+        createdAt: true,
+        educatorId: true,
+        educator: {
+          select: { id: true, name: true, email: true, phoneDigits: true },
+        },
         learnerThemes: {
           include: {
             theme: {
               include: {
                 learningUnits: {
-                  include: {
-                    activities: true,
-                  },
+                  include: { activities: true },
                 },
               },
             },
           },
         },
         completions: {
-          include: {
-            activity: true,
-          },
-          orderBy: {
-            updatedAt: 'desc',
-          },
-        },
-        tutorLearnerLinks: {
-          include: {
-            educator: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phoneDigits: true,
-              },
-            },
-          },
-          orderBy: {
-            requestedAt: 'desc',
-          },
+          include: { activity: true },
+          orderBy: { updatedAt: 'desc' },
         },
       },
     });
