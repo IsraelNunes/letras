@@ -129,6 +129,21 @@ export function EducatorProfileView({ navigation }: Props) {
     const loadInitialData = async () => {
       try {
         setErrorMessage(null);
+
+        // Restaura token do AsyncStorage se não estiver em memória.
+        // Garante que a tela funcione ao ser acessada diretamente pela URL.
+        const storedToken = await EducatorStorage.getAuthToken();
+        const storedExpiry = await EducatorStorage.getAuthSessionExpiry();
+        const isTokenValid = storedToken && storedExpiry && new Date(storedExpiry).getTime() > Date.now();
+
+        if (isTokenValid) {
+          httpClient.setAuthToken(storedToken);
+        } else {
+          // Sem token válido — redireciona para login
+          if (mounted) navigation.replace('EducatorLogin');
+          return;
+        }
+
         const [me, fetchedUfs] = await Promise.all([
           repository.fetchCurrentEducator(),
           repository.fetchUfs(),
@@ -156,7 +171,17 @@ export function EducatorProfileView({ navigation }: Props) {
         setXHandle(me.educator.xHandle ?? '');
       } catch (error) {
         if (mounted) {
-          setErrorMessage(error instanceof Error ? error.message : 'Erro ao carregar perfil.');
+          // Se ainda falhar, usa os dados em cache do AsyncStorage como fallback
+          const cached = await EducatorStorage.getAuthProfile();
+          if (cached) {
+            setFullName(cached.fullName ?? '');
+            setEducatorId(cached.id ?? null);
+            setCpf((cached.cpf ?? '').replace(/\D/g, '').slice(0, 11));
+            setPhoneDigits((cached.phoneDigits ?? '').replace(/\D/g, '').slice(0, 11));
+            setErrorMessage(null);
+          } else {
+            setErrorMessage(error instanceof Error ? error.message : 'Erro ao carregar perfil.');
+          }
         }
       } finally {
         if (mounted) {

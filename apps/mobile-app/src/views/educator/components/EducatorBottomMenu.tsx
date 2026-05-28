@@ -65,7 +65,7 @@ export function EducatorBottomMenu({
           return (
             <Pressable
               key={key}
-              style={styles.item}
+              style={[styles.item, isActive && styles.itemActive]}
               onPress={handler}
               disabled={!handler}
               android_ripple={{ color: 'rgba(0,0,0,0.08)', borderless: false, radius: 32 }}
@@ -80,12 +80,13 @@ export function EducatorBottomMenu({
                   xml={icon}
                   width={22}
                   height={22}
-                  color={isActive ? '#0f172a' : '#6b7280'}
+                  color={isActive ? '#20385f' : '#6b7280'}
                 />
               </View>
               <Text style={[styles.label, isActive && styles.labelActive]} numberOfLines={1}>
                 {label}
               </Text>
+              {isActive && <View style={styles.activeIndicator} />}
             </Pressable>
           );
         })}
@@ -121,6 +122,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     gap: 3,
   },
+  itemActive: {
+    borderTopWidth: 2,
+    borderTopColor: '#20385f',
+    marginTop: -1,
+  },
+  activeIndicator: {
+    // borda superior já cuida da indicação visual — este elemento é reservado
+    height: 0,
+  },
   iconWrap: {
     width: 44,
     height: 36,
@@ -128,7 +138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapActive: {
-    backgroundColor: '#c8cdd6',
+    backgroundColor: '#dde4f0',
     width: 56,
     height: 36,
   },
@@ -139,7 +149,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   labelActive: {
-    color: '#0f172a',
-    fontWeight: '600',
+    color: '#20385f',
+    fontWeight: '700',
   },
 });

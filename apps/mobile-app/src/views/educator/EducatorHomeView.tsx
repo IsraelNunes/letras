@@ -57,7 +57,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
   const educatorName = route.params?.fullName?.trim() || 'Educador';
-  const educatorId = route.params?.educatorId;
+  const [educatorId, setEducatorId] = useState<string | undefined>(route.params?.educatorId);
 
   const [learners, setLearners] = useState<LearnerItem[]>([]);
   const [lockedSessions, setLockedSessions] = useState<LockedSession[]>([]);
@@ -65,6 +65,19 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+
+  // Restaura educatorId do AsyncStorage se não veio nos params (ex: navegação por URL)
+  useEffect(() => {
+    if (educatorId) return;
+    void (async () => {
+      const { EducatorStorage } = await import('../../infra/storage/educator-storage');
+      const { httpClient: hc } = await import('../../infra/api/http-client');
+      const token = await EducatorStorage.getAuthToken();
+      const profile = await EducatorStorage.getAuthProfile();
+      if (token) hc.setAuthToken(token);
+      if (profile?.id) setEducatorId(profile.id);
+    })();
+  }, [educatorId]);
 
   const fetchLearners = useCallback(async () => {
     if (!educatorId) { setIsLoading(false); return; }
@@ -219,13 +232,17 @@ export function EducatorHomeView({ navigation, route }: Props) {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Alfabetizandos</Text>
           <Pressable
-            hitSlop={8}
+            hitSlop={12}
+            style={styles.searchToggle}
             onPress={() => {
               setIsSearchVisible((v) => !v);
-              setSearchQuery('');
+              if (isSearchVisible) setSearchQuery('');
             }}
           >
-            <SvgXml xml={ICON_SEARCH} width={22} height={22} />
+            {isSearchVisible
+              ? <Text style={styles.searchClose}>✕</Text>
+              : <SvgXml xml={ICON_SEARCH} width={22} height={22} />
+            }
           </Pressable>
         </View>
 
@@ -234,9 +251,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Buscar..."
+            placeholder="Buscar por nome..."
             placeholderTextColor="#888"
             autoFocus
+            returnKeyType="search"
+            onSubmitEditing={() => setIsSearchVisible(searchQuery.length > 0)}
           />
         )}
 
@@ -429,16 +448,25 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111111' },
+  searchToggle: {
+    width: 36, height: 36,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: '#ebebeb',
+  },
+  searchClose: { fontSize: 14, color: '#111111', fontWeight: '700' },
 
   // Busca
   searchInput: {
-    height: 36,
+    height: 38,
     backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    paddingHorizontal: 10,
+    borderRadius: 6,
+    paddingHorizontal: 12,
     color: '#111111',
     fontSize: 14,
-    marginBottom: 6,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#c0c0c0',
   },
 
   // Linha da lista
