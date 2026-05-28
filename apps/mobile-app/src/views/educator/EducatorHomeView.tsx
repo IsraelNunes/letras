@@ -140,9 +140,13 @@ export function EducatorHomeView({ navigation, route }: Props) {
             }
           >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
+            {(helpAlerts.length > 0 || lockedSessions.length > 0) && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {helpAlerts.length + lockedSessions.length}
+                </Text>
+              </View>
+            )}
           </Pressable>
         </View>
 
