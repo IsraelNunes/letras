@@ -61,6 +61,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
   const [learners, setLearners] = useState<LearnerItem[]>([]);
   const [lockedSessions, setLockedSessions] = useState<LockedSession[]>([]);
+  const [dismissedLockedIds, setDismissedLockedIds] = useState(new Set<string>());
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -111,6 +112,12 @@ export function EducatorHomeView({ navigation, route }: Props) {
     onLockEvent: () => { void fetchLockedSessions(); },
   });
 
+  function dismissLockedSession(sessionId: string) {
+    setDismissedLockedIds((prev) => new Set([...prev, sessionId]));
+  }
+
+  const visibleLockedSessions = lockedSessions.filter((s) => !dismissedLockedIds.has(s.id));
+
   const filteredLearners = searchQuery
     ? learners.filter((l) => l.displayName.toLowerCase().includes(searchQuery.toLowerCase()))
     : learners;
@@ -140,10 +147,10 @@ export function EducatorHomeView({ navigation, route }: Props) {
             }
           >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            {(helpAlerts.length > 0 || lockedSessions.length > 0) && (
+            {(helpAlerts.length > 0 || visibleLockedSessions.length > 0) && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {helpAlerts.length + lockedSessions.length}
+                  {helpAlerts.length + visibleLockedSessions.length}
                 </Text>
               </View>
             )}
@@ -151,7 +158,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
         </View>
 
         {/* Alertas — bloqueios (HTTP) + pedidos de ajuda (socket). Só aparece quando há itens */}
-        {(lockedSessions.length > 0 || helpAlerts.length > 0) && (
+        {(visibleLockedSessions.length > 0 || helpAlerts.length > 0) && (
           <View style={styles.alertsSection}>
             <Text style={styles.alertsTitle}>
               Pedidos de apoio e bloqueios preventivos de tela:
@@ -165,6 +172,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                 date={formatDate(item.timestamp)}
                 desc="Clique para ver a tela em que este alfabetizando precisa de apoio. Em seguida, ligue por telefone ou Whatsapp."
                 phoneDigits={item.phoneDigits}
+                onContactPress={() => clearHelpAlert(item.learnerId)}
                 onPress={() => {
                   clearHelpAlert(item.learnerId);
                   navigation.navigate('EducatorLearningMode', {
@@ -178,7 +186,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
             ))}
 
             {/* Sessões bloqueadas (via HTTP, persistidas, atualizadas em tempo real via socket) */}
-            {lockedSessions.map((item) => (
+            {visibleLockedSessions.map((item) => (
               <AlertRow
                 key={`lock-${item.id}`}
                 name={item.displayName}
@@ -187,6 +195,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                   : undefined}
                 desc="Clique para ver a tela em que este alfabetizando precisa foi bloqueado. Em seguida, ligue por telefone ou Whatsapp."
                 phoneDigits={item.phoneDigits}
+                onContactPress={() => dismissLockedSession(item.id)}
                 onPress={() =>
                   navigation.navigate('EducatorLearningMode', {
                     fullName: educatorName,
@@ -292,12 +301,14 @@ function AlertRow({
   desc,
   phoneDigits,
   onPress,
+  onContactPress,
 }: {
   name: string;
   date?: string;
   desc: string;
   phoneDigits: string | null;
   onPress: () => void;
+  onContactPress?: () => void;
 }) {
   return (
     <Pressable style={styles.alertRow} onPress={onPress}>
@@ -310,13 +321,23 @@ function AlertRow({
       <View style={styles.alertIcons}>
         <Pressable
           hitSlop={10}
-          onPress={() => phoneDigits && void Linking.openURL(`tel:+55${phoneDigits}`)}
+          onPress={() => {
+            if (phoneDigits) {
+              void Linking.openURL(`tel:+55${phoneDigits}`);
+              onContactPress?.();
+            }
+          }}
         >
           <SvgXml xml={ICON_PHONE} width={24} height={24} />
         </Pressable>
         <Pressable
           hitSlop={10}
-          onPress={() => phoneDigits && void Linking.openURL(`https://wa.me/55${phoneDigits}`)}
+          onPress={() => {
+            if (phoneDigits) {
+              void Linking.openURL(`https://wa.me/55${phoneDigits}`);
+              onContactPress?.();
+            }
+          }}
         >
           <SvgXml xml={ICON_WHATSAPP} width={24} height={24} />
         </Pressable>

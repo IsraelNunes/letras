@@ -65,6 +65,9 @@ importers:
       prisma:
         specifier: ^6.5.0
         version: 6.19.2(typescript@5.8.3)
+      socket.io-client:
+        specifier: ^4.8.1
+        version: 4.8.3
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@22.19.15)(typescript@5.8.3)
@@ -6575,7 +6578,9 @@ snapshots:
       metro-runtime: 0.83.5
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89': {}
