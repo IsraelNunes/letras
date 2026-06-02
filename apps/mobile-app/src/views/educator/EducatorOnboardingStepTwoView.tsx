@@ -246,9 +246,6 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
 
           <Pressable style={styles.notificationButton} onPress={() => {}}>
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
           </Pressable>
         </View>
 

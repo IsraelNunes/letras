@@ -111,6 +111,10 @@ export function EducatorLinkConfirmView({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('EducatorHome', { fullName, educatorId })} style={styles.backButton}>
+          <Text style={styles.backText}>← Voltar</Text>
+        </Pressable>
+
         <View style={styles.logoWrap}>
           {logoUri ? (
             <SvgUri uri={logoUri} width={84} height={50} />
@@ -207,6 +211,8 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     backgroundColor: '#ededed',
   },
+  backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 8 },
+  backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',

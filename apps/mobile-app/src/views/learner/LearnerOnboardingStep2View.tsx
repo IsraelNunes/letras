@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -184,11 +185,14 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
   };
 
   const openPhotoChooser = () => {
-    Alert.alert('Foto do alfabetizando', 'Escolha como deseja adicionar a foto.', [
+    const options: Array<{ text: string; style?: 'cancel' | 'default' | 'destructive'; onPress?: () => void }> = [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Upload', onPress: () => void pickImageFromGallery() },
-      { text: 'Tirar foto', onPress: () => void takePhoto() },
-    ]);
+    ];
+    if (Platform.OS !== 'web') {
+      options.push({ text: 'Tirar foto', onPress: () => void takePhoto() });
+    }
+    Alert.alert('Foto do alfabetizando', 'Escolha como deseja adicionar a foto.', options);
   };
 
   return (
@@ -208,9 +212,6 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
           </View>
           <Pressable style={styles.notificationButton} onPress={() => {}}>
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
           </Pressable>
         </View>
 
