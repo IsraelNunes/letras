@@ -71,6 +71,8 @@ export interface LearnerFlowScreen {
 
 export interface LearnerFlowLesson {
   id: string;
+  /** ID da primeira Activity real do unit — usado para gravar e checar progresso. */
+  progressId: string;
   title: string;
   objective: string;
   moduleLabel: string;
@@ -1036,6 +1038,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
         return {
           id: unit.id,
+          progressId: activities[0]?.id ?? unit.id,
           title: normalizeText(unit.title, 'Aula'),
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,
@@ -1221,6 +1224,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
         return {
           id: unit.id,
+          progressId: unitActivities[0]?.id ?? unit.id,
           title: normalizeText(primaryActivityTitle, normalizeText(unit.title, 'Aula')),
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,

@@ -35,7 +35,7 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       if (completedRecordedRef.current !== lessonId) {
         completedRecordedRef.current = lessonId;
         void learnerSession.recordProgress({
-          activityId: lessonId,
+          activityId: lesson?.progressId ?? lessonId,
           status: 'COMPLETED',
         });
       }

@@ -130,6 +130,14 @@ export function EducatorHomeView({ navigation, route }: Props) {
     setDismissedLockedIds((prev) => new Set([...prev, sessionId]));
   }
 
+  async function handleUnlockSession(learnerId: string) {
+    try {
+      await httpClient.put(`/sessions/${learnerId}/lock`, { isLocked: false });
+      dismissLockedSession(learnerId);
+      void fetchLockedSessions();
+    } catch { /* ignora — estado será reconciliado no próximo fetch */ }
+  }
+
   const visibleLockedSessions = lockedSessions.filter((s) => !dismissedLockedIds.has(s.id));
   const notificationCount = helpAlerts.length + visibleLockedSessions.length;
 
@@ -275,9 +283,10 @@ export function EducatorHomeView({ navigation, route }: Props) {
                       ? formatDate(item.session.sessionState.updatedAt)
                       : undefined}
                     title="Tela bloqueada"
-                    desc="Abra os detalhes para orientar o atendimento deste alfabetizando."
+                    desc="Toque em LIBERAR SESSAO para desbloquear, ou em Ver detalhes para acompanhar a tela."
                     phoneDigits={item.phoneDigits}
                     onContactPress={() => dismissLockedSession(item.id)}
+                    onUnlockPress={() => { void handleUnlockSession(item.id); }}
                     onPress={() => {
                       setIsNotificationsOpen(false);
                       navigation.navigate('EducatorLearningMode', {
@@ -403,6 +412,7 @@ function NotificationRow({
   phoneDigits,
   onPress,
   onContactPress,
+  onUnlockPress,
 }: {
   name: string;
   date?: string;
@@ -411,6 +421,7 @@ function NotificationRow({
   phoneDigits: string | null;
   onPress: () => void;
   onContactPress?: () => void;
+  onUnlockPress?: () => void;
 }) {
   return (
     <View style={styles.notificationRow}>
@@ -426,7 +437,20 @@ function NotificationRow({
         </View>
         <Text style={styles.notificationName}>{name}</Text>
         <Text style={styles.notificationDesc}>{desc}</Text>
-        <Text style={styles.notificationLink}>Ver detalhes</Text>
+        <View style={styles.notificationRowActions}>
+          <Text style={styles.notificationLink}>Ver detalhes</Text>
+          {onUnlockPress && (
+            <Pressable
+              hitSlop={8}
+              style={styles.unlockButton}
+              onPress={(e) => { e.stopPropagation?.(); onUnlockPress(); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Liberar sessao de ${name}`}
+            >
+              <Text style={styles.unlockButtonText}>LIBERAR SESSAO</Text>
+            </Pressable>
+          )}
+        </View>
       </Pressable>
       <View style={styles.notificationActions}>
         <Pressable
@@ -644,7 +668,22 @@ const styles = StyleSheet.create({
   notificationDate: { color: '#777777', fontSize: 11 },
   notificationName: { color: '#111111', fontSize: 15, fontWeight: '800', lineHeight: 21 },
   notificationDesc: { color: '#333333', fontSize: 13, lineHeight: 19, marginTop: 3 },
-  notificationLink: { color: '#20385f', fontSize: 12, fontWeight: '800', marginTop: 8 },
+  notificationLink: { color: '#20385f', fontSize: 12, fontWeight: '800' },
+  notificationRowActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
+  unlockButton: {
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#15803d',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#f0fdf4',
+  },
+  unlockButtonText: {
+    color: '#15803d',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
   notificationActions: { gap: 8, alignItems: 'center', justifyContent: 'center' },
   notificationIconAction: {
     width: 34,
