@@ -6,6 +6,7 @@ import {
   mapPainelToModules,
   PainelConteudoResponse,
 } from './learnerFlowMapper';
+import { useOptionalLearnerSession } from './learnerSessionContext';
 
 export type {
   LearnerFlowActivity,
@@ -28,37 +29,55 @@ async function fetchLearnerModules(): Promise<LearnerFlowModule[]> {
   return mapPainelToModules(payload);
 }
 
+async function fetchCompletedProgressIds(learnerProfileId: string): Promise<Set<string>> {
+  try {
+    const result = await httpClient.get<{ completedActivityIds: string[] }>(
+      `/painel/progress/${learnerProfileId}`,
+    );
+    return new Set(result.completedActivityIds ?? []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function useLearnerFlowData() {
+  const session = useOptionalLearnerSession();
+  const learnerProfileId = session?.learnerProfileId ?? null;
+
   const [modules, setModules] = useState<LearnerFlowModule[]>(cachedModules ?? []);
   const [loading, setLoading] = useState(cachedModules === null);
   const [error, setError] = useState<string | null>(null);
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     const now = Date.now();
     if (cachedModules && now - cacheTimestamp < CACHE_TTL_MS) {
       setModules(cachedModules);
       setLoading(false);
-      return;
+    } else {
+      setLoading(true);
+      setError(null);
+      try {
+        const fetched = await fetchLearnerModules();
+        cachedModules = fetched;
+        cacheTimestamp = now;
+        setModules(fetched);
+      } catch (fetchError) {
+        const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
+        setError(message);
+        setModules([]);
+        cachedModules = [];
+        cacheTimestamp = now;
+      } finally {
+        setLoading(false);
+      }
     }
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const fetched = await fetchLearnerModules();
-      cachedModules = fetched;
-      cacheTimestamp = now;
-      setModules(fetched);
-    } catch (fetchError) {
-      const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
-      setError(message);
-      setModules([]);
-      cachedModules = [];
-      cacheTimestamp = now;
-    } finally {
-      setLoading(false);
+    if (learnerProfileId && !learnerProfileId.startsWith('learner-local-profile-')) {
+      const ids = await fetchCompletedProgressIds(learnerProfileId);
+      setCompletedLessonIds(ids);
     }
-  }, []);
+  }, [learnerProfileId]);
 
   useEffect(() => {
     void load();
@@ -79,6 +98,7 @@ export function useLearnerFlowData() {
     modules,
     loading,
     error,
+    completedLessonIds,
     refresh: load,
     getLesson,
   };

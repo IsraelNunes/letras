@@ -29,11 +29,16 @@ interface RecordProgressInput {
 
 const UUID_PREFIX_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+const CUID_PATTERN = /^c[a-z0-9]{10,}/i;
 
 function resolveCanonicalActivityId(activityId: string): string | null {
   const normalized = activityId.trim();
-  const match = normalized.match(UUID_PREFIX_PATTERN);
-  return match?.[0] ?? null;
+  if (!normalized) return null;
+  const uuidMatch = normalized.match(UUID_PREFIX_PATTERN);
+  if (uuidMatch) return uuidMatch[0];
+  // Aceita cuid (formato do Prisma local): c + alfanumérico, min 10 chars
+  if (CUID_PATTERN.test(normalized)) return normalized;
+  return null;
 }
 
 export function useLearnerHomeViewModel() {

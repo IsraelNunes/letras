@@ -734,6 +734,14 @@ export class PainelService {
     });
   }
 
+  async getCompletedActivityIds(learnerProfileId: string) {
+    const completions = await this.prisma.completion.findMany({
+      where: { learnerProfileId, status: 'COMPLETED' },
+      select: { activityId: true },
+    });
+    return { completedActivityIds: completions.map((c) => c.activityId) };
+  }
+
   private async ensureThemeExists(themeId: string) {
     const theme = await this.prisma.theme.findUnique({
       where: { id: themeId },

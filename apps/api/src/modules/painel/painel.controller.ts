@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { SyncEntityType } from '@prisma/client';
@@ -10,10 +10,15 @@ import { CreateTemaPainelDto } from './dto/create-tema.dto';
 import { ImportBlueprintManifestDto } from './dto/import-blueprint-manifest.dto';
 import { UploadAssetDto } from './dto/upload-asset.dto';
 import { PainelService } from './painel.service';
+import { TrackProgressDto } from '../progress/dto/track-progress.dto';
+import { ProgressService } from '../progress/progress.service';
 
 @Controller('painel')
 export class PainelController {
-  constructor(private readonly painelService: PainelService) {}
+  constructor(
+    private readonly painelService: PainelService,
+    private readonly progressService: ProgressService,
+  ) {}
 
   @Get('dashboard/admin')
   getDashboardAdmin() {
@@ -84,6 +89,16 @@ export class PainelController {
   @Post('conteudo/blueprints/import-manifest')
   importBlueprintManifest(@Body() dto: ImportBlueprintManifestDto) {
     return this.painelService.importBlueprintManifest(dto);
+  }
+
+  @Post('progress')
+  trackProgress(@Body() dto: TrackProgressDto) {
+    return this.progressService.trackProgress(dto);
+  }
+
+  @Get('progress/:learnerProfileId')
+  getProgress(@Param('learnerProfileId') learnerProfileId: string) {
+    return this.painelService.getCompletedActivityIds(learnerProfileId);
   }
 
   @Get('fila')

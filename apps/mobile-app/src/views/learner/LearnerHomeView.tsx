@@ -7,11 +7,12 @@ import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
 import { useLearnerSession } from './learnerSessionContext';
+import { LearnerFlowLesson } from './learnerFlowMapper';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
 export function LearnerHomeView({ navigation }: Props) {
-  const { modules, loading, error, refresh } = useLearnerFlowData();
+  const { modules, loading, error, completedLessonIds, refresh } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
 
   useFocusEffect(
@@ -22,8 +23,15 @@ export function LearnerHomeView({ navigation }: Props) {
           modulesCount: modules.length,
         },
       });
-    }, [learnerSession, modules.length]),
+      // Recarrega progresso sempre que a home ganha foco (ex: ao voltar da conclusão).
+      void refresh();
+    }, [learnerSession, modules.length, refresh]),
   );
+
+  function isLessonUnlocked(lessons: LearnerFlowLesson[], index: number): boolean {
+    if (index === 0) return true;
+    return completedLessonIds.has(lessons[index - 1].progressId);
+  }
 
   return (
     <LearnerScreenLayout
@@ -65,29 +73,50 @@ export function LearnerHomeView({ navigation }: Props) {
               <Text style={styles.moduleTitle}>{moduleItem.title}</Text>
               <Text style={styles.moduleSubtitle}>{moduleItem.subtitle}</Text>
 
-              {firstLesson ? (
-                <Pressable
-                  style={styles.lessonCard}
-                  hitSlop={8}
-                  onPress={() =>
-                    navigation.navigate('LearnerLessonIntro', {
-                      moduleId: moduleItem.id,
-                      lessonId: firstLesson.id,
-                      moduleLabel,
-                      moduleTitle: moduleItem.title,
-                    })
-                  }
-                >
-                  <View style={styles.lessonBody}>
-                    <Text style={styles.lessonTitle}>{firstLesson.title}</Text>
-                    <Text style={styles.lessonSubtitle}>{firstLesson.objective}</Text>
-                    <Text style={styles.lessonCount}>{firstLesson.screens.length} telas</Text>
-                  </View>
-                  <View style={styles.lessonAction}>
-                    <Text style={styles.lessonActionText}>Abrir</Text>
-                  </View>
-                </Pressable>
-              ) : null}
+              {moduleItem.lessons.map((lesson, lessonIndex) => {
+                const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex);
+
+                if (!unlocked) {
+                  return (
+                    <View key={lesson.id} style={styles.lessonCardLocked}>
+                      <View style={styles.lessonBody}>
+                        <Text style={styles.lessonTitleLocked}>{lesson.title}</Text>
+                        <Text style={styles.lessonLockedHint}>
+                          Complete a aula anterior para desbloquear
+                        </Text>
+                      </View>
+                      <View style={styles.lockIcon}>
+                        <Text style={styles.lockIconText}>🔒</Text>
+                      </View>
+                    </View>
+                  );
+                }
+
+                return (
+                  <Pressable
+                    key={lesson.id}
+                    style={styles.lessonCard}
+                    hitSlop={8}
+                    onPress={() =>
+                      navigation.navigate('LearnerLessonIntro', {
+                        moduleId: moduleItem.id,
+                        lessonId: lesson.id,
+                        moduleLabel,
+                        moduleTitle: moduleItem.title,
+                      })
+                    }
+                  >
+                    <View style={styles.lessonBody}>
+                      <Text style={styles.lessonTitle}>{lesson.title}</Text>
+                      <Text style={styles.lessonSubtitle}>{lesson.objective}</Text>
+                      <Text style={styles.lessonCount}>{lesson.screens.length} telas</Text>
+                    </View>
+                    <View style={styles.lessonAction}>
+                      <Text style={styles.lessonActionText}>Abrir</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           );
         })}
@@ -132,7 +161,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   moduleBlock: {
-    gap: 4,
+    gap: 8,
   },
   moduleLabel: {
     color: learnerTheme.textMuted,
@@ -147,9 +176,9 @@ const styles = StyleSheet.create({
   moduleSubtitle: {
     color: learnerTheme.text,
     fontSize: 16,
+    marginBottom: 2,
   },
   lessonCard: {
-    marginTop: 10,
     borderRadius: 14,
     backgroundColor: learnerTheme.surface,
     borderWidth: 1,
@@ -158,6 +187,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  lessonCardLocked: {
+    borderRadius: 14,
+    backgroundColor: learnerTheme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: learnerTheme.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    opacity: 0.7,
   },
   lessonBody: {
     flex: 1,
@@ -168,9 +208,19 @@ const styles = StyleSheet.create({
     fontSize: 19 / 1.2,
     fontWeight: '700',
   },
+  lessonTitleLocked: {
+    color: learnerTheme.textMuted,
+    fontSize: 19 / 1.2,
+    fontWeight: '700',
+  },
   lessonSubtitle: {
     color: learnerTheme.text,
     fontSize: 13,
+  },
+  lessonLockedHint: {
+    color: learnerTheme.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
   lessonCount: {
     color: learnerTheme.textMuted,
@@ -190,6 +240,16 @@ const styles = StyleSheet.create({
     color: learnerTheme.selectedText,
     fontSize: 12,
     fontWeight: '700',
+  },
+  lockIcon: {
+    marginLeft: 10,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockIconText: {
+    fontSize: 18,
   },
   motivationBox: {
     borderRadius: 12,
