@@ -392,6 +392,24 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     }
   }, [screen.id, screen.mediaKind, screen.mediaUrl, screen.screenTemplate, stopCurrentAudio]);
 
+  // Autoplay narração quando tela muda (texto vira áudio para o alfabetizando)
+  useEffect(() => {
+    if (screen.exercise) return;
+    const text = screen.learnerSpeech;
+    const audioUrl = screen.narrationAudioUrl;
+    if (!text && !audioUrl) return;
+    const key = `narration-${screen.id}`;
+    const timer = setTimeout(() => {
+      if (audioUrl) {
+        void playAudioUrl(audioUrl, text, key);
+      } else {
+        speakWithBrowserVoice(text ?? '');
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen.id, screen.narrationAudioUrl, screen.learnerSpeech]);
+
   useEffect(() => {
     if (learnerSession.isLocked) {
       setRemoteLockWasObserved(true);
@@ -1017,7 +1035,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         {shouldRenderDefaultMedia && screen.mediaKind === 'image' && didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da aula</Text>
-            <Text style={styles.mediaErrorText}>Nao foi possivel carregar este asset. Verifique o link no CMS.</Text>
+            <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia. Verifique o link em Aulas e Midias.</Text>
           </View>
         ) : null}
 
@@ -1036,8 +1054,19 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         ) : null}
 
         {screen.learnerSpeech && !screen.exercise ? (
-          <View style={styles.studentCard}>
-            <Text style={styles.studentText}>{screen.learnerSpeech}</Text>
+          <View style={styles.narrationCard}>
+            <SpeakerButton
+              large
+              onPress={() =>
+                void playAudioUrl(
+                  screen.narrationAudioUrl,
+                  screen.learnerSpeech,
+                  `narration-${screen.id}`,
+                )
+              }
+              active={playingAudioKey === `narration-${screen.id}`}
+            />
+            <Text style={styles.narrationHint}>Toque para ouvir novamente</Text>
           </View>
         ) : null}
 
@@ -1222,6 +1251,16 @@ const styles = StyleSheet.create({
     color: learnerTheme.textStrong,
     fontSize: 14,
     lineHeight: 22,
+  },
+  narrationCard: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    gap: 10,
+  },
+  narrationHint: {
+    fontSize: 13,
+    color: '#2fa536',
+    fontWeight: '500',
   },
   highlightCard: {
     borderRadius: 12,

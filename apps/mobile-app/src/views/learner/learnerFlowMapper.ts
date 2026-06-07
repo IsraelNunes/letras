@@ -43,6 +43,7 @@ export interface LearnerFlowActivity {
   title: string;
   educatorGuidance: string | null;
   learnerSpeech: string | null;
+  narrationAudioUrl: string | null;
   mediaUrl: string | null;
   mediaKind: LearnerMediaKind;
   completionMessage: string | null;
@@ -58,6 +59,7 @@ export interface LearnerFlowScreen {
   title: string;
   educatorGuidance: string | null;
   learnerSpeech: string | null;
+  narrationAudioUrl: string | null;
   mediaUrl: string | null;
   mediaKind: LearnerMediaKind;
   highlightMessage: string | null;
@@ -162,6 +164,7 @@ export interface PainelConteudoResponse {
 interface ParsedInstructionBundle {
   educatorGuidance: string | null;
   learnerSpeech: string | null;
+  narrationAudioUrl: string | null;
   screenTemplate: LearnerScreenTemplate;
   lockReason: string | null;
   lockMessage: string | null;
@@ -621,6 +624,8 @@ function parseGuidance(
       toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador);
     const explicitLearner =
       toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando);
+    const narrationAudioUrl =
+      toOptionalText(parsed.narrationAudioUrl) || toOptionalText(parsed.audioNarrationUrl) || null;
     const lockReason =
       toOptionalText(parsed.lockReason) || toOptionalText(parsed.blockReason) || null;
     const lockMessage =
@@ -632,6 +637,7 @@ function parseGuidance(
     return {
       educatorGuidance: explicitEducator ?? legacyGuidance.educatorGuidance,
       learnerSpeech: explicitLearner ?? legacyGuidance.learnerSpeech,
+      narrationAudioUrl,
       screenTemplate:
         parsedExercise?.template === 'exercise-match-letter'
           ? 'exercise-match-letter'
@@ -649,6 +655,7 @@ function parseGuidance(
     return {
       educatorGuidance: null,
       learnerSpeech: null,
+      narrationAudioUrl: null,
       screenTemplate: 'default',
       lockReason: null,
       lockMessage: null,
@@ -661,6 +668,7 @@ function parseGuidance(
   return {
     educatorGuidance: legacy.educatorGuidance,
     learnerSpeech: legacy.learnerSpeech,
+    narrationAudioUrl: null,
     screenTemplate: 'default',
     lockReason: null,
     lockMessage: null,
@@ -839,11 +847,17 @@ function mapCompositeBlockToScreen(
     fallbackTitleByType ||
     `Tela ${blockIndex + 1}`;
 
+  const blockNarrationAudioUrl =
+    normalizedBlockType === 'text'
+      ? toOptionalText(block.narrationAudioUrl) || toOptionalText(block.audioNarrationUrl) || null
+      : null;
+
   return {
     id: `${activity.id}-${toOptionalText(block.id) || `bloco-${blockIndex + 1}`}`,
     title,
     educatorGuidance: guidance.educatorGuidance,
     learnerSpeech: guidance.learnerSpeech,
+    narrationAudioUrl: blockNarrationAudioUrl ?? guidance.narrationAudioUrl,
     mediaUrl,
     mediaKind: resolveAssetKind(blockType, mediaUrl),
     highlightMessage: null,
@@ -980,6 +994,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
               ).trim() || null,
             learnerSpeech:
               normalizeText(activity.learnerGuidance, guidanceFromInstruction.learnerSpeech || '').trim() || null,
+            narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
             mediaUrl: mainAsset?.sourceUrl || mainAsset?.storage_path || null,
             mediaKind: resolveAssetKind(
               mainAsset?.kind,
@@ -997,6 +1012,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
                     normalizeText(activity.instructorGuidance, guidanceFromInstruction.educatorGuidance || '').trim() || null,
                   learnerSpeech:
                     normalizeText(activity.learnerGuidance, guidanceFromInstruction.learnerSpeech || '').trim() || null,
+                  narrationAudioUrl: null,
                   mediaUrl: followUpAsset.sourceUrl || followUpAsset.storage_path || null,
                   mediaKind: resolveAssetKind(
                     followUpAsset.kind,
@@ -1023,6 +1039,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           title: normalizeText(unit.title, 'Aula'),
           educatorGuidance: normalizeText(unit.description, 'Siga a orientação desta aula.').trim(),
           learnerSpeech: null,
+          narrationAudioUrl: null,
           mediaUrl: null,
           mediaKind: null,
           highlightMessage: null,
@@ -1164,6 +1181,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             title: normalizeText(activity.title, `Tela ${activityIndex + 1}`),
             educatorGuidance: guidanceFromInstruction.educatorGuidance,
             learnerSpeech: guidanceFromInstruction.learnerSpeech,
+            narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
             mediaUrl: mainAsset?.sourceUrl || mainAsset?.storage_path || null,
             mediaKind: resolveAssetKind(
               mainAsset?.kind,
@@ -1179,6 +1197,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
                   title: `Atividade - ${normalizeText(activity.title, `Tela ${activityIndex + 1}`)}`,
                   educatorGuidance: guidanceFromInstruction.educatorGuidance,
                   learnerSpeech: guidanceFromInstruction.learnerSpeech,
+                  narrationAudioUrl: null,
                   mediaUrl: followUpAsset.sourceUrl || followUpAsset.storage_path || null,
                   mediaKind: resolveAssetKind(
                     followUpAsset.kind,
@@ -1208,6 +1227,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             'Adicione atividades nesta aula para montar as telas do fluxo mobile.',
           ),
           learnerSpeech: null,
+          narrationAudioUrl: null,
           mediaUrl: null,
           mediaKind: null,
           highlightMessage: linkedBlueprints.length > 0 ? `${linkedBlueprints.length} tela(s) base vinculada(s)` : null,
