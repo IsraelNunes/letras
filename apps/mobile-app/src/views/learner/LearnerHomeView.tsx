@@ -2,12 +2,19 @@ import { useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
 import { useLearnerSession } from './learnerSessionContext';
 import { LearnerFlowLesson } from './learnerFlowMapper';
+
+const LOCK_ICON = `
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="4" y="10" width="14" height="9" rx="2" stroke="#b0b8b4" stroke-width="1.8"/>
+  <path d="M7.5 10V7a3.5 3.5 0 0 1 7 0v3" stroke="#b0b8b4" stroke-width="1.8" stroke-linecap="round"/>
+</svg>`;
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
@@ -86,7 +93,7 @@ export function LearnerHomeView({ navigation }: Props) {
                         </Text>
                       </View>
                       <View style={styles.lockIcon}>
-                        <Text style={styles.lockIconText}>🔒</Text>
+                        <SvgXml xml={LOCK_ICON} width={22} height={22} />
                       </View>
                     </View>
                   );
@@ -247,9 +254,6 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  lockIconText: {
-    fontSize: 18,
   },
   motivationBox: {
     borderRadius: 12,
