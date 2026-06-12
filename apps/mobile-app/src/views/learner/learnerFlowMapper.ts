@@ -601,6 +601,7 @@ function parseGuidance(
     return {
       educatorGuidance: null,
       learnerSpeech: null,
+      narrationAudioUrl: null,
       screenTemplate: 'default',
       lockReason: null,
       lockMessage: null,
@@ -714,7 +715,11 @@ function mergeAudioIntoFollowingExercise(
     const nextType = next ? String(next.type ?? '').trim().toLowerCase() : '';
     const isNextExercise = nextType.startsWith('exercise-');
 
-    if (!audioUrl || !isNextExercise || !next) {
+    if (!audioUrl) {
+      // Bloco de audio sem URL — descarta para nao gerar tela vazia "Ouca o audio"
+      continue;
+    }
+    if (!isNextExercise || !next) {
       result.push(block);
       continue;
     }

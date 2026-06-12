@@ -234,7 +234,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
         {activity.mediaKind === 'image' && didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da atividade</Text>
-            <Text style={styles.mediaErrorText}>Nao foi possivel carregar este asset. Verifique o link no CMS.</Text>
+            <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia. Verifique o link em Aulas e Midias.</Text>
           </View>
         ) : null}
 

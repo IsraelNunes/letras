@@ -66,6 +66,8 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(Boolean(route.params?.openNotifications));
+  // Pedidos de ajuda carregados via HTTP ao abrir o app (persiste entre reconexões)
+  const [seededAlerts, setSeededAlerts] = useState<HelpAlert[]>([]);
 
   // Restaura educatorId do AsyncStorage se não veio nos params (ex: navegação por URL)
   useEffect(() => {
@@ -101,18 +103,46 @@ export function EducatorHomeView({ navigation, route }: Props) {
     } catch { /* ignora */ }
   }, [educatorId]);
 
+  // Carrega pedidos de ajuda abertos do backend para popular o painel mesmo
+  // quando o educador abre o app depois que o aluno pediu ajuda.
+  const fetchOpenHelpAlerts = useCallback(async () => {
+    if (!educatorId) return;
+    try {
+      const fila = await httpClient.get<{ items: Array<{
+        id: string;
+        queueType: string;
+        status: string;
+        aluno: string;
+        studentId?: string;
+        mensagem?: string;
+      }> }>('/painel/fila');
+      const alerts: HelpAlert[] = fila.items
+        .filter(i => i.queueType === 'ajuda' && i.status === 'aberto')
+        .map(i => ({
+          learnerId: i.studentId ?? i.id,
+          displayName: i.aluno ?? 'Aluno',
+          phoneDigits: null,
+          message: i.mensagem,
+          timestamp: new Date().toISOString(),
+        }));
+      setSeededAlerts(alerts);
+    } catch { /* fallback para realtime — sem alertas seeded */ }
+  }, [educatorId]);
+
   useEffect(() => {
     void fetchLearners();
     void fetchLockedSessions();
-  }, [fetchLearners, fetchLockedSessions]);
+    void fetchOpenHelpAlerts();
+  }, [fetchLearners, fetchLockedSessions, fetchOpenHelpAlerts]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       void fetchLearners();
       void fetchLockedSessions();
+      void fetchOpenHelpAlerts();
     });
     return unsubscribe;
-  }, [fetchLearners, fetchLockedSessions, navigation]);
+  }, [fetchLearners, fetchLockedSessions, fetchOpenHelpAlerts, navigation]);
 
   // Mapa de lookup learnerId → {displayName, phoneDigits} para o hook de socket
   const learnerMap = useMemo(
@@ -125,6 +155,37 @@ export function EducatorHomeView({ navigation, route }: Props) {
     getLearnerInfo: (id) => learnerMap.get(id),
     onLockEvent: () => { void fetchLockedSessions(); },
   });
+
+  const mergedHelpAlerts = useMemo(() => {
+    const merged = new Map<string, HelpAlert>();
+
+    for (const alert of seededAlerts) {
+      const learnerInfo = learnerMap.get(alert.learnerId);
+      if (!learnerInfo && learners.length > 0) continue;
+      merged.set(alert.learnerId, {
+        ...alert,
+        displayName: learnerInfo?.displayName ?? alert.displayName,
+        phoneDigits: learnerInfo?.phoneDigits ?? alert.phoneDigits,
+      });
+    }
+
+    for (const alert of helpAlerts) {
+      const learnerInfo = learnerMap.get(alert.learnerId);
+      if (!learnerInfo && learners.length > 0) continue;
+      merged.set(alert.learnerId, {
+        ...alert,
+        displayName: learnerInfo?.displayName ?? alert.displayName,
+        phoneDigits: learnerInfo?.phoneDigits ?? alert.phoneDigits,
+      });
+    }
+
+    return [...merged.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [helpAlerts, learnerMap, learners.length, seededAlerts]);
+
+  const handleClearHelpAlert = useCallback((learnerId: string) => {
+    clearHelpAlert(learnerId);
+    setSeededAlerts((prev) => prev.filter((alert) => alert.learnerId !== learnerId));
+  }, [clearHelpAlert]);
 
   function dismissLockedSession(sessionId: string) {
     setDismissedLockedIds((prev) => new Set([...prev, sessionId]));
@@ -139,7 +200,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   }
 
   const visibleLockedSessions = lockedSessions.filter((s) => !dismissedLockedIds.has(s.id));
-  const notificationCount = helpAlerts.length + visibleLockedSessions.length;
+  const notificationCount = mergedHelpAlerts.length + visibleLockedSessions.length;
 
   useEffect(() => {
     if (route.params?.openNotifications) setIsNotificationsOpen(true);
@@ -187,16 +248,16 @@ export function EducatorHomeView({ navigation, route }: Props) {
             </Text>
 
             {/* Pedidos de ajuda em tempo real (via socket, não persistidos) */}
-            {helpAlerts.map((item: HelpAlert) => (
+            {mergedHelpAlerts.map((item: HelpAlert) => (
               <AlertRow
                 key={`help-${item.learnerId}`}
                 name={item.displayName}
                 date={formatDate(item.timestamp)}
                 desc="Clique para ver a tela em que este alfabetizando precisa de apoio. Em seguida, ligue por telefone ou Whatsapp."
                 phoneDigits={item.phoneDigits}
-                onContactPress={() => clearHelpAlert(item.learnerId)}
+                onContactPress={() => handleClearHelpAlert(item.learnerId)}
                 onPress={() => {
-                  clearHelpAlert(item.learnerId);
+                  handleClearHelpAlert(item.learnerId);
                   navigation.navigate('EducatorLearningMode', {
                     fullName: educatorName,
                     educatorId,
@@ -253,7 +314,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
               </View>
             ) : (
               <>
-                {helpAlerts.map((item: HelpAlert) => (
+                {mergedHelpAlerts.map((item: HelpAlert) => (
                   <NotificationRow
                     key={`help-${item.learnerId}`}
                     name={item.displayName}
@@ -261,9 +322,9 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     title="Pedido de apoio"
                     desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
                     phoneDigits={item.phoneDigits}
-                    onContactPress={() => clearHelpAlert(item.learnerId)}
+                    onContactPress={() => handleClearHelpAlert(item.learnerId)}
                     onPress={() => {
-                      clearHelpAlert(item.learnerId);
+                      handleClearHelpAlert(item.learnerId);
                       setIsNotificationsOpen(false);
                       navigation.navigate('EducatorLearningMode', {
                         fullName: educatorName,

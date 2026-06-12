@@ -263,13 +263,20 @@ export function useLearnerHomeViewModel() {
     };
   }, [learnerProfileId, repository]);
 
+  useEffect(() => {
+    // O snapshot HTTP e a fonte canonica do lock. O realtime so antecipa a
+    // mudanca de UI; se o evento de unlock se perder, o proximo poll precisa
+    // conseguir destravar a sessao em vez de ficar preso no ultimo `true`.
+    setPolledIsLocked(realtime.isLocked);
+  }, [realtime.isLocked]);
+
   return {
     loading,
     errorMessage,
     learnerProfileId,
     deviceId,
     themeNames,
-    isLocked: realtime.isLocked || polledIsLocked,
+    isLocked: polledIsLocked,
     presence: realtime.presence,
     helpAcknowledgedAt: realtime.helpAcknowledgedAt,
     helpRequestedAt,
