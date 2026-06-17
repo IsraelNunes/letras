@@ -17,8 +17,6 @@ import { EducatorRepositoryImpl } from '../../data/repositories/educator-reposit
 import { httpClient } from '../../infra/api/http-client';
 import { EducatorStorage } from '../../infra/storage/educator-storage';
 import { EducatorRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from './components/EducatorBottomMenu';
-
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingConfirm'>;
 
 function formatPhoneFromDigits(digits: string) {
@@ -38,13 +36,11 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assets] = useAssets([
     require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/voltar.svg'),
     require('../../../assets/confirmar.svg'),
   ]);
 
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const backUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
-  const confirmUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
+  const confirmUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   const data = route.params;
 
@@ -69,7 +65,6 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
         fullName: data.fullName,
         cpf: data.cpf,
         email: data.email,
-        password: data.password,
         phoneDigits: data.phoneDigits,
         birthDate: data.birthDate,
         uf: data.uf,
@@ -89,9 +84,9 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
         fullName: data.fullName,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nao foi possivel concluir o cadastro.';
+      const message = error instanceof Error ? error.message : 'Não foi possível concluir o cadastro.';
       if (message.includes('409') || message.toLowerCase().includes('ja existe')) {
-        Alert.alert('Cadastro existente', 'Este CPF/email ja possui cadastro. Faca login na tela inicial.');
+        Alert.alert('Cadastro existente', 'Este CPF/e-mail já possui cadastro. Faça login na tela inicial.');
         navigation.replace('EducatorLogin');
         return;
       }
@@ -114,16 +109,13 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
             )}
           </View>
 
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-          </Pressable>
         </View>
 
         <View style={styles.body}>
           <Text style={styles.infoLine}>Celular: {formatPhoneFromDigits(data.phoneDigits)}</Text>
           <Text style={styles.infoLine}>Nome completo: {data.fullName}</Text>
           <Text style={styles.infoLine}>CPF ou Passaporte: {data.cpf}</Text>
-          <Text style={styles.infoLine}>Email: {data.email}</Text>
+          {data.email ? <Text style={styles.infoLine}>Email: {data.email}</Text> : null}
           <Text style={styles.infoLine}>Data de Nascimento: {data.birthDate}</Text>
           <Text style={styles.infoLine}>Cidade: {data.city}</Text>
           <Text style={styles.infoLine}>UF: {data.uf}</Text>
@@ -131,13 +123,7 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
 
         <View style={styles.actions}>
           <Pressable style={styles.actionButton} onPress={() => navigation.goBack()}>
-            {backUri ? (
-              <View style={styles.backIconCrop}>
-                <SvgUri uri={backUri} width={58} height={65} />
-              </View>
-            ) : (
-              <ActivityIndicator size="small" color="#20385f" />
-            )}
+            <Image source={require('../../../assets/voltar.png')} style={styles.backIconCrop} resizeMode="contain" />
             <Text style={styles.actionLabel}>VOLTAR</Text>
           </Pressable>
 
@@ -159,32 +145,6 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
           </Pressable>
         </View>
       </ScrollView>
-      <EducatorBottomMenu
-        active="pontuacao"
-        onInicioPress={() => navigation.navigate('EducatorSplash')}
-        onTutorialPress={() =>
-          navigation.navigate('EducatorOnboardingStepTwo', {
-            cpf: data.cpf,
-            email: data.email,
-            password: data.password,
-            phoneDigits: data.phoneDigits,
-          })
-        }
-        onAcompanharPress={() =>
-          navigation.navigate('EducatorOnboardingStepThree', {
-            cpf: data.cpf,
-            email: data.email,
-            password: data.password,
-            phoneDigits: data.phoneDigits,
-            fullName: data.fullName,
-            birthDate: data.birthDate,
-            uf: data.uf,
-            city: data.city,
-            photoUri: data.photoUri,
-          })
-        }
-        onPontuacaoPress={() => navigation.navigate('EducatorOnboardingConfirm', data)}
-      />
     </SafeAreaView>
   );
 }
@@ -198,7 +158,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 130,
+    paddingBottom: 32,
     backgroundColor: '#ededed',
   },
   header: {
@@ -209,34 +169,6 @@ const styles = StyleSheet.create({
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',
-  },
-  notificationButton: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
   },
   body: {
     marginTop: 40,
@@ -260,10 +192,8 @@ const styles = StyleSheet.create({
     minWidth: 90,
   },
   backIconCrop: {
-    width: 58,
-    height: 42,
-    overflow: 'hidden',
-    alignItems: 'center',
+    width: 64,
+    height: 54,
   },
   confirmIconCrop: {
     width: 58,

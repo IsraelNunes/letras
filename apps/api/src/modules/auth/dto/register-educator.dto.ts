@@ -71,7 +71,8 @@ export class RegisterEducatorDto {
   @IsString()
   xHandle?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(6)
-  password!: string;
+  password?: string;
 }

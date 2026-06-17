@@ -16,8 +16,6 @@ import { EducatorRepositoryImpl } from '../../data/repositories/educator-reposit
 import { httpClient } from '../../infra/api/http-client';
 import { EducatorStorage } from '../../infra/storage/educator-storage';
 import { EducatorRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from './components/EducatorBottomMenu';
-
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLogin'>;
 
 function normalizeDigits(value: string) {
@@ -28,25 +26,16 @@ function isValidCpf(value: string) {
   return normalizeDigits(value).length === 11;
 }
 
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
 export function EducatorLoginView({ navigation }: Props) {
   const repository = useMemo(() => new EducatorRepositoryImpl(), []);
   const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
-  const isIdentifierValid = useMemo(
-    () => isValidCpf(identifier) || isValidEmail(identifier),
-    [identifier],
-  );
-  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
-  const canLogin = isIdentifierValid && isPasswordValid && !isSubmitting;
+  const isIdentifierValid = useMemo(() => isValidCpf(identifier), [identifier]);
+  const canLogin = isIdentifierValid && !isSubmitting;
 
   const handleLogin = async () => {
     if (!canLogin) {
@@ -57,7 +46,7 @@ export function EducatorLoginView({ navigation }: Props) {
       setIsSubmitting(true);
       setErrorMessage(null);
 
-      const auth = await repository.loginEducator(identifier.trim(), password);
+      const auth = await repository.loginEducator(identifier.trim());
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);
       navigation.replace('EducatorHome', {
@@ -79,28 +68,18 @@ export function EducatorLoginView({ navigation }: Props) {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.title}>Entrar no Letras Educador</Text>
-          <Text style={styles.subtitle}>Use seu CPF e senha para continuar.</Text>
+          <Text style={styles.title}>Entrar no Letras</Text>
+          <Text style={styles.subtitle}>Use seu CPF para continuar.</Text>
 
-          <Text style={styles.label}>CPF ou Email *</Text>
+          <Text style={styles.label}>CPF *</Text>
           <TextInput
             value={identifier}
             onChangeText={setIdentifier}
             style={[styles.input, identifier.length > 0 && !isIdentifierValid ? styles.inputInvalid : null]}
             autoCapitalize="none"
             autoCorrect={false}
-            keyboardType="email-address"
-            placeholder="CPF (11 digitos) ou email"
-            placeholderTextColor="#7a7a7a"
-          />
-
-          <Text style={styles.label}>Senha *</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            style={[styles.input, password.length > 0 && !isPasswordValid ? styles.inputInvalid : null]}
-            secureTextEntry
-            placeholder="Minimo 6 caracteres"
+            keyboardType="number-pad"
+            placeholder="CPF (11 digitos)"
             placeholderTextColor="#7a7a7a"
           />
 
@@ -119,12 +98,6 @@ export function EducatorLoginView({ navigation }: Props) {
           {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
         </View>
       </ScrollView>
-
-      <EducatorBottomMenu
-        active="perfil"
-        onInicioPress={() => navigation.navigate('EducatorLogin')}
-        onTutorialPress={() => navigation.navigate('EducatorSplash')}
-      />
     </SafeAreaView>
   );
 }
@@ -138,7 +111,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 36,
-    paddingBottom: 130,
+    paddingBottom: 32,
     backgroundColor: '#ededed',
   },
   logoWrap: {

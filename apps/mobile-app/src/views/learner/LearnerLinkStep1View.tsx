@@ -95,7 +95,7 @@ export function LearnerLinkStep1View({ navigation }: Props) {
       navigation.navigate('LearnerLinkSuccess', {
         learnerId: learner.id,
         learnerName: learner.displayName,
-        educatorName: learner.educator?.name ?? 'Educador',
+        educatorName: learner.educator?.name ?? 'Alfabetizador',
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Não foi possível localizar o cadastro.';

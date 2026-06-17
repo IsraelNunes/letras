@@ -128,7 +128,7 @@ export function LearnerScreenLayout({
           ) : null}
           {isSessionLocked ? (
             <View style={styles.alertLock}>
-              <Text style={styles.alertLockText}>Sessao bloqueada pelo alfabetizador. Aguarde orientacao.</Text>
+              <Text style={styles.alertLockText}>Sessão bloqueada pelo alfabetizador. Aguarde orientação.</Text>
             </View>
           ) : null}
           {onRequestHelp && isHelpPending ? (

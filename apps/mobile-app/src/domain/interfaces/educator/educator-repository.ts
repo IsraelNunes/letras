@@ -13,7 +13,7 @@ import {
 export interface EducatorRepository {
   createLearnerProfile(displayName: string, educatorId?: string): Promise<LearnerProfile>;
   registerEducator(payload: RegisterEducatorRequest): Promise<EducatorAuthResponse>;
-  loginEducator(identifier: string, password: string): Promise<EducatorAuthResponse>;
+  loginEducator(identifier: string, password?: string): Promise<EducatorAuthResponse>;
   fetchCurrentEducator(): Promise<EducatorMeResponse>;
   updateEducatorProfile(payload: UpdateEducatorProfileRequest): Promise<EducatorMeResponse>;
   logoutEducator(): Promise<void>;
