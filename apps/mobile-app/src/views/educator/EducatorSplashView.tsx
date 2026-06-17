@@ -78,7 +78,7 @@ export function EducatorSplashView({ navigation }: Props) {
             onChangeText={(text) => setCpf(sanitizeCpf(text))}
             style={[styles.input, cpf.length > 0 && !isCpfValid ? styles.inputInvalid : null]}
             keyboardType="number-pad"
-            placeholder="Somente numeros (11 digitos)"
+            placeholder="Somente números (11 dígitos)"
             placeholderTextColor="#8f8f8f"
           />
 

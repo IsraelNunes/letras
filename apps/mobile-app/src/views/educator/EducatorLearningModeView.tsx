@@ -72,11 +72,11 @@ function formatDateTime(value?: string | null) {
 function formatCurrentView(value?: string | null) {
   const normalized = fallbackValue(value);
   const labels: Record<string, string> = {
-    LearnerHome: 'Inicio do alfabetizando',
-    LearnerLessonIntro: 'Introducao da aula',
+    LearnerHome: 'Início do alfabetizando',
+    LearnerLessonIntro: 'Introdução da aula',
     LearnerLessonScreen: 'Tela de aula',
     LearnerLessonActivity: 'Atividade da aula',
-    LearnerLessonConclusion: 'Conclusao da aula',
+    LearnerLessonConclusion: 'Conclusão da aula',
   };
   return labels[normalized] ?? normalized;
 }
@@ -114,7 +114,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
       setLearner(data);
       setLearnerSession(session);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Nao foi possivel carregar o alfabetizando.');
+      setErrorMessage(error instanceof Error ? error.message : 'Não foi possível carregar o alfabetizando.');
     } finally {
       setIsLoading(false);
     }
@@ -273,7 +273,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                     <Text style={styles.supportValue}>{formatDateTime(sessionUpdatedAt)}</Text>
                   </View>
                   <Pressable style={styles.supportRefreshButton} onPress={() => void loadLearner()}>
-                    <Text style={styles.supportRefreshText}>ATUALIZAR SITUACAO</Text>
+                    <Text style={styles.supportRefreshText}>ATUALIZAR SITUAÇÃO</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -288,12 +288,12 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.mutedText}>Ainda nao ha progresso registrado.</Text>
+                  <Text style={styles.mutedText}>Ainda não há progresso registrado.</Text>
                 )}
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Historico recente</Text>
+                <Text style={styles.sectionTitle}>Histórico recente</Text>
                 {learner?.historico?.length ? (
                   learner.historico.slice(0, 3).map((item) => (
                     <View key={item.id} style={styles.historyItem}>
@@ -303,7 +303,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                     </View>
                   ))
                 ) : (
-                  <Text style={styles.mutedText}>Nenhum historico recente.</Text>
+                  <Text style={styles.mutedText}>Nenhum histórico recente.</Text>
                 )}
               </View>
             </>

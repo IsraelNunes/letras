@@ -84,9 +84,9 @@ export function EducatorOnboardingConfirmView({ navigation, route }: Props) {
         fullName: data.fullName,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nao foi possivel concluir o cadastro.';
+      const message = error instanceof Error ? error.message : 'Não foi possível concluir o cadastro.';
       if (message.includes('409') || message.toLowerCase().includes('ja existe')) {
-        Alert.alert('Cadastro existente', 'Este CPF/email ja possui cadastro. Faca login na tela inicial.');
+        Alert.alert('Cadastro existente', 'Este CPF/e-mail já possui cadastro. Faça login na tela inicial.');
         navigation.replace('EducatorLogin');
         return;
       }

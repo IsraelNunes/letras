@@ -194,7 +194,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const pickImageFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissao necessaria', 'Precisamos da permissao para acessar sua galeria.');
+      Alert.alert('Permissão necessária', 'Precisamos da permissão para acessar sua galeria.');
       return;
     }
 
@@ -212,7 +212,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissao necessaria', 'Precisamos da permissao da camera para tirar a foto.');
+      Alert.alert('Permissão necessária', 'Precisamos da permissão da câmera para tirar a foto.');
       return;
     }
 
@@ -375,7 +375,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
             placeholderTextColor="#8f8f8f"
           />
 
-          <Text style={styles.photoLabel}>Faca o upload ou tire uma foto sua.</Text>
+          <Text style={styles.photoLabel}>Faça o upload ou tire uma foto sua.</Text>
 
           <Pressable style={[styles.photoBox, hasPhoto ? styles.photoBoxSelected : null]} onPress={openPhotoChooser}>
             {photoUri ? (
@@ -403,7 +403,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           }
         >
           <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
-          <Text style={styles.advanceLabel}>AVANCAR</Text>
+          <Text style={styles.advanceLabel}>AVANÇAR</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

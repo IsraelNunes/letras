@@ -94,7 +94,7 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
             </View>
           ) : null}
 
-          <Text style={styles.label}>Area de Formacao</Text>
+          <Text style={styles.label}>Área de Formação</Text>
           <TextInput
             value={trainingArea}
             onChangeText={setTrainingArea}
@@ -104,7 +104,7 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           />
 
           <Text style={styles.infoText}>
-            Informe suas redes sociais. Voce podera divulgar as conquistas de seus alfabetizandos.
+            Informe suas redes sociais. Você poderá divulgar as conquistas de seus alfabetizandos.
           </Text>
 
           <View style={styles.socialRow}>
@@ -151,7 +151,7 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           }
         >
           <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
-          <Text style={styles.advanceLabel}>AVANCAR</Text>
+          <Text style={styles.advanceLabel}>AVANÇAR</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
