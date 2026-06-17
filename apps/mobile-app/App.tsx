@@ -2,6 +2,7 @@ import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts, HinaMincho_400Regular } from '@expo-google-fonts/hina-mincho';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Sentry from '@sentry/react-native';
@@ -79,6 +80,10 @@ const linking = {
 };
 
 export default Sentry.wrap(function App() {
+  const [fontsLoaded] = useFonts({ HinaMincho_400Regular });
+
+  if (!fontsLoaded) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
