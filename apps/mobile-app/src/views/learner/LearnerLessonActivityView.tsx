@@ -204,6 +204,10 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
     navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
   };
 
+  const stageLabel = lesson
+    ? `tela ${safeIndex + 1} de ${totalScreens} · Etapa ${lesson.stageNumber ?? 2}`
+    : null;
+
   return (
     <LearnerScreenLayout
       activeMenu="acompanhar"
@@ -213,11 +217,14 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda na atividade complementar.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
+      hintVideoUrl={screen.hintVideoUrl ?? null}
     >
       <View style={styles.wrapper}>
         <Text style={styles.title}>{activity.title}</Text>

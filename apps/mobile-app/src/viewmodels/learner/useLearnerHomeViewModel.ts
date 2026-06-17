@@ -49,6 +49,7 @@ export function useLearnerHomeViewModel() {
   const [learnerProfileId, setLearnerProfileId] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [themeNames, setThemeNames] = useState<string[]>([]);
+  const [learnerName, setLearnerName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [polledIsLocked, setPolledIsLocked] = useState(false);
@@ -89,6 +90,18 @@ export function useLearnerHomeViewModel() {
 
       const themes = await repository.getAssignedThemes(session.learnerProfileId);
       setThemeNames(themes.map((item) => item.theme.name));
+
+      if (!isLocalFallbackProfile) {
+        try {
+          const profile = await httpClient.get<{ nome?: string; name?: string; full_name?: string }>(
+            `/cadastros/alfabetizandos/${session.learnerProfileId}`,
+          );
+          const name = profile.nome || profile.name || profile.full_name || null;
+          if (name) setLearnerName(name);
+        } catch {
+          // não crítico — cabeçalho funciona sem o nome
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar sessao';
       const normalized = message.toLowerCase();
@@ -274,6 +287,7 @@ export function useLearnerHomeViewModel() {
     loading,
     errorMessage,
     learnerProfileId,
+    learnerName,
     deviceId,
     themeNames,
     isLocked: polledIsLocked,

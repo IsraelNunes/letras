@@ -62,7 +62,7 @@ function connectSocket(query: Record<string, string>): Promise<Socket> {
       clearTimeout(timer);
       resolve(socket);
     });
-    socket.once('connect_error', (err) => {
+    socket.once('connect_error', (err: Error) => {
       clearTimeout(timer);
       reject(err);
     });

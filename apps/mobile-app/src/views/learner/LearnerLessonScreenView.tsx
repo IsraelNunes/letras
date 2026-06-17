@@ -994,6 +994,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     return null;
   };
 
+  const stageLabel = `tela ${safeIndex + 1} de ${totalScreens} · Etapa ${lesson.stageNumber ?? 2}`;
+
   return (
     <LearnerScreenLayout
       activeMenu="acompanhar"
@@ -1003,12 +1005,15 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       canRequestHelp={exerciseLocked}
       sessionErrorMessage={learnerSession.errorMessage}
+      hintVideoUrl={screen.hintVideoUrl ?? null}
     >
       <View style={styles.wrapper}>
         <View style={styles.progressHeader}>
