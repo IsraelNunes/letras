@@ -57,7 +57,7 @@ export function EducatorLoadingView({ navigation }: Props) {
       {logoUri ? (
         <>
           <SvgUri uri={logoUri} width={220} height={128} />
-          <Text style={styles.subtitle}>Educador</Text>
+          <Text style={styles.subtitle}>Alfabetizador</Text>
         </>
       ) : (
         <ActivityIndicator size="small" color="#111827" />

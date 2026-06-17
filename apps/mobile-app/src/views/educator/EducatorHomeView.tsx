@@ -56,7 +56,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [logoAsset] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
-  const educatorName = route.params?.fullName?.trim() || 'Educador';
+  const educatorName = route.params?.fullName?.trim() || 'Alfabetizador';
   const [educatorId, setEducatorId] = useState<string | undefined>(route.params?.educatorId);
 
   const [learners, setLearners] = useState<LearnerItem[]>([]);

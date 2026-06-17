@@ -108,7 +108,6 @@ export type LearnerRootStackParamList = {
 };
 
 export type RootStackParamList = {
-  AppModeGate: undefined;
   EducatorFlow: undefined;
   LearnerFlow: undefined;
 };

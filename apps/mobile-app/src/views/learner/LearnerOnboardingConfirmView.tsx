@@ -109,7 +109,7 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível concluir o cadastro.';
       if (message.includes('409') || message.toLowerCase().includes('ja existe') || message.toLowerCase().includes('já existe')) {
-        Alert.alert('Cadastro existente', 'Este CPF/passaporte já possui cadastro. Entre em contato com seu educador.');
+        Alert.alert('Cadastro existente', 'Este CPF/passaporte já possui cadastro. Entre em contato com seu alfabetizador.');
         return;
       }
       Alert.alert('Erro no cadastro', message);

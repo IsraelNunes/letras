@@ -228,7 +228,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   };
 
   const openPhotoChooser = () => {
-    Alert.alert('Foto do educador', 'Escolha como deseja adicionar a foto.', [
+    Alert.alert('Foto do alfabetizador', 'Escolha como deseja adicionar a foto.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Upload', onPress: () => void pickImageFromGallery() },
       { text: 'Tirar foto', onPress: () => void takePhoto() },

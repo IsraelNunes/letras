@@ -91,7 +91,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
   const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
-  const educatorName = route.params?.fullName?.trim() || 'Educador';
+  const educatorName = route.params?.fullName?.trim() || 'Alfabetizador';
   const educatorId = route.params?.educatorId;
   const learnerId = route.params?.learnerId;
   const learnerName = route.params?.learnerName?.trim() || 'O alfabetizando';
