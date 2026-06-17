@@ -30,10 +30,10 @@ function resolveLockMessage(reason: string | null, lockMessage?: string | null) 
     return 'A tela foi bloqueada. Aguarde apoio do alfabetizador para continuar.';
   }
   if (normalizedReason.includes('ajuda')) {
-    return 'A tela foi bloqueada porque houve pedido de ajuda. O alfabetizador entrara em contato.';
+    return 'A tela foi bloqueada porque houve pedido de ajuda. O alfabetizador entrará em contato.';
   }
   if (normalizedReason.includes('tentativa') || normalizedReason.includes('erro')) {
-    return 'A tela foi bloqueada apos tentativas sem acerto. Aguarde orientacao do alfabetizador.';
+    return 'A tela foi bloqueada após tentativas sem acerto. Aguarde orientação do alfabetizador.';
   }
   return reason ?? 'A tela foi bloqueada temporariamente.';
 }
@@ -90,7 +90,7 @@ function SpeakerButton({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
-      accessibilityLabel="Reproduzir audio"
+      accessibilityLabel="Reproduzir áudio"
       hitSlop={large ? 12 : 8}
       style={({ pressed }) => [
         large ? styles.largeAudioBtn : styles.itemSpeakerBtn,
@@ -205,7 +205,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   if (!lesson) {
     return (
       <LearnerScreenLayout activeMenu="acompanhar" onMenuHome={() => navigation.navigate('LearnerHome')}>
-        <Text style={styles.error}>Conteudo nao encontrado.</Text>
+        <Text style={styles.error}>Conteúdo não encontrado.</Text>
       </LearnerScreenLayout>
     );
   }
@@ -424,7 +424,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setExerciseAttempts(0);
     setExerciseFeedback({
       type: 'ok',
-      message: 'Atividade liberada pelo alfabetizador. Voce ja pode continuar.',
+      message: 'Atividade liberada pelo alfabetizador. Você já pode continuar.',
     });
   }, [exerciseLocked, learnerSession.isLocked, remoteLockWasObserved]);
 
@@ -727,11 +727,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    const fallbackMessage = screen.exercise.errorFeedback || 'Tente outra posicao.';
+    const fallbackMessage = screen.exercise.errorFeedback || 'Tente outra posição.';
     const hasReinforcement = triggerErrorReinforcement(fallbackMessage);
     setExerciseFeedback({
       type: 'error',
-      message: hasReinforcement ? 'Revendo orientacao. Aguarde para tentar novamente.' : fallbackMessage,
+      message: hasReinforcement ? 'Revendo orientação. Aguarde para tentar novamente.' : fallbackMessage,
     });
   };
 
@@ -762,7 +762,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     if (showReinforcement) {
       setExerciseFeedback({
         type: 'error',
-        message: 'Aguarde o termino da tela de reforco para continuar.',
+        message: 'Aguarde o término da tela de reforço para continuar.',
       });
       return;
     }
@@ -770,7 +770,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     if (learnerSession.isLocked) {
       setExerciseFeedback({
         type: 'error',
-        message: 'Sessao bloqueada pelo alfabetizador. Aguarde orientacao para continuar.',
+        message: 'Sessão bloqueada pelo alfabetizador. Aguarde orientação para continuar.',
       });
       return;
     }
@@ -790,7 +790,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           message:
             isInteractionLocked
               ? resolveLockMessage(screen.lockReason, screen.lockMessage)
-              : 'Conclua todas as respostas para avancar.',
+              : 'Conclua todas as respostas para avançar.',
         });
         return;
       }
@@ -802,7 +802,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       if (!canAdvanceMarkImagesExercise) {
         setExerciseFeedback({
           type: 'error',
-          message: `Selecione exatamente ${expectedSelections} caixa(s) para liberar o avancar.`,
+          message: `Selecione exatamente ${expectedSelections} caixa(s) para liberar o avançar.`,
         });
         return;
       }
@@ -817,7 +817,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       if (isCorrect) {
         setExerciseFeedback({
           type: 'ok',
-          message: screen.exercise.successFeedback || 'Muito bem! Avancando para a proxima tela.',
+          message: screen.exercise.successFeedback || 'Muito bem! Avançando para a próxima tela.',
         });
         goNextDefault();
         return;
@@ -832,7 +832,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
       setExerciseFeedback({
         type: 'error',
-        message: screen.exercise.errorFeedback || 'Ainda nao foi desta vez. Tente novamente.',
+        message: screen.exercise.errorFeedback || 'Ainda não foi desta vez. Tente novamente.',
       });
       return;
     }
@@ -1035,13 +1035,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         {shouldRenderDefaultMedia && screen.mediaKind === 'image' && didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da aula</Text>
-            <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia. Verifique o link em Aulas e Midias.</Text>
+            <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia. Verifique o link em Aulas e Mídias.</Text>
           </View>
         ) : null}
 
         {shouldRenderDefaultMedia && screen.mediaUrl && (screen.mediaKind === 'video' || screen.mediaKind === 'audio') ? (
           <View style={styles.mediaCard}>
-            <Text style={styles.mediaLabel}>{screen.mediaKind === 'video' ? 'Video da aula' : 'Audio da aula'}</Text>
+            <Text style={styles.mediaLabel}>{screen.mediaKind === 'video' ? 'Vídeo da aula' : 'Áudio da aula'}</Text>
             {screen.mediaKind === 'video' ? (
               <View style={[styles.videoFrame, { aspectRatio: mediaAspectRatio }]}>
                 {renderVideoPlayer(screen.mediaUrl)}
@@ -1049,7 +1049,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             ) : (
               renderAudioPlayer(screen.mediaUrl)
             )}
-            {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia automaticamente.</Text> : null}
+            {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text> : null}
           </View>
         ) : null}
 
@@ -1087,7 +1087,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                 onPress={() => void playAudioUrl(screen.lockAudioUrl, resolveLockMessage(screen.lockReason, screen.lockMessage), 'lock')}
                 style={styles.lockAudioButton}
               >
-                <Text style={styles.lockAudioButtonText}>Ouvir orientacao</Text>
+                <Text style={styles.lockAudioButtonText}>Ouvir orientação</Text>
               </Pressable>
             ) : null}
           </View>
@@ -1095,9 +1095,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
         {showReinforcement ? (
           <View style={styles.reinforcementCard}>
-            <Text style={styles.reinforcementTitle}>Reforco de orientacao</Text>
+            <Text style={styles.reinforcementTitle}>Reforço de orientação</Text>
             <Text style={styles.reinforcementText}>
-              {reinforcementMessage || 'Revendo instrucoes. Aguarde para tentar novamente.'}
+              {reinforcementMessage || 'Revendo instruções. Aguarde para tentar novamente.'}
             </Text>
             {screen.exercise?.errorReinforcement?.instructionAudioUrl ? (
               <Pressable

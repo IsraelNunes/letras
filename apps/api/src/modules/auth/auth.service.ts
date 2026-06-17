@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -55,8 +56,8 @@ export class AuthService {
       throw new BadRequestException('Informe CPF ou email para criar a conta do educador.');
     }
 
-    const password = dto.password.trim();
-    if (password.length < 6) {
+    const rawPassword = dto.password?.trim() ?? '';
+    if (rawPassword && rawPassword.length < 6) {
       throw new BadRequestException('Senha deve ter no minimo 6 caracteres.');
     }
 
@@ -74,11 +75,38 @@ export class AuthService {
       throw new ConflictException('Este cadastro ja existe. Faca login na tela inicial.');
     }
 
+    // Sem email: cria/atualiza educador apenas no banco (sem Supabase Auth).
     if (!normalizedEmail) {
-      throw new BadRequestException('Email obrigatorio para criar conta vinculada ao Supabase Auth.');
+      const dbData = {
+        name: fullName,
+        email: null as string | null,
+        cpf: normalizedCpf,
+        phoneDigits: normalizedPhone ?? existingEducator?.phoneDigits ?? null,
+        birthDate: this.pickValue(dto.birthDate, existingEducator?.birthDate ?? null),
+        uf: this.pickValue(dto.uf, existingEducator?.uf ?? null),
+        city: this.pickValue(dto.city, existingEducator?.city ?? null),
+        photoUri: this.pickValue(dto.photoUri, existingEducator?.photoUri ?? null),
+        educationLevel: this.pickValue(dto.educationLevel, existingEducator?.educationLevel ?? null),
+        trainingArea: this.pickValue(dto.trainingArea, existingEducator?.trainingArea ?? null),
+        linkedin: this.pickValue(dto.linkedin, existingEducator?.linkedin ?? null),
+        facebook: this.pickValue(dto.facebook, existingEducator?.facebook ?? null),
+        instagram: this.pickValue(dto.instagram, existingEducator?.instagram ?? null),
+        xHandle: this.pickValue(dto.xHandle, existingEducator?.xHandle ?? null),
+        passwordHash: rawPassword ? hashPassword(rawPassword) : null,
+      };
+
+      if (existingEducator) {
+        const updated = await this.prisma.educator.update({ where: { id: existingEducator.id }, data: dbData });
+        return this.createSession(updated);
+      }
+
+      const created = await this.prisma.educator.create({ data: dbData });
+      return this.createSession(created);
     }
 
-    const supabaseUser = await this.resolveSupabaseUserForRegister(normalizedEmail, password, fullName);
+    // Com email: usa Supabase Auth (gera senha aleatória se não fornecida).
+    const effectivePassword = rawPassword || randomUUID().replace(/-/g, '');
+    const supabaseUser = await this.resolveSupabaseUserForRegister(normalizedEmail, effectivePassword, fullName);
 
     if (existingEducator) {
       try {
@@ -100,7 +128,7 @@ export class AuthService {
             facebook: this.pickValue(dto.facebook, existingEducator.facebook),
             instagram: this.pickValue(dto.instagram, existingEducator.instagram),
             xHandle: this.pickValue(dto.xHandle, existingEducator.xHandle),
-            passwordHash: hashPassword(password),
+            passwordHash: rawPassword ? hashPassword(rawPassword) : existingEducator.passwordHash,
           },
         });
 
@@ -131,7 +159,7 @@ export class AuthService {
           facebook: dto.facebook?.trim() || null,
           instagram: dto.instagram?.trim() || null,
           xHandle: dto.xHandle?.trim() || null,
-          passwordHash: hashPassword(password),
+          passwordHash: rawPassword ? hashPassword(rawPassword) : null,
         },
       });
 
@@ -158,10 +186,16 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais invalidas.');
     }
 
+    // Login apenas por CPF (passwordless): sem senha informada, autentica pelo CPF.
+    const password = dto.password?.trim();
+    if (!password) {
+      return this.createSession(educator);
+    }
+
     let supabaseSignInResult: { userId: string } | null = null;
     if (this.supabaseAuthService.isConfigured) {
       try {
-        supabaseSignInResult = await this.supabaseAuthService.signInWithPassword(educator.email, dto.password);
+        supabaseSignInResult = await this.supabaseAuthService.signInWithPassword(educator.email, password);
       } catch {
         supabaseSignInResult = null;
       }
@@ -169,13 +203,13 @@ export class AuthService {
 
     const isValidSupabaseCredentials = Boolean(supabaseSignInResult?.userId);
     const isValidLocalPassword =
-      Boolean(educator.passwordHash) && verifyPassword(dto.password, educator.passwordHash ?? '');
+      Boolean(educator.passwordHash) && verifyPassword(password, educator.passwordHash ?? '');
 
     if (!isValidSupabaseCredentials && !isValidLocalPassword) {
       throw new UnauthorizedException('Credenciais invalidas.');
     }
 
-    await this.syncEducatorWithSupabaseOnLogin(educator, dto.password, supabaseSignInResult?.userId ?? null);
+    await this.syncEducatorWithSupabaseOnLogin(educator, password, supabaseSignInResult?.userId ?? null);
 
     return this.createSession(educator);
   }

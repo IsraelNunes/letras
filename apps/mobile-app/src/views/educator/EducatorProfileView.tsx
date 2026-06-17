@@ -271,7 +271,7 @@ export function EducatorProfileView({ navigation }: Props) {
   };
 
   const openPhotoChooser = () => {
-    Alert.alert('Foto do educador', 'Escolha como deseja adicionar a foto.', [
+    Alert.alert('Foto do alfabetizador', 'Escolha como deseja adicionar a foto.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Upload', onPress: () => void pickImageFromGallery() },
       { text: 'Tirar foto', onPress: () => void takePhoto() },
@@ -292,7 +292,7 @@ export function EducatorProfileView({ navigation }: Props) {
       if (isLocalFileUri(photoUri)) {
         const uploaded = await repository.uploadImageAsset({
           uri: photoUri,
-          title: `Foto ${fullName.trim() || 'Educador'}`,
+          title: `Foto ${fullName.trim() || 'Alfabetizador'}`,
           createdByEducatorId: educatorId ?? undefined,
         });
         uploadedPhotoUri = uploaded.asset.sourceUrl;
@@ -593,10 +593,10 @@ export function EducatorProfileView({ navigation }: Props) {
 
       <EducatorBottomMenu
         active="perfil"
-        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
+        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Alfabetizador', educatorId: educatorId ?? undefined })}
         onTutorialPress={() => navigation.navigate('EducatorSplash')}
-        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
-        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Educador', educatorId: educatorId ?? undefined })}
+        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Alfabetizador', educatorId: educatorId ?? undefined })}
+        onPontuacaoPress={() => navigation.navigate('EducatorHome', { fullName: fullName.trim() || 'Alfabetizador', educatorId: educatorId ?? undefined })}
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />
     </SafeAreaView>

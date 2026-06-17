@@ -55,7 +55,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
   if (!lesson) {
     return (
       <LearnerScreenLayout activeMenu="acompanhar" onMenuHome={() => navigation.navigate('LearnerHome')}>
-        <Text style={styles.error}>Aula nao encontrada.</Text>
+        <Text style={styles.error}>Aula não encontrada.</Text>
       </LearnerScreenLayout>
     );
   }
@@ -85,7 +85,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
         </View>
 
         <View style={styles.messageCard}>
-          <Text style={styles.messageText}>Bem-vindo a aula! Vamos comecar uma jornada incrivel pelo mundo das letras.</Text>
+          <Text style={styles.messageText}>Bem-vindo à aula! Vamos começar uma jornada incrível pelo mundo das letras.</Text>
         </View>
 
         <View style={styles.infoCard}>

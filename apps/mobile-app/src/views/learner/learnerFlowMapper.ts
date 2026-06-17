@@ -601,6 +601,7 @@ function parseGuidance(
     return {
       educatorGuidance: null,
       learnerSpeech: null,
+      narrationAudioUrl: null,
       screenTemplate: 'default',
       lockReason: null,
       lockMessage: null,

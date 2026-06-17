@@ -54,7 +54,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
   if (!lesson) {
     return (
       <LearnerScreenLayout activeMenu="acompanhar" onMenuHome={() => navigation.navigate('LearnerHome')}>
-        <Text style={styles.error}>Atividade nao encontrada.</Text>
+        <Text style={styles.error}>Atividade não encontrada.</Text>
       </LearnerScreenLayout>
     );
   }
@@ -234,13 +234,13 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
         {activity.mediaKind === 'image' && didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da atividade</Text>
-            <Text style={styles.mediaErrorText}>Nao foi possivel carregar este asset. Verifique o link no CMS.</Text>
+            <Text style={styles.mediaErrorText}>Não foi possível carregar este asset. Verifique o link no CMS.</Text>
           </View>
         ) : null}
 
         {activity.mediaUrl && (activity.mediaKind === 'video' || activity.mediaKind === 'audio') ? (
           <View style={styles.mediaCard}>
-            <Text style={styles.mediaLabel}>{activity.mediaKind === 'video' ? 'Video da atividade' : 'Audio da atividade'}</Text>
+            <Text style={styles.mediaLabel}>{activity.mediaKind === 'video' ? 'Vídeo da atividade' : 'Áudio da atividade'}</Text>
             {activity.mediaKind === 'video' ? (
               <View style={[styles.videoFrame, { aspectRatio: mediaAspectRatio }]}>
                 {renderVideoPlayer(activity.mediaUrl)}
@@ -257,7 +257,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
                 onError={() => setDidFailMediaLoad(true)}
               />
             )}
-            {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Nao foi possivel carregar esta midia automaticamente.</Text> : null}
+            {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text> : null}
           </View>
         ) : null}
 

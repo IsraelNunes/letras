@@ -56,7 +56,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [logoAsset] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
-  const educatorName = route.params?.fullName?.trim() || 'Educador';
+  const educatorName = route.params?.fullName?.trim() || 'Alfabetizador';
   const [educatorId, setEducatorId] = useState<string | undefined>(route.params?.educatorId);
 
   const [learners, setLearners] = useState<LearnerItem[]>([]);
@@ -236,7 +236,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
           <View style={styles.notificationsPanel}>
             <View style={styles.notificationsHeader}>
               <View style={styles.notificationsTitleBlock}>
-                <Text style={styles.notificationsTitle}>Notificacoes</Text>
+                <Text style={styles.notificationsTitle}>Notificações</Text>
                 <Text style={styles.notificationsSubtitle}>
                   Pedidos de apoio e bloqueios preventivos aparecem no sino.
                 </Text>
@@ -259,7 +259,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     name={item.displayName}
                     date={formatDate(item.timestamp)}
                     title="Pedido de apoio"
-                    desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
+                    desc="Verifique a tela atual do alfabetizando e entre em contato se necessário."
                     phoneDigits={item.phoneDigits}
                     onContactPress={() => clearHelpAlert(item.learnerId)}
                     onPress={() => {
@@ -283,7 +283,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                       ? formatDate(item.session.sessionState.updatedAt)
                       : undefined}
                     title="Tela bloqueada"
-                    desc="Toque em LIBERAR SESSAO para desbloquear, ou em Ver detalhes para acompanhar a tela."
+                    desc="Toque em LIBERAR SESSÃO para desbloquear, ou em Ver detalhes para acompanhar a tela."
                     phoneDigits={item.phoneDigits}
                     onContactPress={() => dismissLockedSession(item.id)}
                     onUnlockPress={() => { void handleUnlockSession(item.id); }}
@@ -445,9 +445,9 @@ function NotificationRow({
               style={styles.unlockButton}
               onPress={(e) => { e.stopPropagation?.(); onUnlockPress(); }}
               accessibilityRole="button"
-              accessibilityLabel={`Liberar sessao de ${name}`}
+              accessibilityLabel={`Liberar sessão de ${name}`}
             >
-              <Text style={styles.unlockButtonText}>LIBERAR SESSAO</Text>
+              <Text style={styles.unlockButtonText}>LIBERAR SESSÃO</Text>
             </Pressable>
           )}
         </View>

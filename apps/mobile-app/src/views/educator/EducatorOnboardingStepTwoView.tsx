@@ -17,9 +17,16 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRepositoryImpl } from '../../data/repositories/educator-repository.impl';
-import { EducatorRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
+function isAtLeast14(dateStr: string): boolean {
+  const parts = dateStr.split('/');
+  if (parts.length !== 3 || parts[2].length !== 4) return false;
+  const birth = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 14);
+  return birth <= cutoff;
+}
+import { EducatorRootStackParamList } from '../../types';
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepTwo'>;
 
 function normalizeDigits(value: string) {
@@ -67,11 +74,13 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
 
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [email, setEmail] = useState('');
   const [uf, setUf] = useState('');
   const [isUfSelectOpen, setIsUfSelectOpen] = useState(false);
   const [city, setCity] = useState('');
   const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
-  const [isCityAutocompleteOpen, setIsCityAutocompleteOpen] = useState(false);
+  const [isCitySelectOpen, setIsCitySelectOpen] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
 
   const [ufs, setUfs] = useState<ReferenceUf[]>([]);
@@ -80,12 +89,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [referenceError, setReferenceError] = useState<string | null>(null);
 
-  const [assets] = useAssets([
-    require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/avançar.svg'),
-  ]);
+  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   useEffect(() => {
     let isMounted = true;
@@ -167,27 +172,29 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
 
   const filteredCities = useMemo(() => {
     if (!isUfValid) return [];
-
-    const query = normalizeText(city);
-    if (!query) return cities.slice(0, 8);
-
-    return cities.filter((item) => normalizeText(item.name).includes(query)).slice(0, 8);
-  }, [cities, city, isUfValid]);
+    const query = normalizeText(citySearch);
+    if (!query) return cities.slice(0, 12);
+    return cities.filter((item) => normalizeText(item.name).includes(query)).slice(0, 12);
+  }, [cities, citySearch, isUfValid]);
 
   const isFullNameValid = useMemo(() => fullName.trim().split(/\s+/).length >= 2, [fullName]);
   const isBirthDateValid = useMemo(() => isValidDate(birthDate), [birthDate]);
+  const isOldEnough = useMemo(
+    () => !isBirthDateValid || isAtLeast14(birthDate),
+    [birthDate, isBirthDateValid],
+  );
   const isCityValid = useMemo(() => {
     if (!isUfValid || !selectedCityId) return false;
-    return cities.some((item) => item.id === selectedCityId && normalizeText(item.name) === normalizeText(city));
-  }, [cities, city, isUfValid, selectedCityId]);
+    return cities.some((item) => item.id === selectedCityId);
+  }, [cities, isUfValid, selectedCityId]);
 
   const hasPhoto = Boolean(photoUri);
-  const canProceed = isFullNameValid && isBirthDateValid && isUfValid && isCityValid;
+  const canProceed = isFullNameValid && isBirthDateValid && isOldEnough && isUfValid && isCityValid;
 
   const pickImageFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissao necessaria', 'Precisamos da permissao para acessar sua galeria.');
+      Alert.alert('Permissão necessária', 'Precisamos da permissão para acessar sua galeria.');
       return;
     }
 
@@ -205,7 +212,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permissao necessaria', 'Precisamos da permissao da camera para tirar a foto.');
+      Alert.alert('Permissão necessária', 'Precisamos da permissão da câmera para tirar a foto.');
       return;
     }
 
@@ -221,7 +228,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
   };
 
   const openPhotoChooser = () => {
-    Alert.alert('Foto do educador', 'Escolha como deseja adicionar a foto.', [
+    Alert.alert('Foto do alfabetizador', 'Escolha como deseja adicionar a foto.', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Upload', onPress: () => void pickImageFromGallery() },
       { text: 'Tirar foto', onPress: () => void takePhoto() },
@@ -244,9 +251,6 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
             )}
           </View>
 
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-          </Pressable>
         </View>
 
         <View style={styles.body}>
@@ -268,6 +272,9 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
             placeholder="DD/MM/AAAA"
             placeholderTextColor="#7a7a7a"
           />
+          {isBirthDateValid && !isOldEnough ? (
+            <Text style={styles.ageError}>Somente maiores de 14 anos podem se cadastrar (LGPD).</Text>
+          ) : null}
 
           <Text style={styles.label}>UF *</Text>
           <Pressable
@@ -292,7 +299,7 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
                       setCity('');
                       setSelectedCityId(null);
                       setIsUfSelectOpen(false);
-                      setIsCityAutocompleteOpen(false);
+                      setIsCitySelectOpen(false);
                     }}
                   >
                     <Text style={styles.ufListItemText}>
@@ -307,51 +314,68 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           {isLoadingUfs ? <Text style={styles.helperText}>Carregando UFs...</Text> : null}
 
           <Text style={styles.label}>Cidade: *</Text>
-          <TextInput
-            value={city}
-            onChangeText={(text) => {
-              setCity(text);
-              setSelectedCityId(null);
-              setIsCityAutocompleteOpen(true);
-            }}
-            style={[styles.input, city.length > 0 && !isCityValid ? styles.inputInvalid : null]}
-            placeholder={isUfValid ? 'Digite a cidade' : 'Selecione uma UF primeiro'}
-            placeholderTextColor="#8f8f8f"
-            editable={isUfValid && !isLoadingCities}
-            onFocus={() => {
-              if (isUfValid) {
-                setIsCityAutocompleteOpen(true);
-              }
-            }}
-          />
+          <Pressable
+            style={[styles.ufRow, city.length > 0 && !isCityValid ? styles.inputInvalid : null]}
+            onPress={() => { if (isUfValid) setIsCitySelectOpen((prev) => !prev); }}
+            disabled={!isUfValid || isLoadingCities}
+          >
+            <Text style={[styles.ufValue, !city ? styles.ufPlaceholder : null]}>
+              {city || (isUfValid ? 'Selecione a cidade' : 'Selecione uma UF primeiro')}
+            </Text>
+            <Text style={styles.ufArrow}>{isCitySelectOpen ? '▲' : '▼'}</Text>
+          </Pressable>
 
-          {isLoadingCities ? <Text style={styles.helperText}>Carregando cidades...</Text> : null}
-
-          {!isLoadingCities && isUfValid && isCityAutocompleteOpen && filteredCities.length > 0 ? (
-            <View style={styles.cityList}>
-              {filteredCities.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={styles.cityListItem}
-                  onPress={() => {
-                    setCity(item.name);
-                    setSelectedCityId(item.id);
-                    setIsCityAutocompleteOpen(false);
-                  }}
-                >
-                  <Text style={styles.cityListItemText}>{item.name}</Text>
-                </Pressable>
-              ))}
+          {isCitySelectOpen && isUfValid ? (
+            <View style={styles.ufList}>
+              <TextInput
+                value={citySearch}
+                onChangeText={setCitySearch}
+                style={styles.citySearchInput}
+                placeholder="Filtrar por nome..."
+                placeholderTextColor="#8f8f8f"
+                autoFocus
+              />
+              {isLoadingCities ? (
+                <Text style={styles.helperText}>Carregando cidades...</Text>
+              ) : (
+                <ScrollView nestedScrollEnabled style={styles.ufListScroll}>
+                  {filteredCities.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={styles.ufListItem}
+                      onPress={() => {
+                        setCity(item.name);
+                        setSelectedCityId(item.id);
+                        setCitySearch('');
+                        setIsCitySelectOpen(false);
+                      }}
+                    >
+                      <Text style={styles.ufListItemText}>{item.name}</Text>
+                    </Pressable>
+                  ))}
+                  {filteredCities.length === 0 && citySearch.length > 0 ? (
+                    <Text style={styles.helperText}>Nenhuma cidade encontrada.</Text>
+                  ) : null}
+                </ScrollView>
+              )}
             </View>
-          ) : null}
-
-          {!isLoadingCities && isUfValid && isCityAutocompleteOpen && filteredCities.length === 0 && city.length > 0 ? (
-            <Text style={styles.helperText}>Nenhuma cidade encontrada para esse termo.</Text>
           ) : null}
 
           {referenceError ? <Text style={styles.errorText}>{referenceError}</Text> : null}
 
-          <Text style={styles.photoLabel}>Faca o upload ou tire uma foto sua. (Opcional)</Text>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            style={styles.input}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="exemplo@dominio.com"
+            placeholderTextColor="#8f8f8f"
+          />
+
+          <Text style={styles.photoLabel}>Faça o upload ou tire uma foto sua.</Text>
 
           <Pressable style={[styles.photoBox, hasPhoto ? styles.photoBoxSelected : null]} onPress={openPhotoChooser}>
             {photoUri ? (
@@ -368,9 +392,8 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingStepThree', {
               cpf: route.params.cpf,
-              email: route.params.email,
-              password: route.params.password,
               phoneDigits: route.params.phoneDigits,
+              email: email.trim() || undefined,
               fullName: fullName.trim(),
               birthDate,
               uf,
@@ -379,42 +402,10 @@ export function EducatorOnboardingStepTwoView({ navigation, route }: Props) {
             })
           }
         >
-          {forwardUri ? (
-            <SvgUri uri={forwardUri} width={64} height={40} />
-          ) : (
-            <ActivityIndicator size="small" color="#20385f" />
-          )}
-          <Text style={styles.advanceLabel}>AVANCAR</Text>
+          <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
+          <Text style={styles.advanceLabel}>AVANÇAR</Text>
         </Pressable>
       </ScrollView>
-      <EducatorBottomMenu
-        active="tutorial"
-        onInicioPress={() => navigation.navigate('EducatorSplash')}
-        onTutorialPress={() =>
-          navigation.navigate('EducatorOnboardingStepTwo', {
-            cpf: route.params.cpf,
-            email: route.params.email,
-            password: route.params.password,
-            phoneDigits: route.params.phoneDigits,
-          })
-        }
-        onAcompanharPress={
-          canProceed
-            ? () =>
-                navigation.navigate('EducatorOnboardingStepThree', {
-                  cpf: route.params.cpf,
-                  email: route.params.email,
-                  password: route.params.password,
-                  phoneDigits: route.params.phoneDigits,
-                  fullName: fullName.trim(),
-                  birthDate,
-                  uf,
-                  city: city.trim(),
-                  photoUri,
-                })
-            : undefined
-        }
-      />
     </SafeAreaView>
   );
 }
@@ -428,7 +419,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 130,
+    paddingBottom: 32,
     backgroundColor: '#ededed',
   },
   header: {
@@ -441,34 +432,6 @@ const styles = StyleSheet.create({
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',
-  },
-  notificationButton: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
   },
   body: {
     marginTop: 30,
@@ -555,22 +518,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: -4,
   },
-  cityList: {
-    backgroundColor: '#f3f3f3',
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#dddddd',
-    maxHeight: 180,
-  },
-  cityListItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  citySearchInput: {
+    height: 36,
     borderBottomWidth: 1,
-    borderBottomColor: '#e7e7e7',
-  },
-  cityListItemText: {
-    color: '#0f172a',
+    borderBottomColor: '#d6d6d6',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    color: '#111111',
     fontSize: 14,
+  },
+  ageError: {
+    color: '#b91c1c',
+    fontSize: 12,
+    marginTop: 2,
   },
   photoLabel: {
     marginTop: 6,
@@ -619,6 +579,10 @@ const styles = StyleSheet.create({
   },
   advanceButtonDisabled: {
     opacity: 0.35,
+  },
+  arrowIcon: {
+    width: 64,
+    height: 54,
   },
   advanceLabel: {
     fontSize: 17,

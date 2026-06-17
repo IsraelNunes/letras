@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
@@ -40,12 +41,10 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
 
   const [assets] = useAssets([
     require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/voltar.svg'),
     require('../../../assets/confirmar.svg'),
   ]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const backUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
-  const confirmUri = assets?.[2]?.localUri ?? assets?.[2]?.uri;
+  const confirmUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   const data = route.params;
   const isEducatorFlow = Boolean(data.isEducatorFlow);
@@ -90,17 +89,12 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
       );
 
       if (isEducatorFlow) {
-        navigation.reset({
-          index: 0,
-          routes: [{
-            name: 'EducatorLearningMode' as never,
-            params: {
-              learnerName: data.fullName,
-              learnerId: profileId,
-              educatorId,
-            } as never,
-          }],
-        });
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'LearnerThemeSelect',
+            params: { learnerId: profileId, learnerName: data.fullName, educatorId },
+          }),
+        );
       } else {
         await SessionStorage.setLearnerProfileId(profileId);
         if (session) await session.initialize();
@@ -109,7 +103,7 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível concluir o cadastro.';
       if (message.includes('409') || message.toLowerCase().includes('ja existe') || message.toLowerCase().includes('já existe')) {
-        Alert.alert('Cadastro existente', 'Este CPF/passaporte já possui cadastro. Entre em contato com seu educador.');
+        Alert.alert('Cadastro existente', 'Este CPF/passaporte já possui cadastro. Entre em contato com seu alfabetizador.');
         return;
       }
       Alert.alert('Erro no cadastro', message);
@@ -148,13 +142,7 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
 
         <View style={styles.actions}>
           <Pressable style={styles.actionButton} onPress={() => navigation.goBack()} disabled={isSubmitting}>
-            {backUri ? (
-              <View style={styles.iconCrop}>
-                <SvgUri uri={backUri} width={58} height={65} />
-              </View>
-            ) : (
-              <ActivityIndicator size="small" color="#20385f" />
-            )}
+            <Image source={require('../../../assets/voltar.png')} style={styles.arrowIcon} resizeMode="contain" />
             <Text style={styles.actionLabel}>VOLTAR</Text>
           </Pressable>
 
@@ -253,9 +241,13 @@ const styles = StyleSheet.create({
   actionButtonDisabled: {
     opacity: 0.5,
   },
+  arrowIcon: {
+    width: 64,
+    height: 54,
+  },
   iconCrop: {
-    width: 58,
-    height: 42,
+    width: 72,
+    height: 62,
     overflow: 'hidden',
     alignItems: 'center',
   },

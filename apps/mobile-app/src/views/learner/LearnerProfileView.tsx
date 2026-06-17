@@ -72,7 +72,7 @@ export function LearnerProfileView({ navigation }: Props) {
   const handleLogout = async () => {
     await SessionStorage.clearLearnerSession();
     navigation.getParent()?.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'AppModeGate' }] }),
+      CommonActions.reset({ index: 0, routes: [{ name: 'LearnerFlow' }] }),
     );
   };
 
@@ -121,7 +121,7 @@ export function LearnerProfileView({ navigation }: Props) {
             <InfoRow label="UF" value={profile.uf ?? '—'} />
             <InfoRow label="Cidade" value={profile.city ?? '—'} />
             {profile.educator ? (
-              <InfoRow label="Educador vinculado" value={profile.educator.name} />
+              <InfoRow label="Alfabetizador vinculado" value={profile.educator.name} />
             ) : null}
 
             <Pressable style={styles.logoutButton} onPress={() => void handleLogout()}>

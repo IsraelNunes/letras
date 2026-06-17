@@ -41,7 +41,7 @@ export interface TrackProgressRequest {
 
 export interface RegisterEducatorRequest {
   fullName: string;
-  password: string;
+  password?: string;
   cpf?: string;
   email?: string;
   phoneDigits?: string;
@@ -59,7 +59,8 @@ export interface RegisterEducatorRequest {
 
 export interface LoginEducatorRequest {
   identifier: string;
-  password: string;
+  /** Opcional: quando ausente, o login e feito apenas pelo CPF (passwordless). */
+  password?: string;
 }
 
 export interface UpdateEducatorProfileRequest {
