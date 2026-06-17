@@ -14,7 +14,6 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorSplash'>;
 
@@ -30,10 +29,6 @@ function sanitizePhone(value: string) {
   return normalizeDigits(value).slice(0, 11);
 }
 
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
 function formatBrazilPhone(digits: string) {
   const ddd = digits.slice(0, 2);
   const firstBlock = digits.slice(2, 7);
@@ -43,26 +38,17 @@ function formatBrazilPhone(digits: string) {
 
 export function EducatorSplashView({ navigation }: Props) {
   const [cpf, setCpf] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
-  const [assets] = useAssets([
-    require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/avançar.svg'),
-  ]);
-
+  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   const isCpfValid = useMemo(() => cpf.length === 11, [cpf]);
-  const isEmailValid = useMemo(() => isValidEmail(email), [email]);
-  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
   const isPhoneValid = useMemo(() => phoneDigits.length === 11, [phoneDigits]);
   const phoneValue = useMemo(
     () => (phoneDigits.length === 11 ? formatBrazilPhone(phoneDigits) : phoneDigits),
     [phoneDigits],
   );
-  const canProceed = isCpfValid && isEmailValid && isPasswordValid && isPhoneValid;
+  const canProceed = isCpfValid && isPhoneValid;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -86,7 +72,7 @@ export function EducatorSplashView({ navigation }: Props) {
             pessoas.
           </Text>
 
-          <Text style={styles.label}>Para comecar, informe seu CPF: *</Text>
+          <Text style={styles.label}>Para começar, informe seu CPF ou passaporte: *</Text>
           <TextInput
             value={cpf}
             onChangeText={(text) => setCpf(sanitizeCpf(text))}
@@ -96,31 +82,7 @@ export function EducatorSplashView({ navigation }: Props) {
             placeholderTextColor="#8f8f8f"
           />
 
-          <Text style={styles.label}>Informe seu email: *</Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            style={[styles.input, email.length > 0 && !isEmailValid ? styles.inputInvalid : null]}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="exemplo@dominio.com"
-            placeholderTextColor="#8f8f8f"
-          />
-
-          <Text style={styles.label}>Crie sua senha: *</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            style={[styles.input, password.length > 0 && !isPasswordValid ? styles.inputInvalid : null]}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            placeholder="Minimo 6 caracteres"
-            placeholderTextColor="#8f8f8f"
-          />
-
-          <Text style={styles.label}>Insira o numero do celular que voce utilizara para alfabetizar e transformar vidas. *</Text>
+          <Text style={styles.label}>Insira o número do celular que você utilizará para alfabetizar e transformar vidas. *</Text>
           <TextInput
             value={phoneValue}
             onChangeText={(text) => setPhoneDigits(sanitizePhone(text))}
@@ -137,35 +99,14 @@ export function EducatorSplashView({ navigation }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingStepTwo', {
               cpf,
-              email: email.trim(),
-              password: password.trim(),
               phoneDigits,
             })
           }
         >
-          {forwardUri ? (
-            <SvgUri uri={forwardUri} width={64} height={40} />
-          ) : (
-            <ActivityIndicator size="small" color="#20385f" />
-          )}
-          <Text style={styles.advanceLabel}>AVANCAR</Text>
+          <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
+          <Text style={styles.advanceLabel}>AVANÇAR</Text>
         </Pressable>
       </ScrollView>
-      <EducatorBottomMenu
-        active="tutorial"
-        onInicioPress={() => navigation.navigate('EducatorSplash')}
-        onTutorialPress={
-          canProceed
-            ? () =>
-                navigation.navigate('EducatorOnboardingStepTwo', {
-                  cpf,
-                  email: email.trim(),
-                  password: password.trim(),
-                  phoneDigits,
-                })
-            : undefined
-        }
-      />
     </SafeAreaView>
   );
 }
@@ -179,7 +120,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 36,
-    paddingBottom: 130,
+    paddingBottom: 32,
     backgroundColor: '#ededed',
   },
   header: {
@@ -232,7 +173,7 @@ const styles = StyleSheet.create({
     borderColor: '#b91c1c',
   },
   advanceButton: {
-    marginTop: 90,
+    marginTop: 56,
     alignSelf: 'center',
     alignItems: 'center',
     justifyContent: 'center',
@@ -240,6 +181,10 @@ const styles = StyleSheet.create({
   },
   advanceButtonDisabled: {
     opacity: 0.35,
+  },
+  arrowIcon: {
+    width: 64,
+    height: 54,
   },
   advanceLabel: {
     fontSize: 17,

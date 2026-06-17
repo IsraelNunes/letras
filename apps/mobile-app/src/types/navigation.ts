@@ -1,15 +1,15 @@
 export interface EducatorOnboardingData {
   cpf: string;
-  email: string;
-  password: string;
   phoneDigits: string;
+  email?: string;
+  password?: string;
   fullName: string;
   birthDate: string;
   uf: string;
   city: string;
   photoUri?: string | null;
-  educationLevel: string;
-  trainingArea: string;
+  educationLevel?: string;
+  trainingArea?: string;
   linkedin?: string;
   facebook?: string;
   instagram?: string;
@@ -23,10 +23,10 @@ export type EducatorRootStackParamList = {
   EducatorLogin: undefined;
   EducatorSplash: undefined;
   EducatorProfile: undefined;
-  EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'email' | 'password' | 'phoneDigits'>;
+  EducatorOnboardingStepTwo: Pick<EducatorOnboardingData, 'cpf' | 'phoneDigits'>;
   EducatorOnboardingStepThree: Pick<
     EducatorOnboardingData,
-    'cpf' | 'email' | 'password' | 'phoneDigits' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
+    'cpf' | 'phoneDigits' | 'email' | 'fullName' | 'birthDate' | 'uf' | 'city' | 'photoUri'
   >;
   EducatorOnboardingConfirm: EducatorOnboardingData;
   LearnerOnboardingStep1: { isEducatorFlow?: boolean } | undefined;

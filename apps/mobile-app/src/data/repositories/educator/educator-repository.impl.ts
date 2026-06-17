@@ -31,10 +31,10 @@ export class EducatorRepositoryImpl implements EducatorRepository {
     return httpClient.post<EducatorAuthResponse>('/auth/educators/register', payload);
   }
 
-  loginEducator(identifier: string, password: string): Promise<EducatorAuthResponse> {
+  loginEducator(identifier: string, password?: string): Promise<EducatorAuthResponse> {
     const body: LoginEducatorRequest = {
       identifier,
-      password,
+      ...(password ? { password } : {}),
     };
 
     return httpClient.post<EducatorAuthResponse>('/auth/educators/login', body);

@@ -8,7 +8,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   return (
-    <Stack.Navigator initialRouteName="AppModeGate">
+    <Stack.Navigator initialRouteName="EducatorFlow">
       <Stack.Screen
         name="AppModeGate"
         component={AppModeGateView}

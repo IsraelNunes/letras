@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
@@ -14,8 +14,6 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from './components/EducatorBottomMenu';
-
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorOnboardingStepThree'>;
 
 const EDUCATION_LEVELS = [
@@ -40,20 +38,10 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
   const [instagram, setInstagram] = useState('');
   const [xHandle, setXHandle] = useState('');
 
-  const [assets] = useAssets([
-    require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/avançar.svg'),
-  ]);
-
+  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
-  const isEducationValid = useMemo(
-    () => EDUCATION_LEVELS.includes(educationLevel as (typeof EDUCATION_LEVELS)[number]),
-    [educationLevel],
-  );
-  const isTrainingAreaValid = useMemo(() => trainingArea.trim().length >= 2, [trainingArea]);
-  const canProceed = isEducationValid && isTrainingAreaValid;
+  const canProceed = true;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -71,18 +59,14 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
             )}
           </View>
 
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
-          </Pressable>
         </View>
 
         <View style={styles.body}>
+          <Text style={styles.infoOptional}>Todas as informações nessa tela são opcionais.</Text>
+
           <Text style={styles.label}>Grau de Escolaridade</Text>
           <Pressable
-            style={[styles.selectField, educationLevel.length > 0 && !isEducationValid ? styles.inputInvalid : null]}
+            style={styles.selectField}
             onPress={() => setIsEducationSelectOpen((prev) => !prev)}
           >
             <Text style={[styles.selectText, !educationLevel ? styles.placeholderText : null]}>
@@ -114,7 +98,7 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           <TextInput
             value={trainingArea}
             onChangeText={setTrainingArea}
-            style={[styles.input, trainingArea.length > 0 && !isTrainingAreaValid ? styles.inputInvalid : null]}
+            style={styles.input}
             placeholder=""
             placeholderTextColor="#8f8f8f"
           />
@@ -124,23 +108,23 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           </Text>
 
           <View style={styles.socialRow}>
-            <View style={styles.socialIcon}><Text style={styles.socialIconText}>in</Text></View>
-            <TextInput value={linkedin} onChangeText={setLinkedin} style={styles.socialInput} />
+            <Image source={require('../../../assets/social-linkedin.png')} style={styles.socialIcon} resizeMode="contain" />
+            <TextInput value={linkedin} onChangeText={setLinkedin} style={styles.socialInput} placeholder="LinkedIn" placeholderTextColor="#9ca3af" />
           </View>
 
           <View style={styles.socialRow}>
-            <View style={styles.socialIcon}><Text style={styles.socialIconText}>f</Text></View>
-            <TextInput value={facebook} onChangeText={setFacebook} style={styles.socialInput} />
+            <Image source={require('../../../assets/social-facebook.png')} style={styles.socialIcon} resizeMode="contain" />
+            <TextInput value={facebook} onChangeText={setFacebook} style={styles.socialInput} placeholder="Facebook" placeholderTextColor="#9ca3af" />
           </View>
 
           <View style={styles.socialRow}>
-            <View style={styles.socialIcon}><Text style={styles.socialIconText}>ig</Text></View>
-            <TextInput value={instagram} onChangeText={setInstagram} style={styles.socialInput} />
+            <Image source={require('../../../assets/social-instagram.png')} style={styles.socialIcon} resizeMode="contain" />
+            <TextInput value={instagram} onChangeText={setInstagram} style={styles.socialInput} placeholder="Instagram" placeholderTextColor="#9ca3af" />
           </View>
 
           <View style={styles.socialRow}>
-            <View style={styles.socialIcon}><Text style={styles.socialIconText}>x</Text></View>
-            <TextInput value={xHandle} onChangeText={setXHandle} style={styles.socialInput} />
+            <Image source={require('../../../assets/social-x.png')} style={styles.socialIcon} resizeMode="contain" />
+            <TextInput value={xHandle} onChangeText={setXHandle} style={styles.socialInput} placeholder="X (Twitter)" placeholderTextColor="#9ca3af" />
           </View>
         </View>
 
@@ -150,78 +134,26 @@ export function EducatorOnboardingStepThreeView({ navigation, route }: Props) {
           onPress={() =>
             navigation.navigate('EducatorOnboardingConfirm', {
               cpf: route.params.cpf,
-              email: route.params.email,
-              password: route.params.password,
               phoneDigits: route.params.phoneDigits,
+              email: route.params.email,
               fullName: route.params.fullName,
               birthDate: route.params.birthDate,
               uf: route.params.uf,
               city: route.params.city,
               photoUri: route.params.photoUri,
-              educationLevel,
-              trainingArea: trainingArea.trim(),
-              linkedin: linkedin.trim(),
-              facebook: facebook.trim(),
-              instagram: instagram.trim(),
-              xHandle: xHandle.trim(),
+              educationLevel: educationLevel || undefined,
+              trainingArea: trainingArea.trim() || undefined,
+              linkedin: linkedin.trim() || undefined,
+              facebook: facebook.trim() || undefined,
+              instagram: instagram.trim() || undefined,
+              xHandle: xHandle.trim() || undefined,
             })
           }
         >
-          {forwardUri ? (
-            <SvgUri uri={forwardUri} width={64} height={40} />
-          ) : (
-            <ActivityIndicator size="small" color="#20385f" />
-          )}
+          <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
           <Text style={styles.advanceLabel}>AVANCAR</Text>
         </Pressable>
       </ScrollView>
-      <EducatorBottomMenu
-        active="acompanhar"
-        onInicioPress={() => navigation.navigate('EducatorSplash')}
-        onTutorialPress={() =>
-          navigation.navigate('EducatorOnboardingStepTwo', {
-            cpf: route.params.cpf,
-            email: route.params.email,
-            password: route.params.password,
-            phoneDigits: route.params.phoneDigits,
-          })
-        }
-        onAcompanharPress={() =>
-          navigation.navigate('EducatorOnboardingStepThree', {
-            cpf: route.params.cpf,
-            email: route.params.email,
-            password: route.params.password,
-            phoneDigits: route.params.phoneDigits,
-            fullName: route.params.fullName,
-            birthDate: route.params.birthDate,
-            uf: route.params.uf,
-            city: route.params.city,
-            photoUri: route.params.photoUri,
-          })
-        }
-        onPontuacaoPress={
-          canProceed
-            ? () =>
-                navigation.navigate('EducatorOnboardingConfirm', {
-                  cpf: route.params.cpf,
-                  email: route.params.email,
-                  password: route.params.password,
-                  phoneDigits: route.params.phoneDigits,
-                  fullName: route.params.fullName,
-                  birthDate: route.params.birthDate,
-                  uf: route.params.uf,
-                  city: route.params.city,
-                  photoUri: route.params.photoUri,
-                  educationLevel,
-                  trainingArea: trainingArea.trim(),
-                  linkedin: linkedin.trim(),
-                  facebook: facebook.trim(),
-                  instagram: instagram.trim(),
-                  xHandle: xHandle.trim(),
-                })
-            : undefined
-        }
-      />
     </SafeAreaView>
   );
 }
@@ -235,7 +167,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 28,
     paddingTop: 28,
-    paddingBottom: 130,
+    paddingBottom: 32,
     backgroundColor: '#ededed',
   },
   header: {
@@ -249,37 +181,15 @@ const styles = StyleSheet.create({
     minHeight: 50,
     justifyContent: 'center',
   },
-  notificationButton: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
-  },
   body: {
     marginTop: 34,
     gap: 10,
+  },
+  infoOptional: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#4b5563',
+    marginBottom: 4,
   },
   label: {
     marginTop: 4,
@@ -354,18 +264,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   socialIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 2,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  socialIconText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'lowercase',
+    width: 26,
+    height: 26,
   },
   socialInput: {
     flex: 1,
@@ -389,6 +289,10 @@ const styles = StyleSheet.create({
   },
   advanceButtonDisabled: {
     opacity: 0.35,
+  },
+  arrowIcon: {
+    width: 64,
+    height: 54,
   },
   advanceLabel: {
     fontSize: 17,
