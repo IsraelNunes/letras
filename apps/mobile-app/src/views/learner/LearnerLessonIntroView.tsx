@@ -15,7 +15,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
   const { moduleId, lessonId, moduleLabel, moduleTitle } = route.params;
   const { getLesson } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
-  const lesson = getLesson(moduleId, lessonId);
+  const lesson = getLesson(moduleId, lessonId);`n  const stageLabel = lesson?.stageNumber ? `Etapa ${lesson.stageNumber}` : null;
 
   useFocusEffect(
     useCallback(() => {
@@ -68,7 +68,7 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
-      roleLabel="alfabetizando"
+      roleLabel="alfabetizando"`n      learnerName={learnerSession.learnerName}`n      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda antes de iniciar esta aula.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
