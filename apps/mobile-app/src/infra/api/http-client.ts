@@ -136,7 +136,14 @@ class HttpClient {
 
         lastResponseStatus = response.status;
         lastResponseText = await response.text();
+
+        // Recebeu resposta HTTP real (JSON/texto) — o endpoint foi encontrado.
+        // Só tenta o próximo baseUrl se a resposta for HTML (proxy/SPA no lugar errado).
+        if (!contentType.includes('text/html')) {
+          break;
+        }
       } catch (error) {
+        // Erro de rede (timeout, connection refused) — tenta o próximo baseUrl.
         // eslint-disable-next-line no-console
         console.warn(`[http] ERRO ${url}`, error);
         lastError = error;
