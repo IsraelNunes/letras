@@ -13,6 +13,7 @@ import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfir
 import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
 import { EducatorScoreView } from '../../views/educator/EducatorScoreView';
 import { EducatorScoreRulesView } from '../../views/educator/EducatorScoreRulesView';
+import { EducatorTutoriaisView } from '../../views/educator/EducatorTutoriaisView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
@@ -99,6 +100,11 @@ export function EducatorNavigator() {
           headerShown: false,
           gestureEnabled: false,
         }}
+      />
+      <Stack.Screen
+        name="EducatorTutorials"
+        component={EducatorTutoriaisView}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="EducatorLearningMode"

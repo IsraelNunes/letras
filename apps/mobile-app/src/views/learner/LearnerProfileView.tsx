@@ -136,7 +136,7 @@ export function LearnerProfileView({ navigation }: Props) {
         onInicioPress={() => navigation.navigate('LearnerHome')}
         onTutorialPress={() => navigation.navigate('LearnerHome')}
         onAcompanharPress={() => navigation.navigate('LearnerHome')}
-        onPontuacaoPress={() => navigation.navigate('LearnerHome')}
+        onPontuacaoPress={() => navigation.navigate('LearnerScore')}
         onPerfilPress={() => {}}
       />
     </SafeAreaView>

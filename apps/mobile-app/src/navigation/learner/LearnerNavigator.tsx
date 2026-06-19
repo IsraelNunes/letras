@@ -9,6 +9,9 @@ import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardin
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
 import { LearnerHomeView } from '../../views/learner/LearnerHomeView';
+import { LearnerTutoriaisView } from '../../views/learner/LearnerTutoriaisView';
+import { LearnerPontuacaoView } from '../../views/learner/LearnerPontuacaoView';
+import { LearnerStageConclusionView } from '../../views/learner/LearnerStageConclusionView';
 import { LearnerProfileView } from '../../views/learner/LearnerProfileView';
 import { LearnerLessonIntroView } from '../../views/learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../../views/learner/LearnerLessonScreenView';
@@ -66,6 +69,21 @@ export function LearnerNavigator() {
           name="LearnerHome"
           component={LearnerHomeView}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerTutorials"
+          component={LearnerTutoriaisView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerScore"
+          component={LearnerPontuacaoView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerStageConclusion"
+          component={LearnerStageConclusionView}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen
           name="LearnerProfile"

@@ -78,6 +78,25 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       return;
     }
 
+    // Check if this lesson's stage is now fully completed
+    const stageNumber = lesson?.stageNumber;
+    if (stageNumber) {
+      const allLessonsInStage = modules
+        .flatMap((m) => m.lessons)
+        .filter((l) => l.stageNumber === stageNumber);
+
+      const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
+      const stageFullyDone = allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));
+
+      if (stageFullyDone) {
+        navigation.navigate('LearnerStageConclusion', {
+          stageNumber,
+          stageTitle: `Etapa ${stageNumber}`,
+        });
+        return;
+      }
+    }
+
     if (navigation.canGoBack()) {
       navigation.popToTop();
       return;
@@ -90,8 +109,8 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       activeMenu="acompanhar"
       onMenuHome={() => navigation.navigate('LearnerHome')}
       onMenuTrack={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerHome')}
-      onMenuScore={() => navigation.navigate('LearnerHome')}
+      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+      onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
       learnerName={learnerSession.learnerName}

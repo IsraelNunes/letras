@@ -450,9 +450,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
       <EducatorBottomMenu
         active="inicio"
-        onTutorialPress={() =>
-          navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
-        }
+        onTutorialPress={() => navigation.navigate('EducatorTutorials', { educatorId })}
         onAcompanharPress={() =>
           navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
         }

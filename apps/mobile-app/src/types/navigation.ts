@@ -37,6 +37,9 @@ export type EducatorRootStackParamList = {
     educatorId?: string;
     openNotifications?: boolean;
   };
+  EducatorTutorials: {
+    educatorId?: string;
+  };
   EducatorLearningMode: {
     fullName?: string;
     learnerName?: string;
@@ -96,6 +99,13 @@ export type LearnerRootStackParamList = {
   LearnerOnboardingStep2: Pick<LearnerOnboardingData, 'cpfOrPassport' | 'phoneDigits'> & { isEducatorFlow?: boolean };
   LearnerOnboardingConfirm: LearnerOnboardingData & { isEducatorFlow?: boolean };
   LearnerHome: undefined;
+  LearnerTutorials: undefined;
+  LearnerScore: undefined;
+  LearnerStageConclusion: {
+    stageNumber: number;
+    stageTitle?: string;
+    pointsEarned?: number;
+  };
   LearnerProfile: undefined;
   LearnerLessonIntro: {
     moduleId: string;
