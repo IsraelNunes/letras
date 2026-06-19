@@ -457,7 +457,9 @@ export function EducatorHomeView({ navigation, route }: Props) {
           navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
         }
         onPontuacaoPress={() =>
-          navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })
+          educatorId
+            ? navigation.navigate('EducatorScore', { educatorId, fullName: educatorName })
+            : undefined
         }
         onPerfilPress={() => navigation.navigate('EducatorProfile')}
       />

@@ -52,6 +52,24 @@ export type EducatorRootStackParamList = {
     educatorId: string;
     fullName: string;
   };
+  LearnerThemeSelect: {
+    learnerId: string;
+    learnerName: string;
+    educatorId?: string;
+  };
+  LearnerThemeConfirm: {
+    learnerId: string;
+    learnerName: string;
+    educatorId?: string;
+    themeId: string;
+    themeName: string;
+    themeDescription?: string | null;
+  };
+  EducatorScore: {
+    educatorId: string;
+    fullName?: string;
+  };
+  EducatorScoreRules: undefined;
 };
 
 export interface LearnerOnboardingData {

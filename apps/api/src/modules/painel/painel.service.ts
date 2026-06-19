@@ -558,45 +558,30 @@ export class PainelService {
 
   async getRanking() {
     const educators = await this.prisma.educator.findMany({
-      include: {
+      select: {
+        id: true,
+        name: true,
+        city: true,
+        uf: true,
+        totalScore: true,
         tutorLearnerLinks: {
-          where: {
-            status: TutorLearnerLinkStatus.CONFIRMED,
-          },
-          include: {
-            learnerProfile: {
-              include: {
-                completions: true,
-              },
-            },
-          },
+          where: { status: TutorLearnerLinkStatus.CONFIRMED },
+          select: { id: true },
         },
       },
     });
 
     return educators
-      .map((educator) => {
-        const learnersConfirmed = educator.tutorLearnerLinks.length;
-        const completedActivities = educator.tutorLearnerLinks.reduce((acc, link) => {
-          const completed = link.learnerProfile.completions.filter(
-            (completion) => completion.status === CompletionStatus.COMPLETED,
-          ).length;
-          return acc + completed;
-        }, 0);
-
-        const score = completedActivities * 10 + learnersConfirmed * 5;
-        return {
-          educator: {
-            id: educator.id,
-            name: educator.name,
-            city: educator.city,
-            uf: educator.uf,
-          },
-          learnersConfirmed,
-          completedActivities,
-          score,
-        };
-      })
+      .map((educator) => ({
+        educator: {
+          id: educator.id,
+          name: educator.name,
+          city: educator.city,
+          uf: educator.uf,
+        },
+        learnersConfirmed: educator.tutorLearnerLinks.length,
+        score: educator.totalScore,
+      }))
       .sort((a, b) => b.score - a.score);
   }
 

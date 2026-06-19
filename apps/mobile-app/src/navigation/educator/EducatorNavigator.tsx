@@ -11,9 +11,13 @@ import { EducatorLearningModeView } from '../../views/educator/EducatorLearningM
 import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
 import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfirmView';
 import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
+import { EducatorScoreView } from '../../views/educator/EducatorScoreView';
+import { EducatorScoreRulesView } from '../../views/educator/EducatorScoreRulesView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
+import { LearnerThemeSelectView } from '../../views/learner/LearnerThemeSelectView';
+import { LearnerThemeConfirmView } from '../../views/learner/LearnerThemeConfirmView';
 import { EducatorRootStackParamList } from '../../types';
 
 const Stack = createNativeStackNavigator<EducatorRootStackParamList>();
@@ -111,6 +115,26 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorLinkSuccess"
         component={EducatorLinkSuccessView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LearnerThemeSelect"
+        component={LearnerThemeSelectView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LearnerThemeConfirm"
+        component={LearnerThemeConfirmView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorScore"
+        component={EducatorScoreView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorScoreRules"
+        component={EducatorScoreRulesView}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

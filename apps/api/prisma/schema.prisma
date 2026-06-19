@@ -3,9 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DIRECT_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 enum SessionRole {
@@ -64,6 +65,14 @@ enum SyncAction {
   PUBLISHED
 }
 
+enum EducatorScoreEventType {
+  STAGE_COMPLETE
+  ADVANCE_BONUS_1H
+  ADVANCE_BONUS_24H
+  ADVANCE_BONUS_3D
+  INACTIVITY_PENALTY
+}
+
 model Educator {
   id        String           @id @default(cuid())
   name      String
@@ -82,6 +91,7 @@ model Educator {
   instagram String?
   xHandle   String?
   passwordHash String?
+  totalScore Int              @default(0)
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -92,6 +102,7 @@ model Educator {
   createdBlueprints MobileBlueprint[] @relation("BlueprintCreator")
   blueprintManifestImports BlueprintManifestImport[] @relation("BlueprintImporter")
   syncEvents SyncEvent[] @relation("SyncActor")
+  scoreEvents EducatorScoreEvent[]
 }
 
 model EducatorAuthSession {
@@ -210,6 +221,7 @@ model SessionState {
   currentActivityId String?
   statePayload      Json?
   isLocked          Boolean        @default(false)
+  helpRequestedAt   DateTime?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
@@ -339,4 +351,19 @@ model SyncEvent {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@index([actorEducatorId])
+}
+
+model EducatorScoreEvent {
+  id          String                  @id @default(cuid())
+  educatorId  String
+  learnerId   String?
+  type        EducatorScoreEventType
+  delta       Int
+  description String?
+  createdAt   DateTime                @default(now())
+
+  educator    Educator                @relation(fields: [educatorId], references: [id], onDelete: Cascade)
+
+  @@index([educatorId, createdAt])
+  @@index([learnerId])
 }

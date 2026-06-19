@@ -121,6 +121,10 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
           </Text>
         </View>
 
+        <View style={styles.pointsCard}>
+          <Text style={styles.pointsText}>Aula concluída!</Text>
+        </View>
+
         <Text style={styles.motivation}>Foco e dedicação levam longe!</Text>
 
         <LearnerActionButtons
