@@ -22,7 +22,8 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
   // Conta quantas aulas do módulo já estão concluídas (incluindo a atual)
   const completedInModule = moduleData?.lessons.filter((l) => completedLessonIds.has(l.progressId)).length ?? 1;
   const progressPercent = Math.min(100, Math.round((completedInModule / totalLessons) * 100));
-  const lesson = getLesson(moduleId, lessonId);`n  const stageLabel = lesson?.stageNumber ? `Etapa ${lesson.stageNumber}` : null;
+  const lesson = getLesson(moduleId, lessonId);
+  const stageLabel = lesson?.stageNumber ? `Etapa ${lesson.stageNumber}` : null;
   // Garante que o POST /progress de conclusao da aula seja disparado
   // uma unica vez por entrada na tela de conclusao, mesmo que o
   // useFocusEffect rode multiplas vezes (re-render, foco recuperado).
@@ -92,7 +93,9 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       onMenuTutorial={() => navigation.navigate('LearnerHome')}
       onMenuScore={() => navigation.navigate('LearnerHome')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
-      roleLabel="alfabetizando"`n      learnerName={learnerSession.learnerName}`n      stageLabel={stageLabel}
+      roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para encerrar a aula.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
