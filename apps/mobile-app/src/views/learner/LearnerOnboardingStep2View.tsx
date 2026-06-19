@@ -83,10 +83,8 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
 
   const [assets] = useAssets([
     require('../../../assets/Logo-LETRAS.svg'),
-    require('../../../assets/avançar.svg'),
   ]);
   const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
-  const forwardUri = assets?.[1]?.localUri ?? assets?.[1]?.uri;
 
   useEffect(() => {
     let isMounted = true;
@@ -313,7 +311,7 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
 
           {referenceError ? <Text style={styles.errorText}>{referenceError}</Text> : null}
 
-          <Text style={styles.photoLabel}>Faça o upload ou tire uma foto do alfabetizando. (Opcional)</Text>
+          <Text style={styles.photoLabel}>Faça o upload ou tire uma foto do alfabetizando.</Text>
           <Pressable
             style={[styles.photoBox, photoUri ? styles.photoBoxSelected : null]}
             onPress={openPhotoChooser}
@@ -340,11 +338,7 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
             })
           }
         >
-          {forwardUri ? (
-            <SvgUri uri={forwardUri} width={64} height={40} />
-          ) : (
-            <ActivityIndicator size="small" color="#20385f" />
-          )}
+          <Image source={require('../../../assets/avancar.png')} style={styles.arrowIcon} resizeMode="contain" />
           <Text style={styles.advanceLabel}>AVANÇAR</Text>
         </Pressable>
       </ScrollView>
@@ -536,6 +530,10 @@ const styles = StyleSheet.create({
     color: '#b91c1c',
     fontSize: 12,
     marginTop: -2,
+  },
+  arrowIcon: {
+    width: 64,
+    height: 54,
   },
   advanceButton: {
     marginTop: 40,
