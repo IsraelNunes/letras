@@ -73,6 +73,14 @@ export type EducatorRootStackParamList = {
     fullName?: string;
   };
   EducatorScoreRules: undefined;
+  EducatorEtapaOrientacoes: {
+    stageNumber: number;
+    learnerId?: string;
+    learnerName?: string;
+    educatorId?: string;
+    fullName?: string;
+    themeId?: string;
+  };
 };
 
 export interface LearnerOnboardingData {

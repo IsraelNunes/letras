@@ -1147,7 +1147,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   progressHeader: {
-    display: 'none',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1163,7 +1162,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressTrack: {
-    display: 'none',
     height: 10,
     borderRadius: 8,
     backgroundColor: learnerTheme.border,

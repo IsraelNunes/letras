@@ -193,7 +193,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
   async function handleUnlockSession(learnerId: string) {
     try {
-      await httpClient.put(`/sessions/${learnerId}/lock`, { isLocked: false });
+      await httpClient.put(`/cadastros/sessions/${learnerId}/lock`, { isLocked: false });
       dismissLockedSession(learnerId);
       void fetchLockedSessions();
     } catch { /* ignora — estado será reconciliado no próximo fetch */ }

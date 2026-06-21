@@ -38,11 +38,13 @@ export function LearnerThemeConfirmView({ navigation, route }: Props) {
       navigation.reset({
         index: 0,
         routes: [{
-          name: 'EducatorLearningMode' as never,
+          name: 'EducatorEtapaOrientacoes' as never,
           params: {
+            stageNumber: 1,
             learnerName,
             learnerId,
             educatorId,
+            themeId,
           } as never,
         }],
       });
