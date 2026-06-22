@@ -172,9 +172,6 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
             })}
           >
             <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
           </Pressable>
         </View>
 
@@ -396,23 +393,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     resizeMode: 'contain',
-  },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#111111',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
   },
   body: {
     marginTop: 28,

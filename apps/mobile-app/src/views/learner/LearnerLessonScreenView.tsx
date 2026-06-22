@@ -218,7 +218,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const isLockedByTemplate = screen.screenTemplate === 'locked';
   const isLocked = isLockedByTemplate || exerciseLocked || learnerSession.isLocked;
   const isInteractionLocked = isLocked || showReinforcement;
-  const expectedSelections = Math.max(1, screen.exercise?.expectedSelections ?? 1);
+  // Quando expectedSelections não está definido no payload do exercício (schema
+  // letras-stage2-v1 sem o campo), infere pela contagem de itens corretos antes
+  // de cair no fallback 1 — evita que exercícios com N respostas corretas sejam
+  // concluídos com apenas 1 seleção.
+  const expectedSelections = Math.max(
+    1,
+    screen.exercise?.expectedSelections
+      ?? screen.exercise?.items.filter((item) => item.isCorrectTarget).length
+      ?? 1,
+  );
   const selectedImageCount = selectedImageIds.length;
   const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
 
