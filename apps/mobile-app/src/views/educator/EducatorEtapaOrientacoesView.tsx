@@ -227,11 +227,11 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
 
       <EducatorBottomMenu
         active="inicio"
-        onHome={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
-        onTutorial={() => navigation.navigate('EducatorTutorials', { educatorId })}
-        onScore={() => navigation.navigate('EducatorScore', { educatorId: educatorId ?? '', fullName: educatorName })}
-        onProfile={() => navigation.navigate('EducatorProfile' as never)}
-        onAcompanhar={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
+        onInicioPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
+        onTutorialPress={() => navigation.navigate('EducatorTutorials', { educatorId })}
+        onPontuacaoPress={() => navigation.navigate('EducatorScore', { educatorId: educatorId ?? '', fullName: educatorName })}
+        onPerfilPress={() => navigation.navigate('EducatorProfile' as never)}
+        onAcompanharPress={() => navigation.navigate('EducatorHome', { fullName: educatorName, educatorId })}
       />
     </SafeAreaView>
   );
