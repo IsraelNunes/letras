@@ -23,9 +23,6 @@ export function LearnerHeaderBar({ learnerName, stageLabel }: LearnerHeaderBarPr
         <View style={styles.rightCol}>
           <View style={styles.notificationWrap}>
             <Image source={require('../../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
           </View>
         </View>
       </View>

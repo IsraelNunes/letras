@@ -184,7 +184,14 @@ export class CadastrosService {
     return learner;
   }
 
-  async getAlfabetizandoById(id: string) {
+  async getAlfabetizandoById(id: string, authorization: string | undefined) {
+    // If an educator token is present, verify ownership before returning full PII.
+    // Without a token the learner can view their own profile (limited educator fields).
+    let requestingEducatorId: string | null = null;
+    if (authorization) {
+      requestingEducatorId = await this.resolveEducatorIdFromToken(authorization);
+    }
+
     const learner = await this.prisma.learnerProfile.findUnique({
       where: { id },
       select: {
@@ -224,11 +231,22 @@ export class CadastrosService {
       throw new NotFoundException(`Alfabetizando ${id} nao encontrado.`);
     }
 
+    // Educator requests: must be the educator assigned to this learner.
+    if (requestingEducatorId !== null && requestingEducatorId !== learner.educatorId) {
+      throw new UnauthorizedException('Sem permissão para visualizar este alfabetizando.');
+    }
+
     const completedCount = learner.completions.filter((completion) => completion.status === 'COMPLETED').length;
     const totalTracked = learner.completions.length;
 
+    // Unauthenticated (learner self-access): strip educator's private contact fields.
+    const educatorView = requestingEducatorId !== null
+      ? learner.educator
+      : learner.educator ? { id: learner.educator.id, name: learner.educator.name } : null;
+
     return {
       ...learner,
+      educator: educatorView,
       progresso: {
         totalTracked,
         completedCount,
@@ -427,8 +445,17 @@ export class CadastrosService {
   }
 
   async createSessionRequest(dto: CreateSessionRequestDto) {
-    await this.ensureEducatorExists(dto.educatorId);
-    await this.ensureLearnerExists(dto.learnerProfileId);
+    // Verify the learner exists and is actually linked to the claimed educator.
+    // This prevents unauthenticated callers from injecting or cancelling session requests
+    // for arbitrary educator–learner pairs.
+    const learner = await this.prisma.learnerProfile.findUnique({
+      where: { id: dto.learnerProfileId },
+      select: { id: true, educatorId: true },
+    });
+    if (!learner) throw new NotFoundException('Alfabetizando não encontrado.');
+    if (learner.educatorId !== dto.educatorId) {
+      throw new BadRequestException('Educador não corresponde ao vínculo do alfabetizando.');
+    }
 
     // Cancela solicitações pendentes anteriores do mesmo alfabetizando
     await this.prisma.learnerSessionRequest.updateMany({

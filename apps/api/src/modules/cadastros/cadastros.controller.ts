@@ -47,8 +47,11 @@ export class CadastrosController {
   }
 
   @Get('alfabetizandos/:id')
-  getAlfabetizandoById(@Param('id') id: string) {
-    return this.cadastrosService.getAlfabetizandoById(id);
+  getAlfabetizandoById(
+    @Param('id') id: string,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    return this.cadastrosService.getAlfabetizandoById(id, authorization);
   }
 
   @Post('alfabetizandos')
