@@ -72,23 +72,6 @@ const styles = StyleSheet.create({
     height: 22,
     resizeMode: 'contain',
   },
-  badge: {
-    position: 'absolute',
-    right: 1,
-    top: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: learnerTheme.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: learnerTheme.surface,
-    fontSize: 9,
-    fontWeight: '700',
-  },
   subtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',

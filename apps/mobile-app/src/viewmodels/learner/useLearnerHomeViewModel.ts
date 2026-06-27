@@ -93,11 +93,10 @@ export function useLearnerHomeViewModel() {
 
       if (!isLocalFallbackProfile) {
         try {
-          const profile = await httpClient.get<{ nome?: string; name?: string; full_name?: string }>(
+          const profile = await httpClient.get<{ displayName?: string }>(
             `/cadastros/alfabetizandos/${session.learnerProfileId}`,
           );
-          const name = profile.nome || profile.name || profile.full_name || null;
-          if (name) setLearnerName(name);
+          if (profile.displayName) setLearnerName(profile.displayName);
         } catch {
           // não crítico — cabeçalho funciona sem o nome
         }
