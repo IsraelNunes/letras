@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import {
   CompletionStatus,
   ContentAssetKind,
@@ -727,6 +727,142 @@ export class PainelService {
     return { completedActivityIds: completions.map((c) => c.activityId) };
   }
 
+  async getTutorials(educatorId: string) {
+    type MediaRow = {
+      id: string; slug: string | null; title: string; description: string | null;
+      kind: string; duration_sec: number | null; public_url: string | null;
+      tags: string[]; metadata: Record<string, unknown>;
+    };
+    type ProgressRow = {
+      assetId: string; isCompleted: boolean; completedAt: Date | null;
+      watchCount: number; positionSec: number;
+    };
+
+    const [assets, progresses] = await Promise.all([
+      this.prisma.$queryRaw<MediaRow[]>`
+        SELECT id::text, slug, title, description, kind,
+               duration_sec, public_url, tags,
+               metadata
+        FROM media_library
+        WHERE is_active = true
+        ORDER BY created_at ASC
+      `,
+      this.prisma.educatorTutorialProgress.findMany({
+        where: { educatorId },
+        select: { assetId: true, isCompleted: true, completedAt: true, watchCount: true, positionSec: true },
+      }),
+    ]);
+
+    const progressByAssetId = new Map((progresses as ProgressRow[]).map((p) => [p.assetId, p]));
+
+    return assets.map((asset) => {
+      const progress = progressByAssetId.get(asset.id) ?? null;
+      return {
+        id: asset.id,
+        slug: asset.slug ?? null,
+        title: asset.title,
+        description: asset.description ?? null,
+        kind: asset.kind,
+        duration_sec: asset.duration_sec ?? null,
+        public_url: asset.public_url ?? null,
+        tags: asset.tags ?? [],
+        metadata: asset.metadata ?? {},
+        completion: progress
+          ? {
+              completed_at: progress.completedAt?.toISOString() ?? null,
+              position_sec: progress.positionSec,
+              watch_count: progress.watchCount,
+              is_completed: progress.isCompleted,
+            }
+          : null,
+      };
+    });
+  }
+
+  async markTutorialProgress(assetId: string, educatorId: string, markCompleted: boolean, positionSec: number) {
+    type ExistsRow = { id: string };
+    const rows = await this.prisma.$queryRaw<ExistsRow[]>`
+      SELECT id::text FROM media_library WHERE id = ${assetId}::uuid LIMIT 1
+    `;
+    if (!rows.length) {
+      throw new NotFoundException(`Tutorial ${assetId} não encontrado.`);
+    }
+
+    const now = new Date();
+    const existing = await this.prisma.educatorTutorialProgress.findUnique({
+      where: { educatorId_assetId: { educatorId, assetId } },
+    });
+
+    if (existing) {
+      return this.prisma.educatorTutorialProgress.update({
+        where: { educatorId_assetId: { educatorId, assetId } },
+        data: {
+          positionSec,
+          watchCount: { increment: 1 },
+          ...(markCompleted && !existing.isCompleted
+            ? { isCompleted: true, completedAt: now }
+            : {}),
+        },
+      });
+    }
+
+    return this.prisma.educatorTutorialProgress.create({
+      data: {
+        educatorId,
+        assetId,
+        positionSec,
+        watchCount: 1,
+        isCompleted: markCompleted,
+        completedAt: markCompleted ? now : null,
+      },
+    });
+  }
+
+  async createSupportRequest(learnerProfileId: string, currentActivityId?: string) {
+    const session = await this.prisma.learnerSession.findUnique({
+      where: { learnerProfileId },
+      select: { id: true },
+    });
+    if (!session) {
+      return { ok: true };
+    }
+    // Apenas registra helpRequestedAt — o bloqueio de tela é gerenciado
+    // via realtime (socket.io) e pelo educador, não por chamada HTTP anônima.
+    await this.prisma.sessionState.upsert({
+      where: { sessionId: session.id },
+      create: {
+        sessionId: session.id,
+        currentView: 'home',
+        statePayload: {},
+        isLocked: false,
+        helpRequestedAt: new Date(),
+        currentActivityId: currentActivityId ?? null,
+      },
+      update: {
+        helpRequestedAt: new Date(),
+        ...(currentActivityId ? { currentActivityId } : {}),
+      },
+    });
+    return { ok: true };
+  }
+
+  async getLearnerScore(learnerProfileId: string) {
+    const [completions, totalActivities] = await Promise.all([
+      this.prisma.completion.findMany({
+        where: { learnerProfileId },
+        select: { status: true, score: true },
+      }),
+      this.prisma.activity.count(),
+    ]);
+
+    const completedCount = completions.filter((c) => c.status === 'COMPLETED').length;
+    const totalPoints = completions
+      .filter((c) => c.status === 'COMPLETED' && c.score !== null)
+      .reduce((sum, c) => sum + Math.round((c.score ?? 0) * 10), 0);
+
+    return { totalPoints, completedCount, totalActivities };
+  }
+
   private async ensureThemeExists(themeId: string) {
     const theme = await this.prisma.theme.findUnique({
       where: { id: themeId },
@@ -762,6 +898,19 @@ export class PainelService {
       throw new ConflictException(message);
     }
     throw error;
+  }
+
+  async resolveEducatorIdFromToken(authorization: string | undefined): Promise<string> {
+    if (!authorization) throw new UnauthorizedException('Token de autenticação ausente.');
+    const token = authorization.replace(/^bearer\s+/i, '');
+    const session = await this.prisma.educatorAuthSession.findUnique({
+      where: { token },
+      select: { educatorId: true, expiresAt: true, revokedAt: true },
+    });
+    if (!session || session.revokedAt || session.expiresAt < new Date()) {
+      throw new UnauthorizedException('Token inválido ou expirado.');
+    }
+    return session.educatorId;
   }
 
   private daysAgo(days: number): Date {

@@ -1,9 +1,11 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, Patch, Post, Query } from '@nestjs/common';
 import { TutorLearnerLinkStatus } from '@prisma/client';
 import { CadastrosService } from './cadastros.service';
 import { CreateAlfabetizadorDto } from './dto/create-alfabetizador.dto';
 import { CreateAlfabetizandoDto } from './dto/create-alfabetizando.dto';
+import { CreateSessionRequestDto } from './dto/create-session-request.dto';
 import { CreateVinculoDto } from './dto/create-vinculo.dto';
+import { RespondSessionRequestDto } from './dto/respond-session-request.dto';
 import { UpdateVinculoDto } from './dto/update-vinculo.dto';
 
 @Controller('cadastros')
@@ -13,6 +15,14 @@ export class CadastrosController {
   @Get('alfabetizadores')
   getAlfabetizadores() {
     return this.cadastrosService.listAlfabetizadores();
+  }
+
+  @Get('alfabetizadores/:id')
+  getAlfabetizadorById(
+    @Param('id') id: string,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    return this.cadastrosService.getAlfabetizadorById(id, authorization);
   }
 
   @Post('alfabetizadores')
@@ -68,5 +78,29 @@ export class CadastrosController {
   @Patch('vinculos/:id')
   updateVinculo(@Param('id') id: string, @Body() dto: UpdateVinculoDto) {
     return this.cadastrosService.updateVinculo(id, dto);
+  }
+
+  @Post('sessoes-confirmacao')
+  createSessionRequest(@Body() dto: CreateSessionRequestDto) {
+    return this.cadastrosService.createSessionRequest(dto);
+  }
+
+  @Get('sessoes-confirmacao')
+  getPendingSessionRequests(@Headers('authorization') authorization: string | undefined) {
+    return this.cadastrosService.getPendingSessionRequests(authorization);
+  }
+
+  @Get('sessoes-confirmacao/:id')
+  getSessionRequestStatus(@Param('id') id: string) {
+    return this.cadastrosService.getSessionRequestStatus(id);
+  }
+
+  @Patch('sessoes-confirmacao/:id')
+  respondToSessionRequest(
+    @Param('id') id: string,
+    @Body() dto: RespondSessionRequestDto,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    return this.cadastrosService.respondToSessionRequest(id, dto, authorization);
   }
 }

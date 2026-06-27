@@ -20,7 +20,7 @@ export function EducatorTutoriaisView({ navigation, route }: Props) {
   return (
     <TutoriaisContent
       educatorId={educatorId}
-      onBack={() => navigation.goBack()}
+      navigation={navigation}
     />
   );
 }

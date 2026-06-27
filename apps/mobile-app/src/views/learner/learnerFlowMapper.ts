@@ -1,3 +1,5 @@
+import { getHintVideoForTemplate } from './hintVideos';
+
 export type LearnerMediaKind = 'video' | 'audio' | 'image' | null;
 export type LearnerScreenTemplate =
   | 'default'
@@ -948,10 +950,14 @@ function resolveHintVideoUrl(
   hintVideoId: string | null | undefined,
   mediaById: Map<string, PainelMediaLibraryItem>,
 ): string | null {
-  if (!hintVideoId) return null;
-  const media = mediaById.get(hintVideoId);
-  if (!media) return null;
-  return media.public_url || media.storage_path || null;
+  if (hintVideoId) {
+    const media = mediaById.get(hintVideoId);
+    if (media) return media.public_url || media.storage_path || null;
+  }
+  // Fallback: vídeo completo via EXPO_PUBLIC_HINT_VIDEOS_BASE_URL.
+  // Quando a variável não está configurada, getHintVideoForTemplate retorna
+  // null e nenhuma dica é exibida.
+  return getHintVideoForTemplate(null);
 }
 
 export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {

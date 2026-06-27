@@ -22,16 +22,14 @@ type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorLearnin
 
 interface LearnerDetail {
   id: string;
-  nome: string;
-  email?: string;
-  telefone?: string;
-  cpf?: string;
-  tutor?: string;
-  grupo?: string;
-  etapa?: string;
-  status?: string;
-  progresso?: Array<{ etapa: string; progresso: number; atividades: number; concluidas: number }>;
-  historico?: Array<{ id: string; tipo: string; data: string; obs: string; status: string }>;
+  displayName: string;
+  cpfOrPassport?: string | null;
+  phoneDigits?: string | null;
+  birthDate?: string | null;
+  uf?: string | null;
+  city?: string | null;
+  notes?: string | null;
+  educator?: { id: string; name: string; email?: string | null; phoneDigits?: string | null } | null;
 }
 
 interface LearnerSessionState {
@@ -109,7 +107,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
       setIsLoading(true);
       const [data, session] = await Promise.all([
         httpClient.get<LearnerDetail>(`/cadastros/alfabetizandos/${learnerId}`),
-        httpClient.get<LearnerSession>(`/painel/learner-sessions/${learnerId}`).catch(() => null),
+        httpClient.get<LearnerSession>(`/sessions/${learnerId}`).catch(() => null),
       ]);
       setLearner(data);
       setLearnerSession(session);
@@ -124,8 +122,8 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
     void loadLearner();
   }, [loadLearner]);
 
-  const titleName = learner?.nome || learnerName;
-  const phoneDigits = normalizeDigits(learner?.telefone);
+  const titleName = learner?.displayName || learnerName;
+  const phoneDigits = normalizeDigits(learner?.phoneDigits);
   const sessionState = learnerSession?.sessionState ?? null;
   const hasSession = Boolean(sessionState?.currentView || sessionState?.currentActivityId);
   const sessionUpdatedAt = sessionState?.updatedAt ?? learnerSession?.updatedAt;
@@ -188,43 +186,29 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
               <View style={styles.infoCard}>
                 <InfoRow
                   label="CPF ou passaporte"
-                  value={fallbackValue(learner?.cpf)}
+                  value={fallbackValue(learner?.cpfOrPassport)}
                   copyKey="cpf"
                   copiedKey={copiedKey}
                   onCopy={copyValue}
                 />
                 <InfoRow
                   label="Celular"
-                  value={formatPhone(learner?.telefone)}
+                  value={formatPhone(learner?.phoneDigits)}
                   copyKey="telefone"
                   copiedKey={copiedKey}
                   onCopy={copyValue}
                 />
                 <InfoRow
-                  label="Email"
-                  value={fallbackValue(learner?.email)}
-                  copyKey="email"
+                  label="Cidade / UF"
+                  value={fallbackValue(learner?.city && learner?.uf ? `${learner.city} / ${learner.uf}` : (learner?.city || learner?.uf))}
+                  copyKey="cidade"
                   copiedKey={copiedKey}
                   onCopy={copyValue}
                 />
                 <InfoRow
                   label="Tutor"
-                  value={fallbackValue(learner?.tutor || educatorName)}
+                  value={fallbackValue(learner?.educator?.name || educatorName)}
                   copyKey="tutor"
-                  copiedKey={copiedKey}
-                  onCopy={copyValue}
-                />
-                <InfoRow
-                  label="Etapa"
-                  value={fallbackValue(learner?.etapa || 'Etapa 1')}
-                  copyKey="etapa"
-                  copiedKey={copiedKey}
-                  onCopy={copyValue}
-                />
-                <InfoRow
-                  label="Status"
-                  value={fallbackValue(learner?.status)}
-                  copyKey="status"
                   copiedKey={copiedKey}
                   onCopy={copyValue}
                 />
@@ -277,31 +261,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Progresso</Text>
-                {learner?.progresso?.length ? (
-                  learner.progresso.map((item) => (
-                    <View key={item.etapa} style={styles.progressRow}>
-                      <Text style={styles.progressLabel}>{item.etapa}</Text>
-                      <Text style={styles.progressValue}>{item.progresso}%</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.mutedText}>Ainda não há progresso registrado.</Text>
-                )}
-              </View>
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Histórico recente</Text>
-                {learner?.historico?.length ? (
-                  learner.historico.slice(0, 3).map((item) => (
-                    <View key={item.id} style={styles.historyItem}>
-                      <Text style={styles.historyType}>{item.tipo}</Text>
-                      <Text style={styles.historyObs}>{item.obs}</Text>
-                      <Text style={styles.historyDate}>{item.data}</Text>
-                    </View>
-                  ))
-                ) : (
-                  <Text style={styles.mutedText}>Nenhum histórico recente.</Text>
-                )}
+                <Text style={styles.mutedText}>Acompanhe o progresso na tela inicial.</Text>
               </View>
             </>
           )}

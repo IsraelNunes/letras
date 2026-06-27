@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { SyncEntityType } from '@prisma/client';
@@ -8,6 +8,7 @@ import { CreateBlueprintDto } from './dto/create-blueprint.dto';
 import { CreateModuloDto } from './dto/create-modulo.dto';
 import { CreateTemaPainelDto } from './dto/create-tema.dto';
 import { ImportBlueprintManifestDto } from './dto/import-blueprint-manifest.dto';
+import { MarkTutorialProgressDto } from './dto/mark-tutorial-progress.dto';
 import { UploadAssetDto } from './dto/upload-asset.dto';
 import { PainelService } from './painel.service';
 import { TrackProgressDto } from '../progress/dto/track-progress.dto';
@@ -99,6 +100,42 @@ export class PainelController {
   @Get('progress/:learnerProfileId')
   getProgress(@Param('learnerProfileId') learnerProfileId: string) {
     return this.painelService.getCompletedActivityIds(learnerProfileId);
+  }
+
+  @Get('tutoriais')
+  async getTutoriais(@Headers('authorization') authorization: string | undefined) {
+    const educatorId = await this.painelService.resolveEducatorIdFromToken(authorization);
+    return this.painelService.getTutorials(educatorId);
+  }
+
+  @Post('tutoriais/:id/progresso')
+  async markTutorialProgress(
+    @Param('id') id: string,
+    @Body() dto: MarkTutorialProgressDto,
+    @Headers('authorization') authorization: string | undefined,
+  ) {
+    const educatorId = await this.painelService.resolveEducatorIdFromToken(authorization);
+    return this.painelService.markTutorialProgress(
+      id,
+      educatorId,
+      dto.markCompleted ?? false,
+      dto.positionSec ?? 0,
+    );
+  }
+
+  @Get('score/:learnerProfileId')
+  getLearnerScore(@Param('learnerProfileId') learnerProfileId: string) {
+    // Endpoint de leitura sem auth de learner (sistema sem token de learner por design).
+    // Retorna apenas contagens — sem PII.
+    return this.painelService.getLearnerScore(learnerProfileId);
+  }
+
+  @Post('support-requests')
+  createSupportRequest(@Body() body: { learnerProfileId?: string; activityId?: string; currentActivityId?: string }) {
+    // Learner não tem token — apenas registra helpRequestedAt sem alterar isLocked.
+    const learnerId = body.learnerProfileId;
+    if (!learnerId) throw new BadRequestException('learnerProfileId is required');
+    return this.painelService.createSupportRequest(learnerId, body.activityId ?? body.currentActivityId);
   }
 
   @Get('fila')

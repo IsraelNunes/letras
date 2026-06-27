@@ -15,6 +15,7 @@ import { EducatorScoreView } from '../../views/educator/EducatorScoreView';
 import { EducatorScoreRulesView } from '../../views/educator/EducatorScoreRulesView';
 import { EducatorTutoriaisView } from '../../views/educator/EducatorTutoriaisView';
 import { EducatorEtapaOrientacoesView } from '../../views/educator/EducatorEtapaOrientacoesView';
+import { EducatorSessionConfirmView } from '../../views/educator/EducatorSessionConfirmView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
@@ -147,6 +148,11 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorEtapaOrientacoes"
         component={EducatorEtapaOrientacoesView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorSessionConfirm"
+        component={EducatorSessionConfirmView}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

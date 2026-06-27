@@ -3,6 +3,7 @@ import { LearnerRootStackParamList } from '../../types';
 import { LearnerLoadingView } from '../../views/learner/LearnerLoadingView';
 import { LearnerFirstAccessGateView } from '../../views/learner/LearnerFirstAccessGateView';
 import { LearnerCpfLoginView } from '../../views/learner/LearnerCpfLoginView';
+import { LearnerSessionPendingView } from '../../views/learner/LearnerSessionPendingView';
 import { LearnerLinkStep1View } from '../../views/learner/LearnerLinkStep1View';
 import { LearnerLinkSuccessView } from '../../views/learner/LearnerLinkSuccessView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
@@ -39,6 +40,11 @@ export function LearnerNavigator() {
           name="LearnerCpfLogin"
           component={LearnerCpfLoginView}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerSessionPending"
+          component={LearnerSessionPendingView}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen
           name="LearnerLinkStep1"

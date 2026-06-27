@@ -32,6 +32,12 @@ enum TutorLearnerLinkStatus {
   DENIED
 }
 
+enum SessionRequestStatus {
+  PENDING
+  CONFIRMED
+  DENIED
+}
+
 enum ContentAssetKind {
   IMAGE
   VIDEO
@@ -98,11 +104,13 @@ model Educator {
   learners  LearnerProfile[]
   authSessions EducatorAuthSession[]
   tutorLearnerLinks TutorLearnerLink[] @relation("LinkEducator")
+  sessionRequests LearnerSessionRequest[]
   createdAssets ContentAsset[] @relation("AssetCreator")
   createdBlueprints MobileBlueprint[] @relation("BlueprintCreator")
   blueprintManifestImports BlueprintManifestImport[] @relation("BlueprintImporter")
   syncEvents SyncEvent[] @relation("SyncActor")
   scoreEvents EducatorScoreEvent[]
+  tutorialProgress EducatorTutorialProgress[]
 }
 
 model EducatorAuthSession {
@@ -138,6 +146,7 @@ model LearnerProfile {
   session      LearnerSession?
   completions  Completion[]
   tutorLearnerLinks TutorLearnerLink[]
+  sessionRequests LearnerSessionRequest[]
 
   @@index([educatorId])
   @@index([uf, city])
@@ -278,12 +287,14 @@ model ContentAsset {
   bytes               Int?
   durationSeconds     Int?
   checksum            String?
+  tags                String[]         @default([])
   createdByEducatorId String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
 
   createdByEducator   Educator?        @relation("AssetCreator", fields: [createdByEducatorId], references: [id], onDelete: SetNull)
   activityAssets      ActivityAsset[]
+  tutorialProgress    EducatorTutorialProgress[]
 
   @@index([kind, createdAt])
   @@index([createdByEducatorId])
@@ -366,4 +377,39 @@ model EducatorScoreEvent {
 
   @@index([educatorId, createdAt])
   @@index([learnerId])
+}
+
+model EducatorTutorialProgress {
+  id          String    @id @default(cuid())
+  educatorId  String
+  assetId     String
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  watchCount  Int       @default(0)
+  positionSec Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  educator    Educator     @relation(fields: [educatorId], references: [id], onDelete: Cascade)
+  asset       ContentAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([educatorId, assetId])
+  @@index([educatorId])
+  @@index([assetId])
+}
+
+model LearnerSessionRequest {
+  id               String               @id @default(cuid())
+  learnerProfileId String
+  educatorId       String
+  status           SessionRequestStatus @default(PENDING)
+  denialReason     String?
+  requestedAt      DateTime             @default(now())
+  respondedAt      DateTime?
+
+  learnerProfile   LearnerProfile       @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+  educator         Educator             @relation(fields: [educatorId], references: [id], onDelete: Cascade)
+
+  @@index([learnerProfileId])
+  @@index([educatorId, status])
 }

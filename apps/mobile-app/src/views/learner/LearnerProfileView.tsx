@@ -1,22 +1,20 @@
 import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAssets } from 'expo-asset';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SvgUri } from 'react-native-svg';
 import { httpClient } from '../../infra/api/http-client';
 import { SessionStorage } from '../../infra/storage/session-storage';
 import { LearnerRootStackParamList } from '../../types';
-import { EducatorBottomMenu } from '../educator/components/EducatorBottomMenu';
+import { LearnerScreenLayout } from './components/LearnerScreenLayout';
+import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerProfile'>;
 
@@ -41,12 +39,10 @@ interface LearnerProfileData {
 }
 
 export function LearnerProfileView({ navigation }: Props) {
+  const learnerSession = useLearnerSession();
   const [profile, setProfile] = useState<LearnerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const [assets] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
-  const logoUri = assets?.[0]?.localUri ?? assets?.[0]?.uri;
 
   useEffect(() => {
     let mounted = true;
@@ -77,21 +73,22 @@ export function LearnerProfileView({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <LearnerScreenLayout
+      activeMenu="perfil"
+      onMenuHome={() => navigation.navigate('LearnerHome')}
+      onMenuTrack={() => navigation.navigate('LearnerHome')}
+      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+      onMenuScore={() => navigation.navigate('LearnerScore')}
+      onMenuProfile={() => {}}
+      roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      isSessionLocked={learnerSession.isLocked}
+      sessionErrorMessage={learnerSession.errorMessage}
+    >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => navigation.canGoBack() ? navigation.goBack() : null} style={styles.backButton}>
           <Text style={styles.backText}>← Voltar</Text>
         </Pressable>
-
-        <View style={styles.header}>
-          <View style={styles.logoWrap}>
-            {logoUri ? (
-              <SvgUri uri={logoUri} width={84} height={50} />
-            ) : (
-              <ActivityIndicator size="small" color="#111827" />
-            )}
-          </View>
-        </View>
 
         {isLoading ? (
           <View style={styles.loadingBlock}>
@@ -130,16 +127,7 @@ export function LearnerProfileView({ navigation }: Props) {
           </View>
         ) : null}
       </ScrollView>
-
-      <EducatorBottomMenu
-        active="perfil"
-        onInicioPress={() => navigation.navigate('LearnerHome')}
-        onTutorialPress={() => navigation.navigate('LearnerHome')}
-        onAcompanharPress={() => navigation.navigate('LearnerHome')}
-        onPontuacaoPress={() => navigation.navigate('LearnerScore')}
-        onPerfilPress={() => {}}
-      />
-    </SafeAreaView>
+    </LearnerScreenLayout>
   );
 }
 
@@ -153,28 +141,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#ededed',
-  },
   container: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 130,
-    backgroundColor: '#ededed',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    paddingTop: 4,
+    paddingBottom: 24,
   },
   backButton: { paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 4 },
   backText: { fontSize: 15, color: '#20385f', fontWeight: '500' },
-  logoWrap: {
-    minHeight: 50,
-    justifyContent: 'center',
-  },
   loadingBlock: {
     marginTop: 80,
     alignItems: 'center',

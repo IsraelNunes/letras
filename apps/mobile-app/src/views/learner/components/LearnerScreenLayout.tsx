@@ -78,16 +78,15 @@ function RaisedHandIcon() {
   );
 }
 
-// Ícone de play para o banner de Tutorial de Apoio.
+// Ícone de play para o card de dica — círculo preto com triângulo branco.
 function PlayCircleIcon() {
   return (
-    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
       <Path
-        d="M10 2C5.6 2 2 5.6 2 10C2 14.4 5.6 18 10 18C14.4 18 18 14.4 18 10C18 5.6 14.4 2 10 2Z"
-        stroke="#ffffff"
-        strokeWidth={1.5}
+        d="M24 4C13 4 4 13 4 24C4 35 13 44 24 44C35 44 44 35 44 24C44 13 35 4 24 4Z"
+        fill="#111111"
       />
-      <Path d="M8 7.5L13.5 10L8 12.5V7.5Z" fill="#ffffff" />
+      <Path d="M20 17L33 24L20 31V17Z" fill="#ffffff" />
     </Svg>
   );
 }
@@ -139,7 +138,7 @@ export function LearnerScreenLayout({
 }: LearnerScreenLayoutProps) {
   const [hintOpen, setHintOpen] = useState(false);
   const hasHint = Boolean(hintVideoUrl);
-  const bottomPadding = hasHint ? 174 : 130;
+  const bottomPadding = hasHint ? 210 : 130;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -194,13 +193,18 @@ export function LearnerScreenLayout({
 
       {hasHint ? (
         <Pressable
-          style={styles.hintBanner}
+          style={styles.hintCard}
           onPress={() => setHintOpen(true)}
           accessibilityRole="button"
           accessibilityLabel="Abrir tutorial de apoio"
         >
+          <View style={styles.hintCardText}>
+            <Text style={styles.hintCardTitle}>Está com dúvidas?</Text>
+            <Text style={styles.hintCardBody}>
+              Confira o trecho do tutorial que explica sobre este tipo de atividade.
+            </Text>
+          </View>
           <PlayCircleIcon />
-          <Text style={styles.hintBannerText}>Tutorial de Apoio</Text>
         </Pressable>
       ) : null}
 
@@ -235,20 +239,37 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: 'center',
   },
-  hintBanner: {
+  hintCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1a1a2e',
-    paddingVertical: 10,
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 16,
+    paddingVertical: 14,
     paddingHorizontal: 18,
+    gap: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  hintBannerText: {
-    color: '#ffffff',
-    fontSize: 13,
+  hintCardText: {
+    flex: 1,
+    gap: 4,
+  },
+  hintCardTitle: {
+    color: '#111111',
+    fontSize: 14,
     fontWeight: '700',
-    letterSpacing: 0.3,
+    lineHeight: 20,
+  },
+  hintCardBody: {
+    color: '#555555',
+    fontSize: 13,
+    lineHeight: 18,
   },
   shell: {
     width: '100%',

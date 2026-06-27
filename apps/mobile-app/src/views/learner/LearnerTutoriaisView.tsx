@@ -19,7 +19,12 @@ export function LearnerTutoriaisView({ navigation }: Props) {
   return (
     <TutoriaisContent
       educatorId={educatorId}
-      onBack={() => navigation.navigate('LearnerHome')}
+      navigation={{
+        goBack: () => navigation.navigate('LearnerHome'),
+        navigate: (screen, params) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          navigation.navigate(screen as any, params as any),
+      }}
     />
   );
 }

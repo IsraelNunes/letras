@@ -81,6 +81,10 @@ export type EducatorRootStackParamList = {
     fullName?: string;
     themeId?: string;
   };
+  EducatorSessionConfirm: {
+    educatorId: string;
+    fullName: string;
+  };
 };
 
 export interface LearnerOnboardingData {
@@ -97,6 +101,12 @@ export type LearnerRootStackParamList = {
   LearnerLoading: undefined;
   LearnerFirstAccessGate: undefined;
   LearnerCpfLogin: undefined;
+  LearnerSessionPending: {
+    requestId: string;
+    learnerProfileId: string;
+    educatorId: string;
+    educatorName: string;
+  };
   LearnerLinkStep1: undefined;
   LearnerLinkSuccess: {
     learnerName: string;

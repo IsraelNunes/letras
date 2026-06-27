@@ -216,10 +216,12 @@ export function useLearnerHomeViewModel() {
           return;
         }
 
+        // O backend só aceita IN_PROGRESS e COMPLETED — LOCKED é estado local
+        const backendStatus = status === 'LOCKED' ? 'IN_PROGRESS' : status;
         await httpClient.post('/painel/progress', {
           learnerProfileId,
           activityId: canonicalActivityId,
-          status,
+          status: backendStatus,
           ...(typeof score === 'number' ? { score } : {}),
           ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
           ...(typeof attempts === 'number' ? { attempts } : {}),

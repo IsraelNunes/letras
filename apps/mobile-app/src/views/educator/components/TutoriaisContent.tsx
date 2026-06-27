@@ -1,7 +1,9 @@
+import { useAssets } from 'expo-asset';
 import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Image,
   Platform,
   Pressable,
   SafeAreaView,
@@ -11,55 +13,29 @@ import {
   View,
 } from 'react-native';
 import { ResizeMode, Video } from 'expo-av';
+import { SvgUri, SvgXml } from 'react-native-svg';
 import { httpClient } from '../../../infra/api/http-client';
+import {
+  formatDate,
+  formatDuration,
+  getCompletedTutorialCount,
+  isTutorialUnlocked,
+  sortTutorials,
+  Tutorial,
+} from './tutorialPresentation';
+import { EducatorBottomMenu } from './EducatorBottomMenu';
 
-export interface TutorialCompletion {
-  completed_at: string | null;
-  position_sec: number;
-  watch_count: number;
-  is_completed: boolean;
-}
-
-export interface Tutorial {
-  id: string;
-  slug: string | null;
-  title: string;
-  description: string | null;
-  kind: string;
-  duration_sec: number | null;
-  public_url: string | null;
-  tags: string[];
-  completion: TutorialCompletion | null;
-}
-
-function getTutorialOrder(tags: string[]): number {
-  for (const tag of tags) {
-    const match = tag.match(/tutorial-(\d+)/);
-    if (match) return parseInt(match[1], 10);
-  }
-  return 999;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
-
-function formatDuration(seconds: number | null): string {
-  if (!seconds) return '';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return s === 0 ? `${m} min` : `${m}:${String(s).padStart(2, '0')} min`;
-}
+const ICON_YT_PLAY = `<svg viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="#FF0000"/><path d="M45.02 23.97L27.04 13.46v21.08z" fill="#FFFFFF"/></svg>`;
 
 interface VideoOverlayProps {
   tutorial: Tutorial;
   educatorId: string;
+  logoUri?: string;
   onClose: () => void;
   onCompleted: (tutorialId: string) => void;
 }
 
-function VideoOverlay({ tutorial, educatorId, onClose, onCompleted }: VideoOverlayProps) {
+function VideoOverlay({ tutorial, educatorId, logoUri, onClose, onCompleted }: VideoOverlayProps) {
   const slideX = useRef(new Animated.Value(400)).current;
   const [markedCompleted, setMarkedCompleted] = useState(tutorial.completion?.is_completed === true);
 
@@ -85,106 +61,202 @@ function VideoOverlay({ tutorial, educatorId, onClose, onCompleted }: VideoOverl
     setMarkedCompleted(true);
     try {
       await httpClient.post(`/painel/tutoriais/${tutorial.id}/progresso`, {
-        educatorId,
         markCompleted: true,
         positionSec: tutorial.duration_sec ?? 0,
       });
       onCompleted(tutorial.id);
-    } catch { /* refetch on next open */ }
-  }, [educatorId, markedCompleted, onCompleted, tutorial.id, tutorial.duration_sec]);
+    } catch {
+      // Reconciliado no proximo fetch.
+    }
+  }, [educatorId, markedCompleted, onCompleted, tutorial.duration_sec, tutorial.id]);
 
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateX: slideX }] }]}>
       <View style={styles.overlayHeader}>
-        <Text style={styles.overlayTitle} numberOfLines={1}>{tutorial.title}</Text>
+        <View style={styles.overlayHeaderText}>
+          <Text style={styles.overlayEyebrow}>ASSISTINDO AGORA</Text>
+          <Text style={styles.overlayTitle} numberOfLines={2}>{tutorial.title}</Text>
+        </View>
+        {logoUri ? (
+          <View style={styles.overlayLogoWrap}>
+            <SvgUri uri={logoUri} width={52} height={30} />
+          </View>
+        ) : null}
         <Pressable
           onPress={handleClose}
           hitSlop={12}
           style={styles.overlayClose}
           accessibilityRole="button"
-          accessibilityLabel="Fechar vídeo"
+          accessibilityLabel="Fechar video"
         >
           <Text style={styles.overlayCloseText}>✕</Text>
         </Pressable>
       </View>
 
-      <View style={styles.overlayVideo}>
-        {tutorial.public_url ? (
-          Platform.OS === 'web'
-            ? createElement('video', {
-                src: tutorial.public_url,
-                controls: true,
-                autoPlay: true,
-                playsInline: true,
-                preload: 'auto',
-                style: {
-                  width: '100%',
-                  height: '100%',
-                  display: 'block',
-                  backgroundColor: '#000',
-                  objectFit: 'contain',
-                },
-              })
-            : (
-              <Video
-                source={{ uri: tutorial.public_url }}
-                style={styles.video}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                shouldPlay
-                isLooping={false}
-                onPlaybackStatusUpdate={(status) => {
-                  if (status.isLoaded && status.didJustFinish) {
-                    void markCompleted();
-                  }
-                }}
-              />
-            )
-        ) : (
-          <View style={styles.noVideoWrap}>
-            <Text style={styles.noVideoText}>Vídeo não configurado ainda.{'\n'}Acesse o painel web para configurar a URL.</Text>
+      <View style={styles.overlayBody}>
+        <View style={styles.overlayVideoCard}>
+          <View style={styles.overlayVideo}>
+            {tutorial.public_url ? (
+              Platform.OS === 'web'
+                ? createElement('video', {
+                    src: tutorial.public_url,
+                    controls: true,
+                    autoPlay: true,
+                    playsInline: true,
+                    preload: 'auto',
+                    onEnded: () => { void markCompleted(); },
+                    style: {
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                      backgroundColor: '#0f1720',
+                      objectFit: 'contain',
+                    },
+                  })
+                : (
+                  <Video
+                    source={{ uri: tutorial.public_url }}
+                    style={styles.video}
+                    useNativeControls
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay
+                    isLooping={false}
+                    onPlaybackStatusUpdate={(status) => {
+                      if (status.isLoaded && status.didJustFinish) {
+                        void markCompleted();
+                      }
+                    }}
+                  />
+                )
+            ) : (
+              <View style={styles.noVideoWrap}>
+                <Text style={styles.noVideoText}>
+                  Vídeo ainda não configurado.{'\n'}Defina a URL no painel antes de publicar.
+                </Text>
+              </View>
+            )}
           </View>
-        )}
+        </View>
       </View>
 
-      {markedCompleted ? (
-        <View style={styles.overlayCompletedBadge}>
-          <Text style={styles.overlayCompletedText}>✓ Marcado como assistido</Text>
-        </View>
-      ) : (
-        <Pressable style={styles.overlayCompleteBtn} onPress={() => void markCompleted()}>
-          <Text style={styles.overlayCompleteBtnText}>MARCAR COMO ASSISTIDO</Text>
-        </Pressable>
-      )}
+      <View style={styles.overlayFooter}>
+        {markedCompleted ? (
+          <View style={styles.overlayCompletedBadge}>
+            <Text style={styles.overlayCompletedText}>Tutorial concluído.</Text>
+          </View>
+        ) : (
+          <Pressable style={styles.overlayCompleteBtn} onPress={() => void markCompleted()}>
+            <Text style={styles.overlayCompleteBtnText}>MARCAR COMO ASSISTIDO</Text>
+          </Pressable>
+        )}
+      </View>
     </Animated.View>
+  );
+}
+
+const LOGO_PNG = require('../../../../assets/logo-letras-2.png');
+
+function TutorialThumbnail({
+  label,
+}: {
+  tutorial: Tutorial;
+  label: string;
+}) {
+  return (
+    <View style={styles.thumbnailShell}>
+      <View style={styles.thumbnailFallback} />
+
+      <View style={styles.thumbnailShade} />
+
+      <View style={styles.thumbnailPlayWrap}>
+        <SvgXml xml={ICON_YT_PLAY} width={42} height={30} />
+      </View>
+
+      <View style={styles.thumbnailLogoWrap}>
+        <Image source={LOGO_PNG} style={styles.thumbnailLogo} resizeMode="contain" />
+      </View>
+
+      <View style={styles.thumbnailLabelWrap}>
+        <Text style={styles.thumbnailLabel}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
+function TutorialCard({
+  tutorial,
+  index,
+  tutorials,
+  onPress,
+}: {
+  tutorial: Tutorial;
+  index: number;
+  tutorials: Tutorial[];
+  onPress: () => void;
+}) {
+  const unlocked = isTutorialUnlocked(tutorials, index);
+  const completed = tutorial.completion?.is_completed === true;
+  const paddedNumber = String(index + 1).padStart(2, '0');
+  const chipLabel = `VÍDEO ${index + 1}`;
+  const durationLabel = tutorial.duration_sec ? formatDuration(tutorial.duration_sec) : null;
+  const title = `Vídeo ${paddedNumber} - ${tutorial.title}${durationLabel ? ` - ${durationLabel}` : ''}`;
+
+  return (
+    <Pressable
+      style={[styles.card, !unlocked ? styles.cardLocked : null]}
+      onPress={onPress}
+      disabled={!unlocked}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+    >
+      <Text style={styles.cardTitle}>{title}</Text>
+      <View style={styles.cardRow}>
+        <TutorialThumbnail tutorial={tutorial} label={chipLabel} />
+        <View style={styles.cardMeta}>
+          {completed && tutorial.completion?.completed_at ? (
+            <>
+              <Text style={styles.cardMetaLabel}>Assistido em</Text>
+              <Text style={styles.cardMetaValue}>{formatDate(tutorial.completion.completed_at)}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.cardMetaLabel}>Não assistido.</Text>
+              <Text style={styles.cardMetaValue}>Assista para poder alfabetizar.</Text>
+            </>
+          )}
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
 interface TutoriaisContentProps {
   educatorId: string | undefined;
-  onBack: () => void;
+  navigation?: {
+    goBack: () => void;
+    navigate: (screen: string, params?: Record<string, unknown>) => void;
+  };
 }
 
-export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) {
+export function TutoriaisContent({ educatorId, navigation }: TutoriaisContentProps) {
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playingTutorial, setPlayingTutorial] = useState<Tutorial | null>(null);
+  const [brandAssets] = useAssets([require('../../../../assets/Logo-LETRAS-2.svg')]);
+  const brandLogoUri = brandAssets?.[0]?.localUri ?? brandAssets?.[0]?.uri;
 
   const fetchTutorials = useCallback(async () => {
-    if (!educatorId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await httpClient.get<Tutorial[]>(`/painel/tutoriais?educatorId=${educatorId}`);
-      const sorted = [...(raw ?? [])].sort(
-        (a, b) => getTutorialOrder(a.tags) - getTutorialOrder(b.tags),
-      );
-      setTutorials(sorted);
+      const raw = await httpClient.get<Tutorial[]>('/painel/tutoriais');
+      setTutorials(sortTutorials(raw ?? []));
     } catch {
       setError('Não foi possível carregar os tutoriais. Tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [educatorId]);
 
   useEffect(() => {
@@ -209,45 +281,29 @@ export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) 
     );
   }
 
-  function isTutorialUnlocked(index: number): boolean {
-    if (index === 0) return true;
-    return tutorials[index - 1]?.completion?.is_completed === true;
-  }
-
-  const completedCount = tutorials.filter((t) => t.completion?.is_completed).length;
+  const completedCount = getCompletedTutorialCount(tutorials);
   const total = tutorials.length;
-  const progressPct = total > 0 ? (completedCount / total) * 100 : 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* Header com logo */}
       <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          hitSlop={12}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <Text style={styles.backBtnText}>{'‹ Voltar'}</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Tutoriais</Text>
-        <View style={styles.backBtnPlaceholder} />
+        <View style={styles.logoWrap}>
+          {brandLogoUri
+            ? <SvgUri uri={brandLogoUri} width={84} height={50} />
+            : <View style={styles.logoPlaceholder} />}
+        </View>
       </View>
 
-      {total > 0 ? (
-        <View style={styles.progressSection}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
-          </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {total > 0 ? (
           <Text style={styles.progressLabel}>
-            {completedCount} de {total} assistidos
+            {completedCount} de {total} vídeos assistidos
           </Text>
-        </View>
-      ) : null}
+        ) : null}
 
-      <ScrollView contentContainerStyle={styles.list}>
         {isLoading ? (
-          <ActivityIndicator color="#20385f" style={styles.loader} />
+          <ActivityIndicator color="#111111" style={styles.loader} />
         ) : error ? (
           <View style={styles.errorWrap}>
             <Text style={styles.errorText}>{error}</Text>
@@ -260,69 +316,17 @@ export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) 
         ) : tutorials.length === 0 ? (
           <Text style={styles.emptyText}>Nenhum tutorial disponível no momento.</Text>
         ) : (
-          tutorials.map((tutorial, index) => {
-            const unlocked = isTutorialUnlocked(index);
-            const completed = tutorial.completion?.is_completed === true;
-            const inProgress = tutorial.completion !== null && !completed;
-
-            return (
-              <Pressable
+          <View style={styles.listWrap}>
+            {tutorials.map((tutorial, index) => (
+              <TutorialCard
                 key={tutorial.id}
-                style={[styles.card, !unlocked && styles.cardLocked]}
-                onPress={() => {
-                  if (unlocked) setPlayingTutorial(tutorial);
-                }}
-                disabled={!unlocked}
-                accessibilityRole="button"
-                accessibilityLabel={`Tutorial ${index + 1}: ${tutorial.title}`}
-              >
-                <View style={[styles.cardIndex, completed && styles.cardIndexDone]}>
-                  <Text style={[styles.cardIndexText, completed && styles.cardIndexTextDone]}>
-                    {completed ? '✓' : String(index + 1)}
-                  </Text>
-                </View>
-
-                <View style={styles.cardBody}>
-                  <Text
-                    style={[styles.cardTitle, !unlocked && styles.cardTitleLocked]}
-                    numberOfLines={2}
-                  >
-                    {tutorial.title}
-                  </Text>
-
-                  {tutorial.description ? (
-                    <Text style={styles.cardDesc} numberOfLines={3}>
-                      {tutorial.description}
-                    </Text>
-                  ) : null}
-
-                  <View style={styles.cardFooter}>
-                    {tutorial.duration_sec ? (
-                      <Text style={styles.cardDuration}>{formatDuration(tutorial.duration_sec)}</Text>
-                    ) : null}
-
-                    {completed ? (
-                      <Text style={styles.badgeDone}>
-                        Assistido em {formatDate(tutorial.completion!.completed_at!)}
-                      </Text>
-                    ) : inProgress ? (
-                      <Text style={styles.badgeInProgress}>Em andamento</Text>
-                    ) : !unlocked ? (
-                      <Text style={styles.badgeLocked}>🔒 Bloqueado</Text>
-                    ) : (
-                      <Text style={styles.badgePending}>Não assistido</Text>
-                    )}
-                  </View>
-                </View>
-
-                {unlocked && !completed ? (
-                  <View style={styles.playIcon}>
-                    <Text style={styles.playIconText}>▶</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })
+                tutorial={tutorial}
+                index={index}
+                tutorials={tutorials}
+                onPress={() => setPlayingTutorial(tutorial)}
+              />
+            ))}
+          </View>
         )}
       </ScrollView>
 
@@ -330,6 +334,7 @@ export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) 
         <VideoOverlay
           tutorial={playingTutorial}
           educatorId={educatorId}
+          logoUri={brandLogoUri}
           onClose={() => {
             setPlayingTutorial(null);
             void fetchTutorials();
@@ -337,6 +342,18 @@ export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) 
           onCompleted={handleCompleted}
         />
       ) : null}
+
+      <EducatorBottomMenu
+        active="tutorial"
+        onInicioPress={() => navigation?.goBack()}
+        onAcompanharPress={() => navigation?.goBack()}
+        onPontuacaoPress={() =>
+          educatorId
+            ? navigation?.navigate('EducatorScore', { educatorId, fullName: '' } as Record<string, unknown>)
+            : navigation?.goBack()
+        }
+        onPerfilPress={() => navigation?.navigate('EducatorProfile')}
+      />
     </SafeAreaView>
   );
 }
@@ -344,177 +361,120 @@ export function TutoriaisContent({ educatorId, onBack }: TutoriaisContentProps) 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
   },
-
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backBtn: {
-    minWidth: 70,
-  },
-  backBtnText: {
-    color: '#20385f',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  backBtnPlaceholder: {
-    minWidth: 70,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111111',
-  },
-
-  // Progress
-  progressSection: {
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 4,
+    paddingTop: 16,
+    paddingBottom: 12,
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
   },
-  progressTrack: {
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
-    overflow: 'hidden',
+  logoWrap: {
+    minHeight: 50,
+    justifyContent: 'center',
   },
-  progressFill: {
-    height: 6,
-    backgroundColor: '#20385f',
-    borderRadius: 3,
+  logoPlaceholder: {
+    width: 84,
+    height: 50,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
+    paddingTop: 4,
   },
   progressLabel: {
-    marginTop: 6,
-    marginBottom: 10,
     color: '#555555',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
+    marginBottom: 18,
   },
-
-  // List
-  list: {
-    padding: 16,
-    gap: 12,
+  listWrap: {
+    gap: 20,
+  },
+  card: {
+    gap: 10,
+  },
+  cardLocked: {
+    opacity: 0.5,
+  },
+  cardTitle: {
+    color: '#111111',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  thumbnailShell: {
+    width: 140,
+    height: 96,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#d9d9d9',
+    position: 'relative',
+    flexShrink: 0,
+  },
+  thumbnailFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#d9d9d9',
+  },
+  thumbnailShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  thumbnailPlayWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailLogoWrap: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+  },
+  thumbnailLogo: {
+    width: 44,
+    height: 26,
+  },
+  thumbnailLabelWrap: {
+    position: 'absolute',
+    left: 8,
+    right: 8,
+    bottom: 6,
+    backgroundColor: 'rgba(17,17,17,0.75)',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  thumbnailLabel: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  cardMeta: {
+    flex: 1,
+    paddingTop: 4,
+  },
+  cardMetaLabel: {
+    color: '#888888',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  cardMetaValue: {
+    color: '#888888',
+    fontSize: 13,
+    lineHeight: 19,
   },
   loader: {
     marginTop: 40,
   },
-
-  // Card
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 10,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  cardLocked: {
-    opacity: 0.55,
-    backgroundColor: '#f9fafb',
-  },
-  cardIndex: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  cardIndexDone: {
-    backgroundColor: '#20385f',
-  },
-  cardIndexText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#555555',
-  },
-  cardIndexTextDone: {
-    color: '#ffffff',
-  },
-  cardBody: {
-    flex: 1,
-    gap: 4,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
-    lineHeight: 20,
-  },
-  cardTitleLocked: {
-    color: '#888888',
-  },
-  cardDesc: {
-    fontSize: 13,
-    color: '#555555',
-    lineHeight: 18,
-  },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 6,
-    flexWrap: 'wrap',
-  },
-  cardDuration: {
-    fontSize: 11,
-    color: '#888888',
-    fontWeight: '500',
-  },
-  badgeDone: {
-    fontSize: 11,
-    color: '#15803d',
-    fontWeight: '700',
-  },
-  badgeInProgress: {
-    fontSize: 11,
-    color: '#b45309',
-    fontWeight: '700',
-  },
-  badgeLocked: {
-    fontSize: 11,
-    color: '#888888',
-    fontWeight: '600',
-  },
-  badgePending: {
-    fontSize: 11,
-    color: '#555555',
-    fontWeight: '600',
-  },
-  playIcon: {
-    alignSelf: 'center',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#20385f',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  playIconText: {
-    color: '#ffffff',
-    fontSize: 12,
-    marginLeft: 2,
-  },
-
-  // Error / empty
   errorWrap: {
     marginTop: 40,
     alignItems: 'center',
@@ -529,12 +489,12 @@ const styles = StyleSheet.create({
   retryBtn: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#20385f',
+    borderColor: '#111111',
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
   retryBtnText: {
-    color: '#20385f',
+    color: '#111111',
     fontSize: 14,
     fontWeight: '700',
   },
@@ -544,52 +504,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-
-  // Video overlay
   overlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#000000',
+    backgroundColor: '#ffffff',
     zIndex: 100,
   },
   overlayHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: 18,
-    paddingVertical: 14,
-    backgroundColor: '#111111',
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e4e4',
     gap: 12,
   },
-  overlayTitle: {
+  overlayHeaderText: {
     flex: 1,
-    color: '#ffffff',
-    fontSize: 15,
+    gap: 4,
+  },
+  overlayEyebrow: {
+    color: '#111111',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
+  overlayTitle: {
+    color: '#111111',
+    fontSize: 16,
     fontWeight: '700',
+    lineHeight: 22,
+  },
+  overlayLogoWrap: {
+    marginTop: 2,
   },
   overlayClose: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
     alignItems: 'center',
     justifyContent: 'center',
   },
   overlayCloseText: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: '#111111',
+    fontSize: 12,
     fontWeight: '700',
+  },
+  overlayBody: {
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+  overlayVideoCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 22,
+    padding: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e4e4e4',
   },
   overlayVideo: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#0f1720',
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   video: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#0f1720',
   },
   noVideoWrap: {
     flex: 1,
@@ -598,13 +590,18 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   noVideoText: {
-    color: '#aaaaaa',
+    color: '#d3d6db',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 22,
   },
+  overlayFooter: {
+    paddingHorizontal: 10,
+    paddingBottom: 14,
+  },
   overlayCompleteBtn: {
-    backgroundColor: '#20385f',
+    backgroundColor: '#111111',
+    borderRadius: 18,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -615,13 +612,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   overlayCompletedBadge: {
-    backgroundColor: '#166534',
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
     paddingVertical: 14,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#111111',
   },
   overlayCompletedText: {
-    color: '#ffffff',
+    color: '#111111',
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

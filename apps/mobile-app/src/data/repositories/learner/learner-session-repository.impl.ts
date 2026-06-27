@@ -7,6 +7,7 @@ import {
   LearnerSessionRepository,
   LearnerSessionStateSnapshot,
   RegisterLearnerInput,
+  SessionRequestResult,
 } from '../../../domain/interfaces/learner/learner-session-repository';
 import { httpClient } from '../../../infra/api/http-client';
 import { SessionStorage } from '../../../infra/storage/session-storage';
@@ -62,6 +63,10 @@ export class LearnerSessionRepositoryImpl implements LearnerSessionRepository {
     if (cpfOrPassport) params.set('cpfOrPassport', cpfOrPassport);
     if (phoneDigits) params.set('phoneDigits', phoneDigits);
     return httpClient.get<LearnerLookupResult>(`/cadastros/alfabetizandos/buscar?${params.toString()}`);
+  }
+
+  createSessionRequest(dto: { learnerProfileId: string; educatorId: string }): Promise<SessionRequestResult> {
+    return httpClient.post<SessionRequestResult>('/cadastros/sessoes-confirmacao', dto);
   }
 
   async getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]> {

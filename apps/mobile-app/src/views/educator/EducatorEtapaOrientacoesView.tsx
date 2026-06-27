@@ -82,14 +82,12 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
   const [stageInfo, setStageInfo] = useState<StageInfo | null>(null);
   const [introVideo, setIntroVideo] = useState<StageIntroVideo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const educatorName = fullName?.trim() || 'Alfabetizador';
   const guidance = getGuidance(stageNumber);
 
   const loadStageInfo = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
     try {
       const params = themeId ? `?themeId=${themeId}` : '';
       const stages = await httpClient.get<StageInfo[]>(`/painel/conteudo/etapas${params}`);
@@ -106,7 +104,7 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
         }
       }
     } catch {
-      setError('Não foi possível carregar as orientações desta etapa.');
+      // API não disponível — mostra orientações estáticas sem erro
     } finally {
       setIsLoading(false);
     }
@@ -161,13 +159,6 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
 
         {isLoading ? (
           <ActivityIndicator style={styles.loader} color="#111827" />
-        ) : error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.retryButton} onPress={() => void loadStageInfo()}>
-              <Text style={styles.retryText}>TENTAR NOVAMENTE</Text>
-            </Pressable>
-          </View>
         ) : (
           <>
             {/* Descrição da etapa */}
