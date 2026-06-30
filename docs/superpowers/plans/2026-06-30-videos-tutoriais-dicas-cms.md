@@ -51,30 +51,33 @@ Substituir TODO o conteúdo do arquivo por:
 //   1. activity.hint_video_id explícito (escolhido no painel web) — vence sempre.
 //   2. este mapa por tipo de tela — quando não há vínculo explícito.
 //
+// Telas sem clipe correspondente NÃO mostram o card "Está com dúvidas?" no
+// fallback (retorna null). Decisão de produto: não exibir um vídeo que não
+// explica aquela atividade — o apoio em vídeo dessas telas vem só de um
+// hint_video_id vinculado à atividade no painel web.
+//
 // Conteúdo dos clipes referenciados (confirmado por transcrição em 2026-06-30):
 //   etapa2-formas-cores — sistema de formas e cores p/ o aluno navegar
 //   geral-e-simples     — "parece complicado, mas não é" (encorajamento genérico)
 
-const DEFAULT_HINT_SLUG = 'geral-e-simples';
-
 const HINT_SLUG_BY_TEMPLATE: Record<string, string> = {
   // Exercício de marcar imagens/caixas — navegação por formas e cores.
   'exercise-mark-images': 'etapa2-formas-cores',
-  // Exercício de encontrar a letra — sem clipe específico; encorajamento.
-  'exercise-match-letter': DEFAULT_HINT_SLUG,
-  // Tela de conteúdo/mídia.
-  'default': DEFAULT_HINT_SLUG,
-  // Tela bloqueada aguardando apoio.
-  'locked': DEFAULT_HINT_SLUG,
+  // Tela de conteúdo/mídia — encorajamento genérico.
+  'default': 'geral-e-simples',
+  // Tela bloqueada aguardando apoio — encorajamento genérico.
+  'locked': 'geral-e-simples',
+  // 'exercise-match-letter' propositalmente AUSENTE: nenhum dos 14 vídeos
+  // explica achar-a-letra; sem fallback, só vínculo explícito no painel.
 };
 
-// Retorna o slug do clipe de dica mais relevante para um screenTemplate.
-// A existência (ou não) do slug no media_library decide se a dica aparece.
+// Retorna o slug do clipe de dica para um screenTemplate, ou null quando não
+// há clipe de fallback para aquele tipo de tela (o card não é exibido).
 export function getHintSlugForTemplate(
   screenTemplate: string | null | undefined,
-): string {
-  if (!screenTemplate) return DEFAULT_HINT_SLUG;
-  return HINT_SLUG_BY_TEMPLATE[screenTemplate] ?? DEFAULT_HINT_SLUG;
+): string | null {
+  if (!screenTemplate) return null;
+  return HINT_SLUG_BY_TEMPLATE[screenTemplate] ?? null;
 }
 ```
 
@@ -110,8 +113,10 @@ function resolveHintVideoUrl(
     if (media) return media.public_url || media.storage_path || null;
   }
   // 2) Fallback por tipo de tela: slug → URL no media_library (CMS).
-  //    Se o slug não existir na biblioteca, retorna null (sem dica).
+  //    Sem slug para o template (ex.: achar-a-letra) ou slug ausente da
+  //    biblioteca → retorna null e o card "Está com dúvidas?" não aparece.
   const slug = getHintSlugForTemplate(screenTemplate);
+  if (!slug) return null;
   const media = mediaBySlug.get(slug);
   return media ? media.public_url || media.storage_path || null : null;
 }
@@ -302,11 +307,11 @@ git commit -m "fix(mobile): aba de tutoriais do alfabetizando em estado 'em brev
 
 ---
 
-## Task 4 (opcional, aguarda decisão do usuário): reclassificar `papel-alfabetizador`
+## Task 4 (confirmada): reclassificar `papel-alfabetizador` → `tutorial`
 
-> Só executar se o usuário confirmar. `etapa2-papel-alfabetizador` é instrução
-> pura do papel do educador; pode fazer mais sentido como `tutorial` (apareceria
-> na capacitação) do que como `dica`. Não afeta código — só dado no `media_library`.
+> Confirmado pelo usuário em 2026-06-30. `etapa2-papel-alfabetizador` é instrução
+> pura do papel do educador → vai para a capacitação (`kind=tutorial`). Não afeta
+> código — só dado no `media_library`.
 
 - [ ] **Step 1: Atualizar o `kind` via REST (PATCH)**
 
@@ -338,7 +343,7 @@ git commit --allow-empty -m "chore(cms): papel-alfabetizador reclassificado de d
 - **6 `tutorial`** → tela de Tutoriais do educador (Task 2). [7 se Task 4]
 - **3 `intro-etapa`** → aberturas de Etapa 1/2/3 (já funciona, sem mudança).
 - **1 `intro-modulo`** (`etapa2-formas-cores`) → usado como dica de `exercise-mark-images` via fallback (Task 1). Wiring numa tela de abertura de módulo fica como follow-up.
-- **4 `dica`** → `geral-e-simples` entra pelo fallback default; `transicao`, `papel-alfabetizador`, `autonomia-celular` ficam disponíveis no seletor `hint_video_id` do painel web (vínculo explícito por atividade). [papel-alfabetizador sai daqui se Task 4]
+- **3 `dica`** (após Task 4) → `geral-e-simples` entra pelo fallback de `default`/`locked`; `transicao` e `autonomia-celular` ficam disponíveis no seletor `hint_video_id` do painel web (vínculo explícito por atividade). Telas de achar-a-letra não têm fallback (só vínculo explícito).
 
 ## Self-review (feito)
 
