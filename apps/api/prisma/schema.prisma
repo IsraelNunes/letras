@@ -111,6 +111,7 @@ model Educator {
   syncEvents SyncEvent[] @relation("SyncActor")
   scoreEvents EducatorScoreEvent[]
   tutorialProgress EducatorTutorialProgress[]
+  notifications Notification[] @relation("EducatorNotifications")
 }
 
 model EducatorAuthSession {
@@ -413,4 +414,30 @@ model LearnerSessionRequest {
 
   @@index([learnerProfileId])
   @@index([educatorId, status])
+}
+
+enum NotificationType {
+  HELP_REQUEST
+  AUTO_LOCK
+  POINTS_EARNED
+  SUPPORT_DEADLINE
+  MILESTONE
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  educatorId String
+  learnerId  String?
+  type       NotificationType
+  title      String
+  body       String?
+  deadlineAt DateTime?
+  metadata   Json?
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  educator   Educator         @relation("EducatorNotifications", fields: [educatorId], references: [id], onDelete: Cascade)
+
+  @@index([educatorId, createdAt])
+  @@index([educatorId, readAt])
 }
