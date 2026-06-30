@@ -1,4 +1,4 @@
-import { getHintVideoForTemplate } from './hintVideos';
+import { getHintSlugForTemplate } from './hintVideos';
 
 export type LearnerMediaKind = 'video' | 'audio' | 'image' | null;
 export type LearnerScreenTemplate =
@@ -949,21 +949,33 @@ function isPublishedActivity(value: { is_published?: boolean } | null | undefine
 function resolveHintVideoUrl(
   hintVideoId: string | null | undefined,
   mediaById: Map<string, PainelMediaLibraryItem>,
+  mediaBySlug: Map<string, PainelMediaLibraryItem>,
+  screenTemplate: LearnerScreenTemplate | null = null,
 ): string | null {
+  // 1) Vínculo explícito feito no painel web: o autor escolheu a dica desta
+  //    atividade. Tem prioridade absoluta. URL vem do media_library.
   if (hintVideoId) {
     const media = mediaById.get(hintVideoId);
     if (media) return media.public_url || media.storage_path || null;
   }
-  // Fallback: vídeo completo via EXPO_PUBLIC_HINT_VIDEOS_BASE_URL.
-  // Quando a variável não está configurada, getHintVideoForTemplate retorna
-  // null e nenhuma dica é exibida.
-  return getHintVideoForTemplate(null);
+  // 2) Fallback por tipo de tela: slug → URL no media_library (CMS).
+  //    Sem slug para o template (ex.: achar-a-letra) ou slug ausente da
+  //    biblioteca → retorna null e o card "Está com dúvidas?" não aparece.
+  const slug = getHintSlugForTemplate(screenTemplate);
+  if (!slug) return null;
+  const media = mediaBySlug.get(slug);
+  return media ? media.public_url || media.storage_path || null : null;
 }
 
 export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {
   const mediaById = new Map<string, PainelMediaLibraryItem>();
   for (const item of payload.mediaLibrary || []) {
     if (item.id) mediaById.set(item.id, item);
+  }
+
+  const mediaBySlug = new Map<string, PainelMediaLibraryItem>();
+  for (const item of payload.mediaLibrary || []) {
+    if (item.slug) mediaBySlug.set(item.slug, item);
   }
 
   const themes = [...(payload.themes || [])]
@@ -1015,11 +1027,18 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           const instructions = getActivityInstructions(activity);
           const compositeBlocks = getCompositeBlocks(instructions);
           if (compositeBlocks) {
-            const hintVideoUrl = resolveHintVideoUrl(activity.hint_video_id, mediaById);
-            return compositeBlocks.map((block, blockIndex) => ({
-              ...mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
-              hintVideoUrl,
-            }));
+            return compositeBlocks.map((block, blockIndex) => {
+              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
+              return {
+                ...mappedScreen,
+                hintVideoUrl: resolveHintVideoUrl(
+                  activity.hint_video_id,
+                  mediaById,
+                  mediaBySlug,
+                  mappedScreen.screenTemplate,
+                ),
+              };
+            });
           }
 
           const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
@@ -1044,7 +1063,12 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
               activityIndex === Math.floor((activities.length - 1) / 2) && activities.length > 2
                 ? 'Metade da aula! Continue assim!'
                 : null,
-            hintVideoUrl: resolveHintVideoUrl(activity.hint_video_id, mediaById),
+            hintVideoUrl: resolveHintVideoUrl(
+              activity.hint_video_id,
+              mediaById,
+              mediaBySlug,
+              guidanceFromInstruction.screenTemplate,
+            ),
             followUpActivity: followUpAsset
               ? ({
                   id: `${activity.id}-followup`,
@@ -1212,11 +1236,18 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           const instructions = getActivityInstructions(activity);
           const compositeBlocks = getCompositeBlocks(instructions);
           if (compositeBlocks) {
-            const hintVideoUrl = resolveHintVideoUrl(activity.hint_video_id, mediaById);
-            return compositeBlocks.map((block, blockIndex) => ({
-              ...mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
-              hintVideoUrl,
-            }));
+            return compositeBlocks.map((block, blockIndex) => {
+              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
+              return {
+                ...mappedScreen,
+                hintVideoUrl: resolveHintVideoUrl(
+                  activity.hint_video_id,
+                  mediaById,
+                  mediaBySlug,
+                  mappedScreen.screenTemplate,
+                ),
+              };
+            });
           }
 
           const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
@@ -1236,7 +1267,12 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
               activityIndex === Math.floor((unitActivities.length - 1) / 2) && unitActivities.length > 2
                 ? 'Metade da aula! Continue assim!'
                 : null,
-            hintVideoUrl: resolveHintVideoUrl(activity.hint_video_id, mediaById),
+            hintVideoUrl: resolveHintVideoUrl(
+              activity.hint_video_id,
+              mediaById,
+              mediaBySlug,
+              guidanceFromInstruction.screenTemplate,
+            ),
             followUpActivity: followUpAsset
               ? ({
                   id: `${activity.id}-followup`,
