@@ -255,10 +255,15 @@ export function TutoriaisContent({ educatorId, navigation }: TutoriaisContentPro
   const brandLogoUri = brandAssets?.[0]?.localUri ?? brandAssets?.[0]?.uri;
 
   const fetchTutorials = useCallback(async () => {
+    // A API Express de produção exige educatorId em /painel/tutoriais.
+    if (!educatorId) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const raw = await httpClient.get<Tutorial[]>('/painel/tutoriais');
+      const raw = await httpClient.get<Tutorial[]>(`/painel/tutoriais?educatorId=${educatorId}`);
       // A tela de Tutoriais do educador mostra só a capacitação obrigatória
       // (kind=tutorial). intro-etapa/intro-modulo aparecem nas aberturas de
       // etapa/módulo; dica aparece no card de apoio das atividades.

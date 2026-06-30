@@ -212,7 +212,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
     setTutorialsLoading(true);
     try {
-      const raw = await httpClient.get<Tutorial[]>('/painel/tutoriais');
+      const raw = await httpClient.get<Tutorial[]>(`/painel/tutoriais?educatorId=${educatorId}`);
       setTutorials(sortTutorials(raw ?? []));
     } catch {
       setTutorials([]);
