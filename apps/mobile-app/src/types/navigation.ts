@@ -85,6 +85,9 @@ export type EducatorRootStackParamList = {
     educatorId: string;
     fullName: string;
   };
+  EducatorNotificacoes: {
+    educatorId?: string;
+  };
 };
 
 export interface LearnerOnboardingData {
