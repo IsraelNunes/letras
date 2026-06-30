@@ -1,7 +1,8 @@
 import { useAssets } from 'expo-asset';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SvgUri } from 'react-native-svg';
 import { learnerTheme } from '../learnerTheme';
+import { BellIcon } from '../../shared/BellIcon';
 
 interface LearnerHeaderBarProps {
   roleLabel?: string;
@@ -22,7 +23,7 @@ export function LearnerHeaderBar({ learnerName, stageLabel }: LearnerHeaderBarPr
         </View>
         <View style={styles.rightCol}>
           <View style={styles.notificationWrap}>
-            <Image source={require('../../../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <BellIcon size={22} />
           </View>
         </View>
       </View>

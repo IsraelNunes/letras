@@ -1,4 +1,5 @@
 import { useAssets } from 'expo-asset';
+import { BellIcon } from '../shared/BellIcon';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -124,7 +125,7 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
             )}
           </View>
           <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <BellIcon size={22} />
           </Pressable>
         </View>
 

@@ -2,7 +2,6 @@ import { useAssets } from 'expo-asset';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { BellIcon } from '../shared/BellIcon';
 import { LearnerRootStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerOnboardingStep1'>;
@@ -108,7 +108,7 @@ export function LearnerOnboardingStep1View({ navigation, route }: Props) {
             )}
           </View>
           <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <BellIcon size={22} />
           </Pressable>
         </View>
 
