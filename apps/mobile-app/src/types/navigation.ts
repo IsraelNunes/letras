@@ -154,6 +154,7 @@ export type LearnerRootStackParamList = {
 };
 
 export type RootStackParamList = {
-  EducatorFlow: undefined;
-  LearnerFlow: undefined;
+  UnifiedLogin: undefined;
+  EducatorFlow: import('@react-navigation/native').NavigatorScreenParams<EducatorRootStackParamList> | undefined;
+  LearnerFlow: import('@react-navigation/native').NavigatorScreenParams<LearnerRootStackParamList> | undefined;
 };
