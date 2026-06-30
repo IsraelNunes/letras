@@ -16,8 +16,8 @@ export function EducatorBell({ educatorId }: { educatorId?: string }) {
       let active = true;
       if (educatorId) {
         void httpClient
-          .get<{ unreadCount: number }>(`/painel/notificacoes?educatorId=${educatorId}&onlyUnread=true`)
-          .then((r) => { if (active) setUnread(r?.unreadCount ?? 0); })
+          .get<{ unread: number }>(`/painel/notifications?recipientId=${educatorId}&recipientRole=tutor&unreadOnly=true`)
+          .then((r) => { if (active) setUnread(r?.unread ?? 0); })
           .catch(() => {});
       }
       return () => { active = false; };

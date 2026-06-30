@@ -10,12 +10,14 @@ import { BellIcon } from '../shared/BellIcon';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorNotificacoes'>;
 
+// Shape da API Express de produção (educator_notifications).
 interface NotificationItem {
   id: string;
   type: string;
   title: string;
   body: string | null;
-  createdAt: string;
+  created_at: string;
+  read_at?: string | null;
 }
 
 function formatStamp(iso: string): string {
@@ -24,10 +26,6 @@ function formatStamp(iso: string): string {
   const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return `${data}, às ${hora}.`;
 }
-
-// Tipos com linha de timestamp separada (Figma). SUPPORT_DEADLINE e MILESTONE
-// já trazem o tempo embutido no corpo, então não repetem a linha.
-const STAMPED = new Set(['HELP_REQUEST', 'AUTO_LOCK', 'POINTS_EARNED']);
 
 export function EducatorNotificacoesView({ navigation, route }: Props) {
   const [educatorId, setEducatorId] = useState<string | undefined>(route.params?.educatorId);
@@ -54,9 +52,18 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await httpClient.get<{ items: NotificationItem[] }>(`/painel/notificacoes?educatorId=${educatorId}`);
-      setItems(res?.items ?? []);
-      void httpClient.post('/painel/notificacoes/marcar-lidas', { educatorId });
+      // API Express de produção: notificações do educador são recipient-based.
+      const res = await httpClient.get<{ items: NotificationItem[]; unread: number }>(
+        `/painel/notifications?recipientId=${educatorId}&recipientRole=tutor`,
+      );
+      const list = res?.items ?? [];
+      setItems(list);
+      // Marca as não-lidas como lidas ao abrir (Express: PATCH por id).
+      for (const n of list) {
+        if (!n.read_at) {
+          void httpClient.patch(`/painel/notifications/${n.id}/read`, {});
+        }
+      }
     } catch {
       setError('Não foi possível carregar as notificações. Tente novamente.');
     } finally {
@@ -95,7 +102,7 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
               <View key={n.id} style={styles.item}>
                 <Text style={styles.itemTitle}>{n.title}</Text>
                 {n.body ? <Text style={styles.itemBody}>{n.body}</Text> : null}
-                {STAMPED.has(n.type) ? <Text style={styles.itemStamp}>{formatStamp(n.createdAt)}</Text> : null}
+                <Text style={styles.itemStamp}>{formatStamp(n.created_at)}</Text>
               </View>
             ))}
           </View>
