@@ -10,6 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SessionService } from '../../modules/session/session.service';
+import { NotificationsService } from '../../modules/notifications/notifications.service';
 import { HelpEventDto } from '../dto/help-event.dto';
 import { LearnerStateUpdateDto } from '../dto/learner-state-update.dto';
 import { RoomEventDto } from '../dto/room-event.dto';
@@ -28,6 +29,7 @@ export class SessionGateway implements OnGatewayInit, OnGatewayConnection, OnGat
   constructor(
     private readonly sessionService: SessionService,
     private readonly presenceService: PresenceService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   afterInit(server: Server): void {
@@ -130,6 +132,7 @@ export class SessionGateway implements OnGatewayInit, OnGatewayConnection, OnGat
     const educatorId = await this.sessionService.getEducatorIdForLearner(payload.learnerProfileId);
     if (educatorId) {
       this.server.to(`educator-${educatorId}`).emit('lock_set', event);
+      await this.notifications.notifyAutoLock(educatorId, payload.learnerProfileId);
     }
 
     return { ok: true };
@@ -171,6 +174,7 @@ export class SessionGateway implements OnGatewayInit, OnGatewayConnection, OnGat
     const educatorId = await this.sessionService.getEducatorIdForLearner(payload.learnerProfileId);
     if (educatorId) {
       this.server.to(`educator-${educatorId}`).emit('help_requested', event);
+      await this.notifications.notifyHelpRequest(educatorId, payload.learnerProfileId);
     }
 
     return { ok: true };
