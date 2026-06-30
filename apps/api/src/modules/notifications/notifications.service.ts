@@ -45,8 +45,11 @@ export class NotificationsService {
 
   private async createSupportDeadline(educatorId: string, learnerId: string, nome: string) {
     const deadline = new Date(Date.now() + SUPPORT_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
-    const hora = deadline.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const data = deadline.toLocaleDateString('pt-BR');
+    // Produto Brasil-only: formata no fuso de Brasília explicitamente, senão um
+    // servidor em UTC gravaria a hora errada no corpo da notificação.
+    const TZ = 'America/Sao_Paulo';
+    const hora = deadline.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+    const data = deadline.toLocaleDateString('pt-BR', { timeZone: TZ });
     await this.create({
       educatorId,
       learnerId,

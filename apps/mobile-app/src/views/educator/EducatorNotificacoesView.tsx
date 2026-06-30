@@ -47,7 +47,10 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
   }, [educatorId]);
 
   const fetchNotifs = useCallback(async () => {
-    if (!educatorId) return;
+    if (!educatorId) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -120,7 +123,7 @@ const styles = StyleSheet.create({
   item: { gap: 2 },
   itemTitle: { color: '#111111', fontSize: 15, fontWeight: '700', lineHeight: 22 },
   itemBody: { color: '#111111', fontSize: 14, lineHeight: 21 },
-  itemStamp: { color: '#111111', fontSize: 14, lineHeight: 21 },
+  itemStamp: { color: '#888888', fontSize: 14, lineHeight: 21 },
   loader: { marginTop: 40 },
   empty: { marginTop: 40, color: '#888888', fontSize: 14 },
   errorWrap: { marginTop: 40, alignItems: 'center', gap: 14 },
