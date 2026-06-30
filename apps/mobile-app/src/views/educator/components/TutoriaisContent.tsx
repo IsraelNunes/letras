@@ -157,14 +157,20 @@ function VideoOverlay({ tutorial, educatorId, logoUri, onClose, onCompleted }: V
 const LOGO_PNG = require('../../../../assets/logo-letras-2.png');
 
 function TutorialThumbnail({
+  tutorial,
   label,
 }: {
   tutorial: Tutorial;
   label: string;
 }) {
+  const thumbUrl = tutorial.metadata?.thumbnail_url as string | undefined;
   return (
     <View style={styles.thumbnailShell}>
-      <View style={styles.thumbnailFallback} />
+      {thumbUrl ? (
+        <Image source={{ uri: thumbUrl }} style={styles.thumbnailImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.thumbnailFallback} />
+      )}
 
       <View style={styles.thumbnailShade} />
 
@@ -172,9 +178,11 @@ function TutorialThumbnail({
         <SvgXml xml={ICON_YT_PLAY} width={42} height={30} />
       </View>
 
-      <View style={styles.thumbnailLogoWrap}>
-        <Image source={LOGO_PNG} style={styles.thumbnailLogo} resizeMode="contain" />
-      </View>
+      {!thumbUrl ? (
+        <View style={styles.thumbnailLogoWrap}>
+          <Image source={LOGO_PNG} style={styles.thumbnailLogo} resizeMode="contain" />
+        </View>
+      ) : null}
 
       <View style={styles.thumbnailLabelWrap}>
         <Text style={styles.thumbnailLabel}>{label}</Text>
@@ -251,7 +259,11 @@ export function TutoriaisContent({ educatorId, navigation }: TutoriaisContentPro
     setError(null);
     try {
       const raw = await httpClient.get<Tutorial[]>('/painel/tutoriais');
-      setTutorials(sortTutorials(raw ?? []));
+      // A tela de Tutoriais do educador mostra só a capacitação obrigatória
+      // (kind=tutorial). intro-etapa/intro-modulo aparecem nas aberturas de
+      // etapa/módulo; dica aparece no card de apoio das atividades.
+      const capacitacao = (raw ?? []).filter((t) => t.kind === 'tutorial');
+      setTutorials(sortTutorials(capacitacao));
     } catch {
       setError('Não foi possível carregar os tutoriais. Tente novamente.');
     } finally {
@@ -418,6 +430,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#d9d9d9',
     position: 'relative',
     flexShrink: 0,
+  },
+  thumbnailImage: {
+    ...StyleSheet.absoluteFillObject,
   },
   thumbnailFallback: {
     ...StyleSheet.absoluteFillObject,
