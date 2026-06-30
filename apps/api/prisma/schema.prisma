@@ -27,9 +27,9 @@ enum CompletionStatus {
 }
 
 enum TutorLearnerLinkStatus {
-  PENDING
-  CONFIRMED
-  DENIED
+  PENDING   @map("PENDENTE")
+  CONFIRMED @map("CONFIRMADO")
+  DENIED    @map("NEGADO")
 }
 
 enum SessionRequestStatus {
@@ -256,19 +256,20 @@ model Completion {
 }
 
 model TutorLearnerLink {
-  id               String                @id @default(cuid())
-  educatorId       String
-  learnerProfileId String
+  id               String                 @id @default(cuid())
+  educatorId       String                 @map("tutorId")
+  learnerProfileId String                 @map("learnerId")
   status           TutorLearnerLinkStatus @default(PENDING)
   requestedBy      String?
-  requestedAt      DateTime              @default(now())
-  respondedAt      DateTime?
-  responseReason   String?
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
+  requestedAt      DateTime               @default(now())
+  decidedBy        String?
+  respondedAt      DateTime?              @map("decidedAt")
+  responseReason   String?                @map("reason")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
-  educator         Educator              @relation("LinkEducator", fields: [educatorId], references: [id], onDelete: Cascade)
-  learnerProfile   LearnerProfile        @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
+  educator         Educator               @relation("LinkEducator", fields: [educatorId], references: [id], onDelete: Cascade)
+  learnerProfile   LearnerProfile         @relation(fields: [learnerProfileId], references: [id], onDelete: Cascade)
 
   @@unique([educatorId, learnerProfileId])
   @@index([status, requestedAt])
