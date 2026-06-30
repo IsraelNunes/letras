@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAssets } from 'expo-asset';
 import {
   ActivityIndicator,
-  Image,
   Linking,
   Platform,
   Pressable,
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorBell } from '../shared/EducatorBell';
 import { httpClient } from '../../infra/api/http-client';
 import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
@@ -161,16 +161,7 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
               <ActivityIndicator size="small" color="#111827" />
             )}
           </View>
-          <Pressable
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('EducatorHome', {
-              fullName: educatorName,
-              educatorId,
-              openNotifications: true,
-            })}
-          >
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-          </Pressable>
+          <EducatorBell educatorId={educatorId} />
         </View>
 
         <View style={styles.body}>

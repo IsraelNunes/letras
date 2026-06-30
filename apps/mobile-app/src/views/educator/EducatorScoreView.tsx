@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
+import { EducatorBell } from '../shared/EducatorBell';
 import { EducatorStorage } from '../../infra/storage/educator-storage';
 import { useEducatorScoreViewModel } from '../../viewmodels/educator/useEducatorScoreViewModel';
 import { EducatorRootStackParamList } from '../../types';
@@ -85,9 +86,7 @@ export function EducatorScoreView({ route, navigation }: Props) {
             <View style={{ width: 84, height: 50 }} />
           )}
         </View>
-        <Pressable onPress={() => navigation.navigate('EducatorHome', { fullName, educatorId })}>
-          <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-        </Pressable>
+        <EducatorBell educatorId={educatorId} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
