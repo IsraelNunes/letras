@@ -13,13 +13,34 @@ import { UploadAssetDto } from './dto/upload-asset.dto';
 import { PainelService } from './painel.service';
 import { TrackProgressDto } from '../progress/dto/track-progress.dto';
 import { ProgressService } from '../progress/progress.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('painel')
 export class PainelController {
   constructor(
     private readonly painelService: PainelService,
     private readonly progressService: ProgressService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  @Get('notificacoes')
+  getNotificacoes(
+    @Query('educatorId') educatorId?: string,
+    @Query('onlyUnread') onlyUnread?: string,
+  ) {
+    if (!educatorId) {
+      throw new BadRequestException('educatorId is required');
+    }
+    return this.notificationsService.list(educatorId, onlyUnread === 'true');
+  }
+
+  @Post('notificacoes/marcar-lidas')
+  markNotificacoesLidas(@Body() body: { educatorId?: string; ids?: string[] }) {
+    if (!body?.educatorId) {
+      throw new BadRequestException('educatorId is required');
+    }
+    return this.notificationsService.markRead(body.educatorId, body.ids);
+  }
 
   @Get('dashboard/admin')
   getDashboardAdmin() {
