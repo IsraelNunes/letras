@@ -121,9 +121,10 @@ export function UnifiedLoginView({ navigation }: Props) {
           return;
         }
 
-        // Alfabetizando sem educador vinculado: acesso direto
-        await SessionStorage.setLearnerProfileId(learner.id);
-        navigation.navigate('LearnerFlow', { screen: 'LearnerHome' });
+        // Aluno sem educador vinculado: NÃO liberar acesso direto (RN084/RN101).
+        // Encaminha para o fluxo de Vinculação para solicitar o vínculo ao
+        // alfabetizador. Só entra no app após a confirmação do alfabetizador.
+        navigation.navigate('LearnerFlow', { screen: 'LearnerLinkStep1' });
         return;
       } catch (learnerError) {
         if (!isNotFoundError(learnerError)) throw learnerError;
