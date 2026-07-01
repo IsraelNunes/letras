@@ -1,8 +1,9 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { EducatorBottomMenu } from '../../educator/components/EducatorBottomMenu';
 import { LearnerHeaderBar } from './LearnerHeaderBar';
+import { LearnerHintVideoOverlay } from './LearnerHintVideoOverlay';
 import { learnerTheme } from '../learnerTheme';
 
 // Cruz grande sobreposta ao banner AGUARDANDO AJUDA. Segue o desenho do
@@ -77,6 +78,19 @@ function RaisedHandIcon() {
   );
 }
 
+// Ícone de play para o card de dica — círculo preto com triângulo branco.
+function PlayCircleIcon() {
+  return (
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M24 4C13 4 4 13 4 24C4 35 13 44 24 44C35 44 44 35 44 24C44 13 35 4 24 4Z"
+        fill="#111111"
+      />
+      <Path d="M20 17L33 24L20 31V17Z" fill="#ffffff" />
+    </Svg>
+  );
+}
+
 type MenuKey = 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
 
 interface LearnerScreenLayoutProps extends PropsWithChildren {
@@ -87,6 +101,8 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
   onMenuScore?: () => void;
   onMenuProfile?: () => void;
   roleLabel?: string;
+  learnerName?: string | null;
+  stageLabel?: string | null;
   isSessionLocked?: boolean;
   onRequestHelp?: () => void;
   helpAcknowledgedAt?: string | null;
@@ -98,6 +114,7 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
   // tela de exercicio quando o aluno trava (3 erros).
   canRequestHelp?: boolean;
   sessionErrorMessage?: string | null;
+  hintVideoUrl?: string | null;
 }
 
 export function LearnerScreenLayout({
@@ -109,18 +126,25 @@ export function LearnerScreenLayout({
   onMenuScore,
   onMenuProfile,
   roleLabel,
+  learnerName,
+  stageLabel,
   isSessionLocked = false,
   onRequestHelp,
   helpAcknowledgedAt,
   isHelpPending = false,
   canRequestHelp = false,
   sessionErrorMessage,
+  hintVideoUrl,
 }: LearnerScreenLayoutProps) {
+  const [hintOpen, setHintOpen] = useState(false);
+  const hasHint = Boolean(hintVideoUrl);
+  const bottomPadding = hasHint ? 210 : 130;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]}>
         <View style={styles.shell}>
-          <LearnerHeaderBar roleLabel={roleLabel} />
+          <LearnerHeaderBar roleLabel={roleLabel} learnerName={learnerName} stageLabel={stageLabel} />
           {sessionErrorMessage ? (
             <View style={styles.alertError}>
               <Text style={styles.alertErrorText}>{sessionErrorMessage}</Text>
@@ -166,6 +190,24 @@ export function LearnerScreenLayout({
           <View style={styles.body}>{children}</View>
         </View>
       </ScrollView>
+
+      {hasHint ? (
+        <Pressable
+          style={styles.hintCard}
+          onPress={() => setHintOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir tutorial de apoio"
+        >
+          <View style={styles.hintCardText}>
+            <Text style={styles.hintCardTitle}>Está com dúvidas?</Text>
+            <Text style={styles.hintCardBody}>
+              Confira o trecho do tutorial que explica sobre este tipo de atividade.
+            </Text>
+          </View>
+          <PlayCircleIcon />
+        </Pressable>
+      ) : null}
+
       <EducatorBottomMenu
         active={activeMenu}
         onInicioPress={onMenuHome}
@@ -174,6 +216,13 @@ export function LearnerScreenLayout({
         onPontuacaoPress={onMenuScore}
         onPerfilPress={onMenuProfile}
       />
+
+      {hintOpen && hintVideoUrl ? (
+        <LearnerHintVideoOverlay
+          videoUrl={hintVideoUrl}
+          onClose={() => setHintOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -188,8 +237,39 @@ const styles = StyleSheet.create({
     backgroundColor: learnerTheme.background,
     paddingHorizontal: 22,
     paddingTop: 20,
-    paddingBottom: 130,
     alignItems: 'center',
+  },
+  hintCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    gap: 12,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  hintCardText: {
+    flex: 1,
+    gap: 4,
+  },
+  hintCardTitle: {
+    color: '#111111',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  hintCardBody: {
+    color: '#555555',
+    fontSize: 13,
+    lineHeight: 18,
   },
   shell: {
     width: '100%',

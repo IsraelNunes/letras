@@ -218,7 +218,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const isLockedByTemplate = screen.screenTemplate === 'locked';
   const isLocked = isLockedByTemplate || exerciseLocked || learnerSession.isLocked;
   const isInteractionLocked = isLocked || showReinforcement;
-  const expectedSelections = Math.max(1, screen.exercise?.expectedSelections ?? 1);
+  // Quando expectedSelections não está definido no payload do exercício (schema
+  // letras-stage2-v1 sem o campo), infere pela contagem de itens corretos antes
+  // de cair no fallback 1 — evita que exercícios com N respostas corretas sejam
+  // concluídos com apenas 1 seleção.
+  const expectedSelections = Math.max(
+    1,
+    screen.exercise?.expectedSelections
+      ?? screen.exercise?.items.filter((item) => item.isCorrectTarget).length
+      ?? 1,
+  );
   const selectedImageCount = selectedImageIds.length;
   const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
 
@@ -994,21 +1003,26 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     return null;
   };
 
+  const stageLabel = `tela ${safeIndex + 1} de ${totalScreens} · Etapa ${lesson.stageNumber ?? 2}`;
+
   return (
     <LearnerScreenLayout
       activeMenu="acompanhar"
       onMenuHome={() => navigation.navigate('LearnerHome')}
       onMenuTrack={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerHome')}
-      onMenuScore={() => navigation.navigate('LearnerHome')}
+      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+      onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       canRequestHelp={exerciseLocked}
       sessionErrorMessage={learnerSession.errorMessage}
+      hintVideoUrl={screen.hintVideoUrl ?? null}
     >
       <View style={styles.wrapper}>
         <View style={styles.progressHeader}>
@@ -1142,7 +1156,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   progressHeader: {
-    display: 'none',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1158,7 +1171,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   progressTrack: {
-    display: 'none',
     height: 10,
     borderRadius: 8,
     backgroundColor: learnerTheme.border,

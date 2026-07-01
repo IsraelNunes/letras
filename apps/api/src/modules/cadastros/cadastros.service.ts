@@ -1,5 +1,7 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, SyncAction, SyncEntityType, TutorLearnerLinkStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Prisma, SessionRequestStatus, SyncAction, SyncEntityType, TutorLearnerLinkStatus } from '@prisma/client';
+import { CreateSessionRequestDto } from './dto/create-session-request.dto';
+import { RespondSessionRequestDto } from './dto/respond-session-request.dto';
 import { hashPassword } from '../../common/security/password-hash';
 import { SyncEventService } from '../../common/sync/sync-event.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -29,6 +31,38 @@ export class CadastrosService {
         createdAt: 'desc',
       },
     });
+  }
+
+  async getAlfabetizadorById(id: string, authorization: string | undefined) {
+    await this.resolveEducatorIdFromToken(authorization);
+    const educator = await this.prisma.educator.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneDigits: true,
+        city: true,
+        uf: true,
+        linkedin: true,
+        facebook: true,
+        instagram: true,
+        xHandle: true,
+        totalScore: true,
+      },
+    });
+    if (!educator) {
+      throw new NotFoundException(`Alfabetizador ${id} não encontrado.`);
+    }
+    return {
+      ...educator,
+      socials: {
+        linkedin: educator.linkedin,
+        facebook: educator.facebook,
+        instagram: educator.instagram,
+        xHandle: educator.xHandle,
+      },
+    };
   }
 
   async createAlfabetizador(dto: CreateAlfabetizadorDto) {
@@ -114,7 +148,22 @@ export class CadastrosService {
       throw new BadRequestException('Forneça cpfOrPassport ou phoneDigits para buscar.');
     }
 
-    const where = cpfOrPassport ? { cpfOrPassport } : { phoneDigits };
+    let where: { cpfOrPassport?: string; phoneDigits?: string | null; OR?: { cpfOrPassport: string }[] };
+    if (cpfOrPassport) {
+      const digitsOnly = cpfOrPassport.replace(/\D/g, '');
+      const candidates = new Set([cpfOrPassport]);
+      if (digitsOnly !== cpfOrPassport) candidates.add(digitsOnly);
+      if (digitsOnly === cpfOrPassport && digitsOnly.length === 11) {
+        const d = digitsOnly;
+        candidates.add(`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`);
+      }
+      const list = [...candidates];
+      where = list.length === 1
+        ? { cpfOrPassport: list[0] }
+        : { OR: list.map((v) => ({ cpfOrPassport: v })) };
+    } else {
+      where = { phoneDigits };
+    }
 
     const learner = await this.prisma.learnerProfile.findFirst({
       where,
@@ -135,7 +184,14 @@ export class CadastrosService {
     return learner;
   }
 
-  async getAlfabetizandoById(id: string) {
+  async getAlfabetizandoById(id: string, authorization: string | undefined) {
+    // If an educator token is present, verify ownership before returning full PII.
+    // Without a token the learner can view their own profile (limited educator fields).
+    let requestingEducatorId: string | null = null;
+    if (authorization) {
+      requestingEducatorId = await this.resolveEducatorIdFromToken(authorization);
+    }
+
     const learner = await this.prisma.learnerProfile.findUnique({
       where: { id },
       select: {
@@ -175,11 +231,22 @@ export class CadastrosService {
       throw new NotFoundException(`Alfabetizando ${id} nao encontrado.`);
     }
 
+    // Educator requests: must be the educator assigned to this learner.
+    if (requestingEducatorId !== null && requestingEducatorId !== learner.educatorId) {
+      throw new UnauthorizedException('Sem permissão para visualizar este alfabetizando.');
+    }
+
     const completedCount = learner.completions.filter((completion) => completion.status === 'COMPLETED').length;
     const totalTracked = learner.completions.length;
 
+    // Unauthenticated (learner self-access): strip educator's private contact fields.
+    const educatorView = requestingEducatorId !== null
+      ? learner.educator
+      : learner.educator ? { id: learner.educator.id, name: learner.educator.name } : null;
+
     return {
       ...learner,
+      educator: educatorView,
       progresso: {
         totalTracked,
         completedCount,
@@ -375,6 +442,94 @@ export class CadastrosService {
     if (!learner) {
       throw new NotFoundException(`Alfabetizando ${id} nao encontrado.`);
     }
+  }
+
+  async createSessionRequest(dto: CreateSessionRequestDto) {
+    // Verify the learner exists and is actually linked to the claimed educator.
+    // This prevents unauthenticated callers from injecting or cancelling session requests
+    // for arbitrary educator–learner pairs.
+    const learner = await this.prisma.learnerProfile.findUnique({
+      where: { id: dto.learnerProfileId },
+      select: { id: true, educatorId: true },
+    });
+    if (!learner) throw new NotFoundException('Alfabetizando não encontrado.');
+    if (learner.educatorId !== dto.educatorId) {
+      throw new BadRequestException('Educador não corresponde ao vínculo do alfabetizando.');
+    }
+
+    // Cancela solicitações pendentes anteriores do mesmo alfabetizando
+    await this.prisma.learnerSessionRequest.updateMany({
+      where: { learnerProfileId: dto.learnerProfileId, status: SessionRequestStatus.PENDING },
+      data: { status: SessionRequestStatus.DENIED, denialReason: 'Substituída por nova solicitação', respondedAt: new Date() },
+    });
+
+    return this.prisma.learnerSessionRequest.create({
+      data: {
+        learnerProfileId: dto.learnerProfileId,
+        educatorId: dto.educatorId,
+      },
+      select: { id: true, status: true, requestedAt: true },
+    });
+  }
+
+  getSessionRequestStatus(requestId: string) {
+    return this.prisma.learnerSessionRequest.findUniqueOrThrow({
+      where: { id: requestId },
+      select: { id: true, status: true, denialReason: true, respondedAt: true },
+    });
+  }
+
+  async getPendingSessionRequests(authorization: string | undefined) {
+    const educatorId = await this.resolveEducatorIdFromToken(authorization);
+    return this.prisma.learnerSessionRequest.findMany({
+      where: { educatorId, status: SessionRequestStatus.PENDING },
+      include: {
+        learnerProfile: {
+          select: { id: true, displayName: true, cpfOrPassport: true },
+        },
+      },
+      orderBy: { requestedAt: 'asc' },
+    });
+  }
+
+  async respondToSessionRequest(requestId: string, dto: RespondSessionRequestDto, authorization: string | undefined) {
+    const actorEducatorId = await this.resolveEducatorIdFromToken(authorization);
+
+    const req = await this.prisma.learnerSessionRequest.findUnique({
+      where: { id: requestId },
+      select: { id: true, status: true, educatorId: true },
+    });
+
+    if (!req) throw new NotFoundException('Solicitação de sessão não encontrada.');
+    if (req.educatorId !== actorEducatorId) throw new BadRequestException('Sem permissão para responder esta solicitação.');
+    if (req.status !== SessionRequestStatus.PENDING) throw new BadRequestException('Solicitação já foi respondida.');
+
+    return this.prisma.learnerSessionRequest.update({
+      where: { id: requestId },
+      data: {
+        status: dto.status === 'CONFIRMED' ? SessionRequestStatus.CONFIRMED : SessionRequestStatus.DENIED,
+        denialReason: dto.denialReason ?? null,
+        respondedAt: new Date(),
+      },
+      select: { id: true, status: true, denialReason: true, respondedAt: true },
+    });
+  }
+
+  private async resolveEducatorIdFromToken(authorization: string | undefined): Promise<string> {
+    if (!authorization) throw new UnauthorizedException('Token ausente.');
+    const [type, token] = authorization.split(' ');
+    if (type?.toLowerCase() !== 'bearer' || !token) throw new UnauthorizedException('Token inválido.');
+
+    const session = await this.prisma.educatorAuthSession.findUnique({
+      where: { token: token.trim() },
+      select: { educatorId: true, revokedAt: true, expiresAt: true },
+    });
+
+    if (!session || session.revokedAt || session.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Sessão inválida ou expirada.');
+    }
+
+    return session.educatorId;
   }
 
   private handlePrismaConflict(error: unknown, fallbackMessage: string): never {

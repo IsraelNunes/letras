@@ -3,12 +3,16 @@ import { LearnerRootStackParamList } from '../../types';
 import { LearnerLoadingView } from '../../views/learner/LearnerLoadingView';
 import { LearnerFirstAccessGateView } from '../../views/learner/LearnerFirstAccessGateView';
 import { LearnerCpfLoginView } from '../../views/learner/LearnerCpfLoginView';
+import { LearnerSessionPendingView } from '../../views/learner/LearnerSessionPendingView';
 import { LearnerLinkStep1View } from '../../views/learner/LearnerLinkStep1View';
 import { LearnerLinkSuccessView } from '../../views/learner/LearnerLinkSuccessView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
 import { LearnerHomeView } from '../../views/learner/LearnerHomeView';
+import { LearnerTutoriaisView } from '../../views/learner/LearnerTutoriaisView';
+import { LearnerPontuacaoView } from '../../views/learner/LearnerPontuacaoView';
+import { LearnerStageConclusionView } from '../../views/learner/LearnerStageConclusionView';
 import { LearnerProfileView } from '../../views/learner/LearnerProfileView';
 import { LearnerLessonIntroView } from '../../views/learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../../views/learner/LearnerLessonScreenView';
@@ -36,6 +40,11 @@ export function LearnerNavigator() {
           name="LearnerCpfLogin"
           component={LearnerCpfLoginView}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerSessionPending"
+          component={LearnerSessionPendingView}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen
           name="LearnerLinkStep1"
@@ -66,6 +75,21 @@ export function LearnerNavigator() {
           name="LearnerHome"
           component={LearnerHomeView}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerTutorials"
+          component={LearnerTutoriaisView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerScore"
+          component={LearnerPontuacaoView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerStageConclusion"
+          component={LearnerStageConclusionView}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen
           name="LearnerProfile"

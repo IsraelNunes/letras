@@ -36,7 +36,7 @@ const linking = {
   prefixes: ['https://mobile.letras.cloud', 'mobile.letras.cloud://'],
   config: {
     screens: {
-      AppModeGate: '',
+      UnifiedLogin: '',
       EducatorFlow: {
         path: 'educador',
         screens: {

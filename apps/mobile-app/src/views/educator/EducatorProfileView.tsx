@@ -1,5 +1,6 @@
 import { ReferenceCity, ReferenceUf } from '@letras/shared-types';
 import { useAssets } from 'expo-asset';
+import { EducatorBell } from '../shared/EducatorBell';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -367,12 +368,7 @@ export function EducatorProfileView({ navigation }: Props) {
             {logoUri ? <SvgUri uri={logoUri} width={84} height={50} /> : <ActivityIndicator size="small" color="#111827" />}
           </View>
 
-          <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>1</Text>
-            </View>
-          </Pressable>
+          <EducatorBell educatorId={educatorId ?? undefined} />
         </View>
 
         {isLoadingProfile ? (

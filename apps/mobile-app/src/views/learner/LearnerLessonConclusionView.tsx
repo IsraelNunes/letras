@@ -13,9 +13,17 @@ type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonCon
 
 export function LearnerLessonConclusionView({ navigation, route }: Props) {
   const { moduleId, lessonId, moduleLabel, moduleTitle } = route.params;
-  const { getLesson } = useLearnerFlowData();
+  const { getLesson, modules, completedLessonIds } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
+
+  const moduleData = modules.find((m) => m.id === moduleId);
+  const totalLessons = moduleData?.lessons.length ?? 1;
+  const lessonIndex = moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? 0;
+  // Conta quantas aulas do módulo já estão concluídas (incluindo a atual)
+  const completedInModule = moduleData?.lessons.filter((l) => completedLessonIds.has(l.progressId)).length ?? 1;
+  const progressPercent = Math.min(100, Math.round((completedInModule / totalLessons) * 100));
   const lesson = getLesson(moduleId, lessonId);
+  const stageLabel = lesson?.stageNumber ? `Etapa ${lesson.stageNumber}` : null;
   // Garante que o POST /progress de conclusao da aula seja disparado
   // uma unica vez por entrada na tela de conclusao, mesmo que o
   // useFocusEffect rode multiplas vezes (re-render, foco recuperado).
@@ -70,6 +78,25 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       return;
     }
 
+    // Check if this lesson's stage is now fully completed
+    const stageNumber = lesson?.stageNumber;
+    if (stageNumber) {
+      const allLessonsInStage = modules
+        .flatMap((m) => m.lessons)
+        .filter((l) => l.stageNumber === stageNumber);
+
+      const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
+      const stageFullyDone = allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));
+
+      if (stageFullyDone) {
+        navigation.navigate('LearnerStageConclusion', {
+          stageNumber,
+          stageTitle: `Etapa ${stageNumber}`,
+        });
+        return;
+      }
+    }
+
     if (navigation.canGoBack()) {
       navigation.popToTop();
       return;
@@ -82,10 +109,12 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
       activeMenu="acompanhar"
       onMenuHome={() => navigation.navigate('LearnerHome')}
       onMenuTrack={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerHome')}
-      onMenuScore={() => navigation.navigate('LearnerHome')}
+      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+      onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para encerrar a aula.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
@@ -107,9 +136,11 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
         <View style={styles.progressCard}>
           <Text style={styles.progressTitle}>{moduleTitle.toUpperCase()}</Text>
           <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
           </View>
-          <Text style={styles.progressText}>1 de 1 aulas</Text>
+          <Text style={styles.progressText}>
+            {lessonIndex + 1} de {totalLessons} {totalLessons === 1 ? 'aula' : 'aulas'}
+          </Text>
         </View>
 
         <View style={styles.pointsCard}>

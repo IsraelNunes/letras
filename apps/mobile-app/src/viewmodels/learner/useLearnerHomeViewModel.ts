@@ -49,6 +49,7 @@ export function useLearnerHomeViewModel() {
   const [learnerProfileId, setLearnerProfileId] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [themeNames, setThemeNames] = useState<string[]>([]);
+  const [learnerName, setLearnerName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [polledIsLocked, setPolledIsLocked] = useState(false);
@@ -89,6 +90,17 @@ export function useLearnerHomeViewModel() {
 
       const themes = await repository.getAssignedThemes(session.learnerProfileId);
       setThemeNames(themes.map((item) => item.theme.name));
+
+      if (!isLocalFallbackProfile) {
+        try {
+          const profile = await httpClient.get<{ displayName?: string }>(
+            `/cadastros/alfabetizandos/${session.learnerProfileId}`,
+          );
+          if (profile.displayName) setLearnerName(profile.displayName);
+        } catch {
+          // não crítico — cabeçalho funciona sem o nome
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar sessao';
       const normalized = message.toLowerCase();
@@ -203,10 +215,12 @@ export function useLearnerHomeViewModel() {
           return;
         }
 
+        // O backend só aceita IN_PROGRESS e COMPLETED — LOCKED é estado local
+        const backendStatus = status === 'LOCKED' ? 'IN_PROGRESS' : status;
         await httpClient.post('/painel/progress', {
           learnerProfileId,
           activityId: canonicalActivityId,
-          status,
+          status: backendStatus,
           ...(typeof score === 'number' ? { score } : {}),
           ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
           ...(typeof attempts === 'number' ? { attempts } : {}),
@@ -263,13 +277,21 @@ export function useLearnerHomeViewModel() {
     };
   }, [learnerProfileId, repository]);
 
+  useEffect(() => {
+    // O snapshot HTTP e a fonte canonica do lock. O realtime so antecipa a
+    // mudanca de UI; se o evento de unlock se perder, o proximo poll precisa
+    // conseguir destravar a sessao em vez de ficar preso no ultimo `true`.
+    setPolledIsLocked(realtime.isLocked);
+  }, [realtime.isLocked]);
+
   return {
     loading,
     errorMessage,
     learnerProfileId,
+    learnerName,
     deviceId,
     themeNames,
-    isLocked: realtime.isLocked || polledIsLocked,
+    isLocked: polledIsLocked,
     presence: realtime.presence,
     helpAcknowledgedAt: realtime.helpAcknowledgedAt,
     helpRequestedAt,

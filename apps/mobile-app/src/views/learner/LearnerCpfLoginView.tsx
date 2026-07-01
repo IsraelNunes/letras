@@ -73,7 +73,25 @@ export function LearnerCpfLoginView({ navigation }: Props) {
     if (!isValid || isLoading) return;
     setIsLoading(true);
     try {
-      const learner = await repository.lookupLearner(cpfOrPassport.trim(), undefined);
+      const query = looksLikeCpf ? normalizeDigits(cpfOrPassport) : cpfOrPassport.trim().toUpperCase();
+      const learner = await repository.lookupLearner(query, undefined);
+
+      // Se o alfabetizando já tem educador vinculado, exige confirmação por sessão
+      if (learner.educator) {
+        const result = await repository.createSessionRequest({
+          learnerProfileId: learner.id,
+          educatorId: learner.educator.id,
+        });
+        navigation.navigate('LearnerSessionPending', {
+          requestId: result.id,
+          learnerProfileId: learner.id,
+          educatorId: learner.educator.id,
+          educatorName: learner.educator.name,
+        });
+        return;
+      }
+
+      // Sem educador vinculado: acesso direto (primeiro acesso / demo)
       await SessionStorage.setLearnerProfileId(learner.id);
       if (session) await session.initialize();
       navigation.reset({ index: 0, routes: [{ name: 'LearnerHome' }] });

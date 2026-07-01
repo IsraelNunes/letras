@@ -204,20 +204,27 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
     navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
   };
 
+  const stageLabel = lesson
+    ? `tela ${safeIndex + 1} de ${totalScreens} · Etapa ${lesson.stageNumber ?? 2}`
+    : null;
+
   return (
     <LearnerScreenLayout
       activeMenu="acompanhar"
       onMenuHome={() => navigation.navigate('LearnerHome')}
       onMenuTrack={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerHome')}
-      onMenuScore={() => navigation.navigate('LearnerHome')}
+      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+      onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       roleLabel="alfabetizando"
+      learnerName={learnerSession.learnerName}
+      stageLabel={stageLabel}
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda na atividade complementar.')}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       sessionErrorMessage={learnerSession.errorMessage}
+      hintVideoUrl={screen.hintVideoUrl ?? null}
     >
       <View style={styles.wrapper}>
         <Text style={styles.title}>{activity.title}</Text>
@@ -234,7 +241,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
         {activity.mediaKind === 'image' && didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da atividade</Text>
-            <Text style={styles.mediaErrorText}>Não foi possível carregar este asset. Verifique o link no CMS.</Text>
+            <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia. Verifique o link em Aulas e Mídias.</Text>
           </View>
         ) : null}
 

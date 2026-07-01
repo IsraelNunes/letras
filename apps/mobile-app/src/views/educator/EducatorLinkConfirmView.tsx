@@ -78,7 +78,7 @@ export function EducatorLinkConfirmView({ navigation, route }: Props) {
     setIsSubmitting(true);
     try {
       await httpClient.patch(`/cadastros/vinculos/${link.id}`, {
-        status: 'REJECTED',
+        status: 'DENIED',
         actorEducatorId: educatorId,
       });
       navigation.goBack();

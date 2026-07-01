@@ -46,9 +46,16 @@ export interface RegisterLearnerInput {
   educatorId?: string;
 }
 
+export interface SessionRequestResult {
+  id: string;
+  status: string;
+  requestedAt: string;
+}
+
 export interface LearnerSessionRepository {
   bootstrapPersistentSession(): Promise<BootstrappedLearnerSession>;
   lookupLearner(cpfOrPassport?: string, phoneDigits?: string): Promise<LearnerLookupResult>;
+  createSessionRequest(dto: { learnerProfileId: string; educatorId: string }): Promise<SessionRequestResult>;
   registerLearner(input: RegisterLearnerInput, deviceId: string): Promise<string>;
   getAssignedThemes(learnerProfileId: string): Promise<AssignedLearnerTheme[]>;
   getSessionState(learnerProfileId: string): Promise<LearnerSessionStateSnapshot | null>;

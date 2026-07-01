@@ -37,6 +37,9 @@ export type EducatorRootStackParamList = {
     educatorId?: string;
     openNotifications?: boolean;
   };
+  EducatorTutorials: {
+    educatorId?: string;
+  };
   EducatorLearningMode: {
     fullName?: string;
     learnerName?: string;
@@ -70,6 +73,21 @@ export type EducatorRootStackParamList = {
     fullName?: string;
   };
   EducatorScoreRules: undefined;
+  EducatorEtapaOrientacoes: {
+    stageNumber: number;
+    learnerId?: string;
+    learnerName?: string;
+    educatorId?: string;
+    fullName?: string;
+    themeId?: string;
+  };
+  EducatorSessionConfirm: {
+    educatorId: string;
+    fullName: string;
+  };
+  EducatorNotificacoes: {
+    educatorId?: string;
+  };
 };
 
 export interface LearnerOnboardingData {
@@ -86,6 +104,12 @@ export type LearnerRootStackParamList = {
   LearnerLoading: undefined;
   LearnerFirstAccessGate: undefined;
   LearnerCpfLogin: undefined;
+  LearnerSessionPending: {
+    requestId: string;
+    learnerProfileId: string;
+    educatorId: string;
+    educatorName: string;
+  };
   LearnerLinkStep1: undefined;
   LearnerLinkSuccess: {
     learnerName: string;
@@ -96,6 +120,13 @@ export type LearnerRootStackParamList = {
   LearnerOnboardingStep2: Pick<LearnerOnboardingData, 'cpfOrPassport' | 'phoneDigits'> & { isEducatorFlow?: boolean };
   LearnerOnboardingConfirm: LearnerOnboardingData & { isEducatorFlow?: boolean };
   LearnerHome: undefined;
+  LearnerTutorials: undefined;
+  LearnerScore: undefined;
+  LearnerStageConclusion: {
+    stageNumber: number;
+    stageTitle?: string;
+    pointsEarned?: number;
+  };
   LearnerProfile: undefined;
   LearnerLessonIntro: {
     moduleId: string;
@@ -126,6 +157,7 @@ export type LearnerRootStackParamList = {
 };
 
 export type RootStackParamList = {
-  EducatorFlow: undefined;
-  LearnerFlow: undefined;
+  UnifiedLogin: undefined;
+  EducatorFlow: import('@react-navigation/native').NavigatorScreenParams<EducatorRootStackParamList> | undefined;
+  LearnerFlow: import('@react-navigation/native').NavigatorScreenParams<LearnerRootStackParamList> | undefined;
 };

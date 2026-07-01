@@ -1,5 +1,6 @@
 import { ReferenceCity, ReferenceUf } from '@letras/shared-types';
 import { useAssets } from 'expo-asset';
+import { BellIcon } from '../shared/BellIcon';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -209,7 +210,7 @@ export function LearnerOnboardingStep2View({ navigation, route }: Props) {
             )}
           </View>
           <Pressable style={styles.notificationButton} onPress={() => {}}>
-            <Image source={require('../../../assets/notificacao.png')} style={styles.notificationIcon} />
+            <BellIcon size={22} />
           </Pressable>
         </View>
 

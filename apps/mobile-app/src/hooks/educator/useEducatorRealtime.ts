@@ -52,7 +52,7 @@ export function useEducatorRealtime() {
 
     const onHelpRequested = (payload: HelpPayload) => {
       setLastHelpRequest({
-        message: payload.message ?? 'Aprendiz solicitou ajuda.',
+        message: payload.message ?? 'Alfabetizando solicitou ajuda.',
         snapshot: payload.snapshot,
         receivedAt: new Date().toISOString(),
       });

@@ -1,3 +1,5 @@
+import { getHintSlugForTemplate } from './hintVideos';
+
 export type LearnerMediaKind = 'video' | 'audio' | 'image' | null;
 export type LearnerScreenTemplate =
   | 'default'
@@ -69,6 +71,7 @@ export interface LearnerFlowScreen {
   lockMessage: string | null;
   lockAudioUrl: string | null;
   exercise: LearnerExerciseConfig | null;
+  hintVideoUrl: string | null;
 }
 
 export interface LearnerFlowLesson {
@@ -79,6 +82,7 @@ export interface LearnerFlowLesson {
   objective: string;
   moduleLabel: string;
   moduleTitle: string;
+  stageNumber: number;
   screens: LearnerFlowScreen[];
   conclusionTitle: string;
   conclusionMessage: string;
@@ -118,6 +122,7 @@ interface PainelActivity {
   content?: Record<string, unknown> | null;
   instructorGuidance?: string | null;
   learnerGuidance?: string | null;
+  hint_video_id?: string | null;
   assets: PainelActivityAsset[];
 }
 
@@ -153,12 +158,20 @@ interface PainelBlueprint {
   title?: string;
 }
 
+interface PainelMediaLibraryItem {
+  id: string;
+  slug?: string;
+  public_url?: string | null;
+  storage_path?: string | null;
+}
+
 export interface PainelConteudoResponse {
   themes: PainelTheme[];
   modules?: PainelLearningUnit[];
   activities?: PainelActivity[];
   assets?: PainelAsset[];
   blueprints?: PainelBlueprint[];
+  mediaLibrary?: PainelMediaLibraryItem[];
 }
 
 interface ParsedInstructionBundle {
@@ -715,7 +728,11 @@ function mergeAudioIntoFollowingExercise(
     const nextType = next ? String(next.type ?? '').trim().toLowerCase() : '';
     const isNextExercise = nextType.startsWith('exercise-');
 
-    if (!audioUrl || !isNextExercise || !next) {
+    if (!audioUrl) {
+      // Bloco de audio sem URL — descarta para nao gerar tela vazia "Ouca o audio"
+      continue;
+    }
+    if (!isNextExercise || !next) {
       result.push(block);
       continue;
     }
@@ -868,6 +885,7 @@ function mapCompositeBlockToScreen(
     lockMessage: guidance.lockMessage,
     lockAudioUrl: guidance.lockAudioUrl,
     exercise: guidance.exercise,
+    hintVideoUrl: null,
   };
 }
 
@@ -928,7 +946,38 @@ function isPublishedActivity(value: { is_published?: boolean } | null | undefine
   return value?.is_published !== false;
 }
 
+function resolveHintVideoUrl(
+  hintVideoId: string | null | undefined,
+  mediaById: Map<string, PainelMediaLibraryItem>,
+  mediaBySlug: Map<string, PainelMediaLibraryItem>,
+  screenTemplate: LearnerScreenTemplate | null = null,
+): string | null {
+  // 1) Vínculo explícito feito no painel web: o autor escolheu a dica desta
+  //    atividade. Tem prioridade absoluta. URL vem do media_library.
+  if (hintVideoId) {
+    const media = mediaById.get(hintVideoId);
+    if (media) return media.public_url || media.storage_path || null;
+  }
+  // 2) Fallback por tipo de tela: slug → URL no media_library (CMS).
+  //    Sem slug para o template (ex.: achar-a-letra) ou slug ausente da
+  //    biblioteca → retorna null e o card "Está com dúvidas?" não aparece.
+  const slug = getHintSlugForTemplate(screenTemplate);
+  if (!slug) return null;
+  const media = mediaBySlug.get(slug);
+  return media ? media.public_url || media.storage_path || null : null;
+}
+
 export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {
+  const mediaById = new Map<string, PainelMediaLibraryItem>();
+  for (const item of payload.mediaLibrary || []) {
+    if (item.id) mediaById.set(item.id, item);
+  }
+
+  const mediaBySlug = new Map<string, PainelMediaLibraryItem>();
+  for (const item of payload.mediaLibrary || []) {
+    if (item.slug) mediaBySlug.set(item.slug, item);
+  }
+
   const themes = [...(payload.themes || [])]
     .filter((theme) => isActiveContent(theme) && !isDemoTheme(theme))
     .sort((a, b) =>
@@ -978,9 +1027,18 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           const instructions = getActivityInstructions(activity);
           const compositeBlocks = getCompositeBlocks(instructions);
           if (compositeBlocks) {
-            return compositeBlocks.map((block, blockIndex) =>
-              mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
-            );
+            return compositeBlocks.map((block, blockIndex) => {
+              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
+              return {
+                ...mappedScreen,
+                hintVideoUrl: resolveHintVideoUrl(
+                  activity.hint_video_id,
+                  mediaById,
+                  mediaBySlug,
+                  mappedScreen.screenTemplate,
+                ),
+              };
+            });
           }
 
           const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
@@ -1005,6 +1063,12 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
               activityIndex === Math.floor((activities.length - 1) / 2) && activities.length > 2
                 ? 'Metade da aula! Continue assim!'
                 : null,
+            hintVideoUrl: resolveHintVideoUrl(
+              activity.hint_video_id,
+              mediaById,
+              mediaBySlug,
+              guidanceFromInstruction.screenTemplate,
+            ),
             followUpActivity: followUpAsset
               ? ({
                   id: `${activity.id}-followup`,
@@ -1050,6 +1114,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           lockMessage: null,
           lockAudioUrl: null,
           exercise: null,
+          hintVideoUrl: null,
         };
 
         const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
@@ -1061,6 +1126,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.name || theme.title, 'Módulo'),
+          stageNumber: unit.stage_number ?? 2,
           screens: safeScreens,
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
@@ -1170,9 +1236,18 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           const instructions = getActivityInstructions(activity);
           const compositeBlocks = getCompositeBlocks(instructions);
           if (compositeBlocks) {
-            return compositeBlocks.map((block, blockIndex) =>
-              mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences),
-            );
+            return compositeBlocks.map((block, blockIndex) => {
+              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
+              return {
+                ...mappedScreen,
+                hintVideoUrl: resolveHintVideoUrl(
+                  activity.hint_video_id,
+                  mediaById,
+                  mediaBySlug,
+                  mappedScreen.screenTemplate,
+                ),
+              };
+            });
           }
 
           const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
@@ -1192,6 +1267,12 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
               activityIndex === Math.floor((unitActivities.length - 1) / 2) && unitActivities.length > 2
                 ? 'Metade da aula! Continue assim!'
                 : null,
+            hintVideoUrl: resolveHintVideoUrl(
+              activity.hint_video_id,
+              mediaById,
+              mediaBySlug,
+              guidanceFromInstruction.screenTemplate,
+            ),
             followUpActivity: followUpAsset
               ? ({
                   id: `${activity.id}-followup`,
@@ -1238,6 +1319,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           lockMessage: null,
           lockAudioUrl: null,
           exercise: null,
+          hintVideoUrl: null,
         };
 
         const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
@@ -1250,6 +1332,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.title || theme.name, 'Módulo'),
+          stageNumber: unit.stage_number ?? 2,
           screens: safeScreens,
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:

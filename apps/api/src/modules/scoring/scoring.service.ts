@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EducatorScoreEventType } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const STAGE_POINTS: Record<number, number> = { 1: 10, 2: 15, 3: 25 };
 const PHRASE = 'PESSAOQUETRANSFORMAPESSOA!';
@@ -14,7 +15,10 @@ const MAX_INACTIVITY_PENALTY = 30;
 export class ScoringService {
   private readonly logger = new Logger(ScoringService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async onStageCompleted(educatorId: string, stage: number, learnerId: string) {
     const delta = STAGE_POINTS[stage];
@@ -27,6 +31,10 @@ export class ScoringService {
       delta,
       description: `Alfabetizando concluiu Etapa ${stage}`,
     });
+
+    if (learnerId) {
+      await this.notifications.notifyPointsEarned(educatorId, learnerId, delta, stage);
+    }
   }
 
   async onLearnerAdvanced(educatorId: string, learnerId: string, helpRequestedAt: Date) {
@@ -156,6 +164,11 @@ export class ScoringService {
     delta: number;
     description?: string;
   }) {
+    const before = (await this.prisma.educator.findUnique({
+      where: { id: params.educatorId },
+      select: { totalScore: true },
+    }))?.totalScore ?? 0;
+
     await this.prisma.$transaction([
       this.prisma.educatorScoreEvent.create({
         data: {
@@ -171,5 +184,12 @@ export class ScoringService {
         data: { totalScore: { increment: params.delta } },
       }),
     ]);
+
+    if (params.delta > 0) {
+      const after = before + params.delta;
+      if (Math.floor(after / POINTS_PER_LETTER) > Math.floor(before / POINTS_PER_LETTER)) {
+        await this.notifications.notifyMilestone(params.educatorId, params.learnerId);
+      }
+    }
   }
 }

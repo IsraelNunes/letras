@@ -13,6 +13,10 @@ import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfir
 import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
 import { EducatorScoreView } from '../../views/educator/EducatorScoreView';
 import { EducatorScoreRulesView } from '../../views/educator/EducatorScoreRulesView';
+import { EducatorTutoriaisView } from '../../views/educator/EducatorTutoriaisView';
+import { EducatorEtapaOrientacoesView } from '../../views/educator/EducatorEtapaOrientacoesView';
+import { EducatorNotificacoesView } from '../../views/educator/EducatorNotificacoesView';
+import { EducatorSessionConfirmView } from '../../views/educator/EducatorSessionConfirmView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
@@ -101,6 +105,16 @@ export function EducatorNavigator() {
         }}
       />
       <Stack.Screen
+        name="EducatorTutorials"
+        component={EducatorTutoriaisView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorNotificacoes"
+        component={EducatorNotificacoesView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name="EducatorLearningMode"
         component={EducatorLearningModeView}
         options={{
@@ -135,6 +149,16 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorScoreRules"
         component={EducatorScoreRulesView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorEtapaOrientacoes"
+        component={EducatorEtapaOrientacoesView}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorSessionConfirm"
+        component={EducatorSessionConfirmView}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
