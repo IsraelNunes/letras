@@ -7,7 +7,21 @@ interface LearnerActionButtonsProps {
   nextLabel?: string;
   backLabel?: string;
   hideBack?: boolean;
+  // 'green' (padrão) = setas de exercício com destravamento progressivo (RN106/107).
+  // 'dark' = setas de navegação (VOLTAR/AVANÇAR) das telas de abertura, contorno
+  // escuro navy, labels em maiúsculas — fiel ao Figma (Etapa - Tela de Abertura).
+  variant?: 'green' | 'dark';
 }
+
+const NEXT_ARROW_DARK = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 17H30V8L51 23L30 38V29H4V17Z" stroke="#101a3d" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
+
+const BACK_ARROW_DARK = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M51 17H25V8L4 23L25 38V29H51V17Z" stroke="#101a3d" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
 
 // Setas com dois estados: ativa (verde escuro, pronta para uso) e
 // "apagada" (cinza claro, indica indisponivel). Sem texto: o publico
@@ -39,9 +53,14 @@ export function LearnerActionButtons({
   nextLabel,
   backLabel,
   hideBack = false,
+  variant = 'green',
 }: LearnerActionButtonsProps) {
   const backDisabled = !onBack;
   const nextDisabled = !onNext;
+  const dark = variant === 'dark';
+  const backXml = dark ? BACK_ARROW_DARK : backDisabled ? BACK_ARROW_DISABLED : BACK_ARROW_ACTIVE;
+  const nextXml = dark ? NEXT_ARROW_DARK : nextDisabled ? NEXT_ARROW_DISABLED : NEXT_ARROW_ACTIVE;
+  const labelStyle = dark ? [styles.label, styles.labelDark] : styles.label;
 
   return (
     <View style={styles.row}>
@@ -49,14 +68,14 @@ export function LearnerActionButtons({
         <View style={styles.placeholder} />
       ) : (
         <Pressable style={styles.action} onPress={onBack} disabled={backDisabled}>
-          <SvgXml xml={backDisabled ? BACK_ARROW_DISABLED : BACK_ARROW_ACTIVE} width={55} height={46} />
-          {backLabel ? <Text style={styles.label}>{backLabel}</Text> : null}
+          <SvgXml xml={backXml} width={55} height={46} />
+          {backLabel ? <Text style={labelStyle}>{backLabel}</Text> : null}
         </Pressable>
       )}
 
       <Pressable style={styles.action} onPress={onNext} disabled={nextDisabled}>
-        <SvgXml xml={nextDisabled ? NEXT_ARROW_DISABLED : NEXT_ARROW_ACTIVE} width={55} height={46} />
-        {nextLabel ? <Text style={styles.label}>{nextLabel}</Text> : null}
+        <SvgXml xml={nextXml} width={55} height={46} />
+        {nextLabel ? <Text style={labelStyle}>{nextLabel}</Text> : null}
       </Pressable>
     </View>
   );
@@ -84,5 +103,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     textTransform: 'lowercase',
+  },
+  labelDark: {
+    color: '#101a3d',
+    fontSize: 13,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });

@@ -79,24 +79,26 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
       sessionErrorMessage={learnerSession.errorMessage}
     >
       <View style={styles.wrapper}>
-        <Text style={styles.path}>{moduleLabel} - AULA 1</Text>
-        <Text style={styles.title}>{lesson.title}</Text>
+        {/* RN038: primeiro dado é a identificação do alfabetizando. */}
+        <Text style={styles.nameLine}>
+          Nome do Alfabetizando: {learnerSession.learnerName?.trim() || '—'}
+        </Text>
 
-        <View style={styles.objectiveCard}>
-          <Text style={styles.objectiveLabel}>OBJETIVO</Text>
-          <Text style={styles.objectiveText}>{lesson.objective}</Text>
+        {/* RN039: "Conteúdos a serem abordados" (dados do conteudista). A lista de
+            tópicos do Figma exige um campo próprio no painel de conteúdo (pendente);
+            por ora usamos o objetivo da aula como descrição do conteúdo. */}
+        <View style={styles.contentsBlock}>
+          <Text style={styles.contentsTitle}>Conteúdos a serem abordados:</Text>
+          <Text style={styles.contentItem}>{lesson.objective}</Text>
         </View>
 
-        <View style={styles.messageCard}>
-          <Text style={styles.messageText}>Bem-vindo à aula! Vamos começar uma jornada incrível pelo mundo das letras.</Text>
-        </View>
-
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>{lesson.screens.length} telas nesta aula</Text>
-          <Text style={styles.infoSub}>Avance no seu ritmo - sem pressa!</Text>
-        </View>
-
-        <LearnerActionButtons onBack={goBack} onNext={startLesson} nextLabel="INICIAR AULA" />
+        <LearnerActionButtons
+          variant="dark"
+          backLabel="VOLTAR"
+          nextLabel="AVANÇAR"
+          onBack={goBack}
+          onNext={startLesson}
+        />
       </View>
     </LearnerScreenLayout>
   );
@@ -104,67 +106,31 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 12,
+    gap: 18,
+    marginTop: 4,
   },
   error: {
     color: learnerTheme.danger,
     fontSize: 14,
   },
-  path: {
-    color: learnerTheme.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 36 / 1.6,
-    fontWeight: '700',
-    color: learnerTheme.textStrong,
-  },
-  objectiveCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    padding: 14,
-    gap: 4,
-  },
-  objectiveLabel: {
-    color: learnerTheme.textMuted,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  objectiveText: {
-    color: learnerTheme.text,
+  nameLine: {
     fontSize: 16,
     lineHeight: 22,
+    color: learnerTheme.textStrong,
   },
-  messageCard: {
-    borderRadius: 14,
-    backgroundColor: learnerTheme.surface,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    padding: 14,
+  contentsBlock: {
+    gap: 8,
   },
-  messageText: {
-    color: learnerTheme.text,
+  contentsTitle: {
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 22,
+    color: learnerTheme.textStrong,
+    fontWeight: '600',
   },
-  infoCard: {
-    borderRadius: 14,
-    backgroundColor: learnerTheme.surfaceMuted,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    padding: 14,
-  },
-  infoTitle: {
-    color: learnerTheme.primary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  infoSub: {
-    marginTop: 2,
+  contentItem: {
+    fontSize: 15,
+    lineHeight: 22,
     color: learnerTheme.text,
-    fontSize: 13,
+    paddingLeft: 8,
   },
 });
