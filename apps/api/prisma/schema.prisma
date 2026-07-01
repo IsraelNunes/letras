@@ -27,9 +27,9 @@ enum CompletionStatus {
 }
 
 enum TutorLearnerLinkStatus {
-  PENDING   @map("PENDENTE")
-  CONFIRMED @map("CONFIRMADO")
-  DENIED    @map("NEGADO")
+  PENDING
+  CONFIRMED
+  DENIED
 }
 
 enum SessionRequestStatus {
@@ -258,14 +258,14 @@ model Completion {
 
 model TutorLearnerLink {
   id               String                 @id @default(cuid())
-  educatorId       String                 @map("tutorId")
-  learnerProfileId String                 @map("learnerId")
+  educatorId       String
+  learnerProfileId String
   status           TutorLearnerLinkStatus @default(PENDING)
   requestedBy      String?
   requestedAt      DateTime               @default(now())
   decidedBy        String?
-  respondedAt      DateTime?              @map("decidedAt")
-  responseReason   String?                @map("reason")
+  respondedAt      DateTime?
+  responseReason   String?
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 

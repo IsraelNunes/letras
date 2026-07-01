@@ -81,9 +81,8 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
     // Check if this lesson's stage is now fully completed
     const stageNumber = lesson?.stageNumber;
     if (stageNumber) {
-      const allLessonsInStage = modules
-        .flatMap((m) => m.lessons)
-        .filter((l) => l.stageNumber === stageNumber);
+      const allLessonsInStage =
+        modules.find((m) => m.id === moduleId)?.lessons.filter((l) => l.stageNumber === stageNumber) ?? [];
 
       const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
       const stageFullyDone = allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));

@@ -457,18 +457,19 @@ export class CadastrosService {
       throw new BadRequestException('Educador não corresponde ao vínculo do alfabetizando.');
     }
 
-    // Cancela solicitações pendentes anteriores do mesmo alfabetizando
-    await this.prisma.learnerSessionRequest.updateMany({
-      where: { learnerProfileId: dto.learnerProfileId, status: SessionRequestStatus.PENDING },
-      data: { status: SessionRequestStatus.DENIED, denialReason: 'Substituída por nova solicitação', respondedAt: new Date() },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.learnerSessionRequest.updateMany({
+        where: { learnerProfileId: dto.learnerProfileId, status: SessionRequestStatus.PENDING },
+        data: { status: SessionRequestStatus.DENIED, denialReason: 'Substituída por nova solicitação', respondedAt: new Date() },
+      });
 
-    return this.prisma.learnerSessionRequest.create({
-      data: {
-        learnerProfileId: dto.learnerProfileId,
-        educatorId: dto.educatorId,
-      },
-      select: { id: true, status: true, requestedAt: true },
+      return tx.learnerSessionRequest.create({
+        data: {
+          learnerProfileId: dto.learnerProfileId,
+          educatorId: dto.educatorId,
+        },
+        select: { id: true, status: true, requestedAt: true },
+      });
     });
   }
 

@@ -225,7 +225,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const expectedSelections = Math.max(
     1,
     screen.exercise?.expectedSelections
-      ?? screen.exercise?.items.filter((item) => item.isCorrectTarget).length
+      ?? screen.exercise?.items?.filter((item) => item.isCorrectTarget).length
       ?? 1,
   );
   const selectedImageCount = selectedImageIds.length;

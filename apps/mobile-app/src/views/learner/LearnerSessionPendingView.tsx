@@ -76,7 +76,7 @@ export function LearnerSessionPendingView({ navigation, route }: Props) {
 
   const handleBack = () => {
     intervalRef.current && clearInterval(intervalRef.current);
-    navigation.navigate('LearnerCpfLogin');
+    navigation.getParent()?.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] });
   };
 
   const denialMessage = denialReason
