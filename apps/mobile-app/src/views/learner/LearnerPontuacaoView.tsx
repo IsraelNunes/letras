@@ -91,7 +91,7 @@ export function LearnerPontuacaoView({ navigation }: Props) {
         <BellIcon size={22} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollFlex} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <ActivityIndicator style={{ marginTop: 40 }} color="#000" />
         ) : (
@@ -165,6 +165,9 @@ const styles = StyleSheet.create({
   logoWrap: {
     minHeight: 50,
     justifyContent: 'center',
+  },
+  scrollFlex: {
+    flex: 1,
   },
   scroll: {
     paddingHorizontal: 22,

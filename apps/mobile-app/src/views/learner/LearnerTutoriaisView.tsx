@@ -47,6 +47,9 @@ export function LearnerTutoriaisView({ navigation }: Props) {
       <LearnerScreenLayout
         activeMenu="tutorial"
         onMenuHome={() => navigation.navigate('LearnerHome')}
+        onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
+        onMenuScore={() => navigation.navigate('LearnerScore')}
+        onMenuProfile={() => navigation.navigate('LearnerProfile')}
       >
         <View style={styles.wrap}>
           <Text style={styles.title}>Vídeos de dica</Text>
