@@ -193,25 +193,28 @@ export function LearnerScreenLayout({
             </View>
           ) : null}
           <View style={styles.body}>{children}</View>
+
+          {hasHint ? (
+            // Card de dica no FLUXO da página (Figma: entre as setas e o
+            // menu). Fora do scroll ele caía abaixo da dobra no web e
+            // ficava invisível.
+            <Pressable
+              style={styles.hintCard}
+              onPress={() => setHintOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir tutorial de apoio"
+            >
+              <View style={styles.hintCardText}>
+                <Text style={styles.hintCardTitle}>Está com dúvidas?</Text>
+                <Text style={styles.hintCardBody}>
+                  Confira o trecho do tutorial que explica sobre este tipo de atividade.
+                </Text>
+              </View>
+              <PlayCircleIcon />
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
-
-      {hasHint ? (
-        <Pressable
-          style={styles.hintCard}
-          onPress={() => setHintOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir tutorial de apoio"
-        >
-          <View style={styles.hintCardText}>
-            <Text style={styles.hintCardTitle}>Está com dúvidas?</Text>
-            <Text style={styles.hintCardBody}>
-              Confira o trecho do tutorial que explica sobre este tipo de atividade.
-            </Text>
-          </View>
-          <PlayCircleIcon />
-        </Pressable>
-      ) : null}
 
       {minimalChrome ? null : (
         <LearnerBottomMenu
@@ -250,8 +253,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
-    marginHorizontal: 16,
-    marginBottom: 8,
+    marginTop: 18,
     borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 18,
@@ -261,6 +263,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   hintCardText: {
     flex: 1,

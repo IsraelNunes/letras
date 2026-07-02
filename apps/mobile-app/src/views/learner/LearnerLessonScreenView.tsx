@@ -43,6 +43,20 @@ function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null)
   return Boolean(exercise);
 }
 
+// Telefone com bolha de fala (preto) do botão PRECISO DE AJUDA — Figma
+// "Modelo de Ensino ao Alfabetizando".
+function PendingPhoneDarkIcon() {
+  return (
+    <Svg width={26} height={26} viewBox="0 0 32 32" fill="none">
+      <Path
+        d="M6 9 C6 7 7 6 9 6 L11 6 C12 6 13 7 13 8 L13 11 C13 12 12 13 11 13 L10 13 C10 17 13 20 17 20 L17 19 C17 18 18 17 19 17 L22 17 C23 17 24 18 24 19 L24 21 C24 23 23 24 21 24 C12 24 6 18 6 9 Z"
+        fill="#111111"
+      />
+      <Path d="M18 5 C23 5 27 9 27 14" stroke="#111111" strokeWidth={2.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 // Ícone de expandir (RN043) — quatro cantos, como no Figma (Modelo imagem).
 function ExpandIcon() {
   return (
@@ -936,10 +950,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             const word = String(item.label || '').toUpperCase();
             const wordLetters = word.split('').filter(Boolean);
             const audioUrl = item.wordAudioUrl || item.audioUrl;
-            // Audios individuais bloqueados ate o aluno ouvir o audio
-            // principal da instrucao pelo menos uma vez (sequencia
-            // pedagogica).
-            const isWordAudioEnabled = !isInteractionLocked && instructionAudioPlayed;
+            // Áudios individuais sempre disponíveis (salvo tela travada).
+            // O gate que exigia ouvir a instrução antes deixava os desenhos
+            // mudos quando o áudio principal não era tocado/registrado.
+            const isWordAudioEnabled = !isInteractionLocked;
 
             return (
               <View key={item.id} style={styles.matchItem}>
@@ -1104,6 +1118,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     screen.screenTemplate === 'exercise-match-letter' ||
     screen.screenTemplate === 'exercise-mark-images';
 
+  // Etapas 2 e 3: o ALUNO navega sozinho (Figma "Modelo de Ensino ao
+  // Alfabetizando"): só logo, alto-falante verde grande, card de conteúdo,
+  // AVANÇAR verde preenchida e botão amarelo PRECISO DE AJUDA. Sem textos,
+  // sem box de orientação (que é da visão do educador na Etapa 1).
+  const isLearnerDriven = (lesson.stageNumber ?? 1) >= 2;
+  const usesMinimalChrome = isExerciseScreen || isLearnerDriven;
+
   return (
     <LearnerScreenLayout
       activeMenu="inicio"
@@ -1120,10 +1141,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       canRequestHelp={exerciseLocked}
       sessionErrorMessage={learnerSession.errorMessage}
       hintVideoUrl={screen.hintVideoUrl ?? null}
-      minimalChrome={isExerciseScreen}
+      minimalChrome={usesMinimalChrome}
     >
       <View style={styles.wrapper}>
-        {isExerciseScreen ? null : (
+        {isExerciseScreen || isLearnerDriven ? null : (
           <>
             {/* RN040: identificação em duas linhas no corpo (Figma: Tela de
                 Aula) — nome do alfabetizando + posição na etapa. */}
@@ -1147,6 +1168,26 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
           </>
         )}
+
+        {isLearnerDriven && !screen.exercise && screen.mediaKind !== 'video' ? (
+          // Figma (Modelo de Ensino ao Alfabetizando): alto-falante verde
+          // grande centralizado — único controle de áudio da tela. Toca a
+          // narração/instrução (ou o áudio da tela, quando for o conteúdo).
+          <View style={styles.instructionAudioRow}>
+            <SpeakerButton
+              large
+              onPress={() =>
+                void playAudioUrl(
+                  screen.narrationAudioUrl ||
+                    (screen.mediaKind === 'audio' ? screen.mediaUrl : null),
+                  screen.learnerSpeech,
+                  `aluno-audio-${screen.id}`,
+                )
+              }
+              active={playingAudioKey === `aluno-audio-${screen.id}`}
+            />
+          </View>
+        ) : null}
 
         {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'image' && !didFailImageLoad ? (
           // RN043 + Figma (Modelo imagem): card branco com a imagem inteira
@@ -1196,9 +1237,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'audio' ? (
-          // RN045 + Figma (Modelo áudio): apenas o grande alto-falante
-          // centralizado — sem barra de player. Toque reproduz o áudio.
+        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'audio' && !isLearnerDriven ? (
+          // RN045 + Figma (Modelo áudio, Etapa 1): apenas o grande
+          // alto-falante centralizado — sem barra de player. Nas Etapas 2/3
+          // o alto-falante único do topo já cobre o áudio da tela.
           <View style={styles.audioSpeakerRow}>
             <SpeakerButton
               large
@@ -1212,7 +1254,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text>
         ) : null}
 
-        {screen.learnerSpeech && !screen.exercise && !screen.mediaUrl ? (
+        {screen.learnerSpeech && !screen.exercise && !screen.mediaUrl && !isLearnerDriven ? (
           // Modelo "só texto" do Figma: conteúdo em card branco com borda.
           // Restrito a telas de texto puro — telas de áudio/imagem/vídeo NÃO
           // exibem transcrição (o alfabetizando escuta, não lê).
@@ -1301,11 +1343,33 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             onNext={onNext}
             nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
           />
+        ) : isLearnerDriven ? (
+          // Figma (Modelo de Ensino): seta única AVANÇAR verde preenchida —
+          // o aluno "folheia" para frente; sem VOLTAR.
+          <LearnerActionButtons variant="filled" hideBack nextLabel="AVANÇAR" onNext={onNext} />
         ) : (
-          // Setas verdes (Figma das etapas do aluno) — as navy são das telas
-          // de abertura/orientações do educador, não das telas de aula.
+          // Etapa 1 (educador conduz): setas verdes VOLTAR/AVANÇAR.
           <LearnerActionButtons onBack={goBack} onNext={onNext} />
         )}
+
+        {isLearnerDriven ? (
+          // Figma (Modelo de Ensino): botão amarelo PRECISO DE AJUDA fixo no
+          // rodapé do conteúdo — canal direto de apoio ao alfabetizador.
+          <View style={styles.helpYellowRow}>
+            <Pressable
+              style={styles.helpYellowBtn}
+              onPress={() => learnerSession.requestHelp('Preciso de ajuda nesta tela.', buildHelpSnapshot())}
+              accessibilityRole="button"
+              accessibilityLabel="Preciso de ajuda"
+            >
+              <Text style={styles.helpYellowText}>PRECISO{'\n'}DE AJUDA</Text>
+              <PendingPhoneDarkIcon />
+            </Pressable>
+            {learnerSession.isHelpPending ? (
+              <Text style={styles.helpYellowPending}>Aviso enviado ao alfabetizador</Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </LearnerScreenLayout>
   );
@@ -1385,6 +1449,31 @@ const styles = StyleSheet.create({
   audioSpeakerRow: {
     alignItems: 'center',
     marginVertical: 22,
+  },
+  // Botão amarelo PRECISO DE AJUDA (Figma Modelo de Ensino ao Alfabetizando).
+  helpYellowRow: {
+    marginTop: 20,
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  helpYellowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f7e733',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  helpYellowText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#111111',
+    lineHeight: 15,
+  },
+  helpYellowPending: {
+    fontSize: 12,
+    color: '#4b5563',
   },
   progressHeader: {
     flexDirection: 'row',
