@@ -1,9 +1,8 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useRef } from 'react';
 import { LearnerRootStackParamList } from '../../types';
-import { LearnerActionButtons } from './components/LearnerActionButtons';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
@@ -11,23 +10,52 @@ import { useLearnerSession } from './learnerSessionContext';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonConclusion'>;
 
+// O Figma NÃO tem tela de conclusão por aula — só por etapa ("Etapa N -
+// Conclusão"). Esta rota é uma transição: grava o progresso da aula e
+// encaminha para a Conclusão de etapa (quando a etapa fechou) ou de volta
+// aos módulos, sem UI própria além de um breve indicador.
+const TRANSITION_DELAY_MS = 700;
+
 export function LearnerLessonConclusionView({ navigation, route }: Props) {
-  const { moduleId, lessonId, moduleLabel, moduleTitle } = route.params;
+  const { moduleId, lessonId } = route.params;
   const { getLesson, modules, completedLessonIds } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
 
-  const moduleData = modules.find((m) => m.id === moduleId);
-  const totalLessons = moduleData?.lessons.length ?? 1;
-  const lessonIndex = moduleData?.lessons.findIndex((l) => l.id === lessonId) ?? 0;
-  // Conta quantas aulas do módulo já estão concluídas (incluindo a atual)
-  const completedInModule = moduleData?.lessons.filter((l) => completedLessonIds.has(l.progressId)).length ?? 1;
-  const progressPercent = Math.min(100, Math.round((completedInModule / totalLessons) * 100));
   const lesson = getLesson(moduleId, lessonId);
-  const stageLabel = lesson?.stageNumber ? `Etapa ${lesson.stageNumber}` : null;
-  // Garante que o POST /progress de conclusao da aula seja disparado
-  // uma unica vez por entrada na tela de conclusao, mesmo que o
-  // useFocusEffect rode multiplas vezes (re-render, foco recuperado).
+  // Garante que o POST /progress e a navegação rodem uma única vez por
+  // entrada na tela, mesmo com múltiplos disparos do useFocusEffect.
   const completedRecordedRef = useRef<string | null>(null);
+  const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resolveNextStep = useCallback(() => {
+    if (!lesson) {
+      navigation.navigate('LearnerHome');
+      return;
+    }
+
+    const stageNumber = lesson.stageNumber;
+    if (stageNumber) {
+      const allLessonsInStage =
+        modules.find((m) => m.id === moduleId)?.lessons.filter((l) => l.stageNumber === stageNumber) ?? [];
+      const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
+      const stageFullyDone =
+        allLessonsInStage.length > 0 && allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));
+
+      if (stageFullyDone) {
+        navigation.replace('LearnerStageConclusion', {
+          stageNumber,
+          stageTitle: `Etapa ${stageNumber}`,
+        });
+        return;
+      }
+    }
+
+    if (navigation.canGoBack()) {
+      navigation.popToTop();
+      return;
+    }
+    navigation.navigate('LearnerHome');
+  }, [completedLessonIds, lesson, moduleId, modules, navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -46,8 +74,17 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
           activityId: lesson?.progressId ?? lessonId,
           status: 'COMPLETED',
         });
+
+        navigationTimeoutRef.current = setTimeout(resolveNextStep, TRANSITION_DELAY_MS);
       }
-    }, [learnerSession, lessonId, moduleId]),
+
+      return () => {
+        if (navigationTimeoutRef.current) {
+          clearTimeout(navigationTimeoutRef.current);
+          navigationTimeoutRef.current = null;
+        }
+      };
+    }, [learnerSession, lesson, lessonId, moduleId, resolveNextStep]),
   );
 
   if (!lesson) {
@@ -58,100 +95,10 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
     );
   }
 
-  const onBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-
-    navigation.navigate('LearnerLessonScreen', {
-      moduleId,
-      lessonId,
-      screenIndex: Math.max(lesson.screens.length - 1, 0),
-      moduleLabel,
-      moduleTitle,
-    });
-  };
-
-  const onFinish = () => {
-    if (learnerSession.isLocked) {
-      return;
-    }
-
-    // Check if this lesson's stage is now fully completed
-    const stageNumber = lesson?.stageNumber;
-    if (stageNumber) {
-      const allLessonsInStage =
-        modules.find((m) => m.id === moduleId)?.lessons.filter((l) => l.stageNumber === stageNumber) ?? [];
-
-      const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
-      const stageFullyDone = allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));
-
-      if (stageFullyDone) {
-        navigation.navigate('LearnerStageConclusion', {
-          stageNumber,
-          stageTitle: `Etapa ${stageNumber}`,
-        });
-        return;
-      }
-    }
-
-    if (navigation.canGoBack()) {
-      navigation.popToTop();
-      return;
-    }
-    navigation.navigate('LearnerHome');
-  };
-
   return (
-    <LearnerScreenLayout
-      activeMenu="inicio"
-      onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
-      onMenuScore={() => navigation.navigate('LearnerScore')}
-      onMenuProfile={() => navigation.navigate('LearnerProfile')}
-      roleLabel="alfabetizando"
-      learnerName={learnerSession.learnerName}
-      stageLabel={stageLabel}
-      isSessionLocked={learnerSession.isLocked}
-      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para encerrar a aula.')}
-      helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
-      isHelpPending={learnerSession.isHelpPending}
-      sessionErrorMessage={learnerSession.errorMessage}
-    >
+    <LearnerScreenLayout minimalChrome>
       <View style={styles.wrapper}>
-        <View style={styles.iconWrap}>
-          <Text style={styles.icon}>★</Text>
-        </View>
-
-        <Text style={styles.title}>{lesson.conclusionTitle}</Text>
-        <Text style={styles.subtitle}>{lesson.title}</Text>
-
-        <View style={styles.messageCard}>
-          <Text style={styles.messageText}>{lesson.conclusionMessage}</Text>
-        </View>
-
-        <View style={styles.progressCard}>
-          <Text style={styles.progressTitle}>{moduleTitle.toUpperCase()}</Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-          </View>
-          <Text style={styles.progressText}>
-            {lessonIndex + 1} de {totalLessons} {totalLessons === 1 ? 'aula' : 'aulas'}
-          </Text>
-        </View>
-
-        <View style={styles.pointsCard}>
-          <Text style={styles.pointsText}>Aula concluída!</Text>
-        </View>
-
-        <Text style={styles.motivation}>Foco e dedicação levam longe!</Text>
-
-        <LearnerActionButtons
-          onBack={onBack}
-          onNext={onFinish}
-          nextLabel="VOLTAR AOS MÓDULOS"
-        />
+        <ActivityIndicator color={learnerTheme.primary} size="large" />
       </View>
     </LearnerScreenLayout>
   );
@@ -159,101 +106,11 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    gap: 12,
+    marginTop: 120,
     alignItems: 'center',
   },
   error: {
     color: learnerTheme.danger,
     fontSize: 14,
   },
-  iconWrap: {
-    marginTop: 8,
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: learnerTheme.successBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 40,
-    color: learnerTheme.successText,
-    fontWeight: '700',
-  },
-  title: {
-    fontSize: 34 / 1.6,
-    color: learnerTheme.textStrong,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: learnerTheme.text,
-    fontSize: 18 / 1.2,
-  },
-  messageCard: {
-    width: '100%',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    padding: 14,
-  },
-  messageText: {
-    color: learnerTheme.text,
-    fontSize: 18 / 1.2,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  progressCard: {
-    width: '100%',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    backgroundColor: learnerTheme.surface,
-    padding: 14,
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressTitle: {
-    color: learnerTheme.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  progressTrack: {
-    width: '100%',
-    height: 10,
-    borderRadius: 8,
-    backgroundColor: learnerTheme.border,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    width: '100%',
-    height: 10,
-    backgroundColor: learnerTheme.primary,
-  },
-  progressText: {
-    color: learnerTheme.text,
-    fontSize: 14,
-  },
-  pointsCard: {
-    width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: learnerTheme.warningBorder,
-    backgroundColor: learnerTheme.warningBg,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-  },
-  pointsText: {
-    textAlign: 'center',
-    color: learnerTheme.warningText,
-    fontSize: 17 / 1.2,
-    fontWeight: '700',
-  },
-  motivation: {
-    marginTop: 4,
-    color: learnerTheme.primary,
-    fontSize: 16,
-  },
 });
-
-

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Linking,
   Pressable,
   SafeAreaView,
@@ -11,9 +12,10 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAssets } from 'expo-asset';
-import { SvgUri } from 'react-native-svg';
+import { SvgUri, SvgXml } from 'react-native-svg';
 import { httpClient } from '../../infra/api/http-client';
 import { EducatorRootStackParamList } from '../../types';
+import { EducatorBell } from '../shared/EducatorBell';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorEtapaOrientacoes'>;
@@ -32,46 +34,66 @@ interface StageInfo {
   intro_video_id: string | null;
 }
 
-const EDUCATOR_GUIDANCE: Record<number, { intro: string; steps: string[] }> = {
-  1: {
-    intro: 'Antes de começar a Etapa 1 com o alfabetizando, certifique-se de que:',
-    steps: [
-      'Você assistiu aos tutoriais obrigatórios da plataforma.',
-      'O celular do alfabetizando está carregado e com internet.',
-      'Vocês estão em um ambiente tranquilo, sem interrupções.',
-      'O alfabetizando sabe que vocês vão começar um aprendizado juntos.',
+// Copy exata do Figma (Etapa 1/2/3 - Orientações), com os negritos indicados.
+type CopySegment = { text: string; bold?: boolean };
+type CopyParagraph = CopySegment[];
+
+const FIGMA_COPY: Record<number, CopyParagraph[]> = {
+  1: [
+    [
+      { text: 'Na Etapa 1, você irá conduzir todo o processo ' },
+      { text: 'presencialmente', bold: true },
+      { text: '.' },
     ],
-  },
-  2: {
-    intro: 'Para iniciar a Etapa 2 com o alfabetizando, verifique:',
-    steps: [
-      'O alfabetizando concluiu a Etapa 1 com sucesso.',
-      'Você revisou o progresso dele na tela de acompanhamento.',
-      'O ambiente de estudo está organizado e silencioso.',
-      'Vocês têm pelo menos 30 minutos disponíveis para a sessão.',
+    [
+      { text: 'Somente você', bold: true },
+      { text: ' irá acessar a plataforma.' },
     ],
-  },
-  3: {
-    intro: 'Antes de iniciar a Etapa 3 com o alfabetizando, confirme:',
-    steps: [
-      'Etapas 1 e 2 foram concluídas.',
-      'O alfabetizando está motivado e engajado.',
-      'Você acompanhou o progresso e está ciente das dificuldades.',
-      'Há materiais de apoio físicos disponíveis, se necessário.',
+    [{ text: 'Siga cada passo indicado nesta plataforma.' }],
+    [
+      {
+        text:
+          'Se tiver dúvidas, reveja os tutoriais de orientação. A seguir, segue o link do tutorial específico sobre essa primeira Etapa. Ele é bem curto e didático.',
+      },
     ],
-  },
+    [{ text: 'Só continue se estiver seguro sobre como conduzir esta etapa.' }],
+  ],
+  2: [
+    [
+      {
+        text:
+          'Esta Etapa deve ser feita presencialmente, porém, o(s) alfabetizando(s) irão aprender pelo celular dele e não mais com o seu ensinamento.',
+      },
+    ],
+    [
+      {
+        text:
+          'É importante que ele aprenda a usar a plataforma, pois toda a próxima Etapa, a terceira, será on-line e sem a sua presença física.',
+      },
+    ],
+    [{ text: 'Assista ao vídeo tutorial abaixo para melhor compreender esta etapa.' }],
+  ],
+  3: [
+    [
+      {
+        text:
+          'Esta Etapa é totalmente on-line. Você irá apenas acompanhar à distância e tirar dúvidas.',
+      },
+    ],
+    [
+      {
+        text:
+          'Assista ao vídeo tutorial abaixo para melhor compreender os procedimentos nesta Etapa.',
+      },
+    ],
+  ],
 };
 
-function getGuidance(stageNumber: number) {
-  return EDUCATOR_GUIDANCE[stageNumber] ?? {
-    intro: `Antes de iniciar a Etapa ${stageNumber} com o alfabetizando, verifique se:`,
-    steps: [
-      'A etapa anterior foi concluída com sucesso.',
-      'O celular do alfabetizando está funcional e conectado.',
-      'Vocês estão em um ambiente propício ao aprendizado.',
-    ],
-  };
-}
+// Seta AVANÇAR navy (mesmo desenho do Figma).
+const NEXT_ARROW_DARK = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 17H30V8L51 23L30 38V29H4V17Z" stroke="#1e3a5f" stroke-width="4" stroke-linejoin="round"/>
+</svg>`;
 
 export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
   const { stageNumber, learnerId, learnerName, educatorId, fullName, themeId } = route.params;
@@ -79,34 +101,23 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
   const [logoAsset] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
   const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
-  const [stageInfo, setStageInfo] = useState<StageInfo | null>(null);
   const [introVideo, setIntroVideo] = useState<StageIntroVideo | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   const educatorName = fullName?.trim() || 'Alfabetizador';
-  const guidance = getGuidance(stageNumber);
+  const paragraphs = FIGMA_COPY[stageNumber] ?? FIGMA_COPY[1];
 
   const loadStageInfo = useCallback(async () => {
-    setIsLoading(true);
     try {
       const params = themeId ? `?themeId=${themeId}` : '';
       const stages = await httpClient.get<StageInfo[]>(`/painel/conteudo/etapas${params}`);
       const stage = stages.find((s) => s.stage_number === stageNumber) ?? stages[stageNumber - 1] ?? null;
-      setStageInfo(stage);
 
       if (stage?.intro_video_id) {
-        try {
-          const allMedia = await httpClient.get<StageIntroVideo[]>('/painel/conteudo/media-biblioteca?kind=intro-etapa');
-          const video = allMedia.find((v) => v.id === stage.intro_video_id) ?? null;
-          setIntroVideo(video);
-        } catch {
-          // Segue sem vídeo — não bloqueia a tela
-        }
+        const allMedia = await httpClient.get<StageIntroVideo[]>('/painel/conteudo/media-biblioteca?kind=intro-etapa');
+        setIntroVideo(allMedia.find((v) => v.id === stage.intro_video_id) ?? null);
       }
     } catch {
-      // API não disponível — mostra orientações estáticas sem erro
-    } finally {
-      setIsLoading(false);
+      // Sem vídeo da API — o thumbnail permanece (RN037: o elemento é fixo).
     }
   }, [stageNumber, themeId]);
 
@@ -120,7 +131,7 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
     if (canOpen) await Linking.openURL(introVideo.public_url);
   };
 
-  const handleIniciar = () => {
+  const handleAvancar = () => {
     navigation.navigate('EducatorLearningMode', {
       fullName: educatorName,
       educatorId,
@@ -129,91 +140,57 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
     });
   };
 
-  const stageTitle = stageInfo?.title ?? `Etapa ${stageNumber}`;
-  const stageDescription = stageInfo?.description ?? null;
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-
-        {/* Header */}
+        {/* Header: logo + sino (Figma) */}
         <View style={styles.header}>
           <View style={styles.logoWrap}>
             {logoUri
               ? <SvgUri uri={logoUri} width={84} height={50} />
               : <ActivityIndicator size="small" color="#111827" />}
           </View>
+          <EducatorBell educatorId={educatorId} />
         </View>
 
-        {/* Título da etapa */}
-        <View style={styles.stageBadgeWrap}>
-          <View style={styles.stageBadge}>
-            <Text style={styles.stageBadgeText}>ETAPA {stageNumber}</Text>
-          </View>
+        {/* Título (Figma: texto simples, sem badge) */}
+        <Text style={styles.title}>ALFABETIZAÇÃO - ETAPA {stageNumber}</Text>
+
+        {/* Texto corrido com a copy exata do Figma */}
+        <View style={styles.copyBlock}>
+          {paragraphs.map((segments, i) => (
+            <Text key={i} style={styles.copyParagraph}>
+              {segments.map((seg, j) => (
+                <Text key={j} style={seg.bold ? styles.copyBold : undefined}>
+                  {seg.text}
+                </Text>
+              ))}
+            </Text>
+          ))}
         </View>
 
-        <Text style={styles.title}>{stageTitle} — Orientações</Text>
-        <Text style={styles.subtitle}>
-          Leia as orientações abaixo antes de iniciar esta etapa com o alfabetizando{learnerName ? ` ${learnerName}` : ''}.
-        </Text>
+        {/* Vídeo tutorial: thumbnail full-width com play embutido (RN037/051/064 —
+            sempre presente; toca o vídeo da etapa quando cadastrado). */}
+        <Pressable
+          style={styles.videoThumbWrap}
+          onPress={() => void handleOpenVideo()}
+          accessibilityRole="button"
+          accessibilityLabel={`Assistir vídeo tutorial da Etapa ${stageNumber}`}
+        >
+          <Image
+            source={require('../../../assets/orientacoes-video.png')}
+            style={styles.videoThumb}
+            resizeMode="cover"
+          />
+        </Pressable>
 
-        {isLoading ? (
-          <ActivityIndicator style={styles.loader} color="#111827" />
-        ) : (
-          <>
-            {/* Descrição da etapa */}
-            {stageDescription && (
-              <View style={styles.descriptionCard}>
-                <Text style={styles.cardLabel}>Sobre esta etapa</Text>
-                <Text style={styles.descriptionText}>{stageDescription}</Text>
-              </View>
-            )}
-
-            {/* Orientações para o alfabetizador */}
-            <View style={styles.guidanceCard}>
-              <Text style={styles.cardLabel}>Orientações para o alfabetizador</Text>
-              <Text style={styles.guidanceIntro}>{guidance.intro}</Text>
-              <View style={styles.stepsList}>
-                {guidance.steps.map((step, i) => (
-                  <View key={i} style={styles.stepRow}>
-                    <View style={styles.stepDot} />
-                    <Text style={styles.stepText}>{step}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            {/* Vídeo de introdução */}
-            {introVideo && (
-              <View style={styles.videoCard}>
-                <Text style={styles.cardLabel}>Vídeo de introdução</Text>
-                <Text style={styles.videoTitle}>{introVideo.title}</Text>
-                {introVideo.public_url ? (
-                  <Pressable style={styles.videoButton} onPress={() => void handleOpenVideo()}>
-                    <Text style={styles.videoButtonText}>▶  ASSISTIR VÍDEO DE INTRODUÇÃO</Text>
-                  </Pressable>
-                ) : (
-                  <Text style={styles.videoUnavailable}>Vídeo ainda não disponível.</Text>
-                )}
-              </View>
-            )}
-          </>
-        )}
-
-        {/* Ações */}
-        <View style={styles.actions}>
-          <Pressable
-            style={styles.backButton}
-            onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('EducatorHome', { fullName: educatorName, educatorId }))}
-          >
-            <Text style={styles.backText}>← VOLTAR</Text>
-          </Pressable>
-
-          <Pressable style={styles.iniciarButton} onPress={handleIniciar}>
-            <Text style={styles.iniciarText}>INICIAR ETAPA {stageNumber}</Text>
-          </Pressable>
-        </View>
-
+        {/* CTA (Figma): seta navy + INICIAR ALFABETIZAÇÃO (Etapa 1) / AVANÇAR (2 e 3) */}
+        <Pressable style={styles.cta} onPress={handleAvancar} accessibilityRole="button">
+          <SvgXml xml={NEXT_ARROW_DARK} width={55} height={46} />
+          <Text style={styles.ctaLabel}>
+            {stageNumber === 1 ? 'INICIAR\nALFABETIZAÇÃO' : 'AVANÇAR'}
+          </Text>
+        </Pressable>
       </ScrollView>
 
       <EducatorBottomMenu
@@ -231,15 +208,15 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#ededed',
+    backgroundColor: '#ffffff',
   },
   container: {
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 80,
-    backgroundColor: '#ededed',
-    gap: 16,
+    paddingBottom: 96,
+    backgroundColor: '#ffffff',
+    gap: 18,
   },
   header: {
     flexDirection: 'row',
@@ -250,175 +227,46 @@ const styles = StyleSheet.create({
     minHeight: 50,
     justifyContent: 'center',
   },
-  stageBadgeWrap: {
-    alignItems: 'flex-start',
-    marginTop: 8,
-  },
-  stageBadge: {
-    backgroundColor: '#17335B',
-    borderRadius: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  stageBadgeText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
   title: {
-    fontSize: 20,
+    fontSize: 16,
     color: '#111111',
-    fontWeight: '700',
-    lineHeight: 28,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#555555',
-    lineHeight: 20,
-  },
-  loader: {
-    marginTop: 32,
-  },
-  errorCard: {
-    backgroundColor: '#fff0f0',
-    borderWidth: 1,
-    borderColor: '#f5c6c6',
-    borderRadius: 8,
-    padding: 16,
-    gap: 12,
-  },
-  errorText: {
-    color: '#c0392b',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  retryButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#c0392b',
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  retryText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  descriptionCard: {
-    backgroundColor: '#e4e4e4',
-    borderRadius: 8,
-    padding: 16,
-    gap: 6,
-  },
-  guidanceCard: {
-    backgroundColor: '#eef4ff',
-    borderWidth: 1,
-    borderColor: '#ccd9ef',
-    borderRadius: 8,
-    padding: 16,
-    gap: 10,
-  },
-  cardLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  descriptionText: {
-    fontSize: 15,
-    color: '#141414',
-    lineHeight: 22,
-  },
-  guidanceIntro: {
-    fontSize: 14,
-    color: '#17335B',
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  stepsList: {
-    gap: 8,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  stepDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#17335B',
-    marginTop: 7,
-    flexShrink: 0,
-  },
-  stepText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#141414',
-    lineHeight: 22,
-  },
-  videoCard: {
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderRadius: 8,
-    padding: 16,
-    gap: 8,
-  },
-  videoTitle: {
-    fontSize: 15,
-    color: '#141414',
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  videoButton: {
-    backgroundColor: '#15803d',
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: 'center',
+    fontWeight: '500',
+    letterSpacing: 0.3,
     marginTop: 4,
   },
-  videoButtonText: {
-    color: '#ffffff',
-    fontSize: 13,
+  copyBlock: {
+    gap: 2,
+  },
+  copyParagraph: {
+    fontSize: 15,
+    color: '#111111',
+    lineHeight: 23,
+  },
+  copyBold: {
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
-  videoUnavailable: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontStyle: 'italic',
-  },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  videoThumbWrap: {
     marginTop: 8,
-    gap: 12,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
-  backButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+  videoThumb: {
+    width: '100%',
+    aspectRatio: 1500 / 1120,
+    height: undefined,
   },
-  backText: {
-    fontSize: 14,
-    color: '#555555',
-    fontWeight: '600',
-  },
-  iniciarButton: {
-    flex: 1,
-    backgroundColor: '#17335B',
-    borderRadius: 8,
-    paddingVertical: 14,
+  cta: {
+    marginTop: 18,
+    alignSelf: 'center',
     alignItems: 'center',
+    gap: 6,
   },
-  iniciarText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+  ctaLabel: {
+    fontSize: 13,
+    color: '#111111',
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });

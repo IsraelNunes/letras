@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Modal, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LearnerRootStackParamList } from '../../types';
@@ -32,7 +32,37 @@ const SOCIALS = [
   { key: 'facebook', src: require('../../../assets/social-facebook.png') },
   { key: 'instagram', src: require('../../../assets/social-instagram.png') },
   { key: 'x', src: require('../../../assets/social-x.png') },
-];
+] as const;
+
+// RN050: divulgação real nas redes. LinkedIn/Facebook/X têm intents web;
+// Instagram não expõe intent de publicação — cai no diálogo nativo de
+// compartilhamento do aparelho.
+const SHARE_URL = 'https://mobile.letras.cloud';
+
+function buildShareMessage(stageNumber: number): string {
+  return `Concluí a Etapa ${stageNumber} de alfabetização no projeto Letras! Pessoa que transforma pessoa. ${SHARE_URL}`;
+}
+
+async function shareTo(network: (typeof SOCIALS)[number]['key'], stageNumber: number) {
+  const message = buildShareMessage(stageNumber);
+  const encodedUrl = encodeURIComponent(SHARE_URL);
+  const encodedMessage = encodeURIComponent(message);
+  const intents: Record<string, string> = {
+    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedMessage}`,
+    x: `https://twitter.com/intent/tweet?text=${encodedMessage}`,
+  };
+  try {
+    const intent = intents[network];
+    if (intent) {
+      await Linking.openURL(intent);
+      return;
+    }
+    await Share.share({ message });
+  } catch {
+    // Compartilhamento cancelado/indisponível — sem erro para o aluno.
+  }
+}
 
 export function LearnerStageConclusionView({ navigation, route }: Props) {
   const { stageNumber, pointsEarned } = route.params;
@@ -61,6 +91,10 @@ export function LearnerStageConclusionView({ navigation, route }: Props) {
   const pontos = typeof pointsEarned === 'number' ? pointsEarned : totalPoints ?? 0;
   const proximaEtapa = stageNumber + 1;
 
+  // RN049: toque no ícone de certificado abre o certificado com nome e
+  // conquistas (no web, imprimível — vira PDF pelo diálogo do navegador).
+  const [isCertOpen, setIsCertOpen] = useState(false);
+
   const goNext = () => navigation.navigate('LearnerHome');
 
   return (
@@ -85,8 +119,47 @@ export function LearnerStageConclusionView({ navigation, route }: Props) {
 
         <View style={styles.levelRow}>
           <Text style={styles.levelLetter}>{levelLetter(stageNumber)}</Text>
-          <SvgXml xml={CERT_ICON} width={34} height={40} />
+          <Pressable
+            onPress={() => setIsCertOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir certificado"
+            hitSlop={10}
+          >
+            <SvgXml xml={CERT_ICON} width={34} height={40} />
+          </Pressable>
         </View>
+
+        {isCertOpen ? (
+          <Modal transparent animationType="fade" onRequestClose={() => setIsCertOpen(false)}>
+            <View style={styles.certBackdrop}>
+              <View style={styles.certCard}>
+                <Text style={styles.certHeading}>CERTIFICADO</Text>
+                <Text style={styles.certBody}>Certificamos que</Text>
+                <Text style={styles.certName}>{nome}</Text>
+                <Text style={styles.certBody}>
+                  concluiu a Etapa {stageNumber} de Alfabetização do projeto Letras,
+                  acumulando {pontos.toLocaleString('pt-BR')} ponto{pontos === 1 ? '' : 's'} e o selo de nível {levelLetter(stageNumber)}.
+                </Text>
+                <Text style={styles.certMotto}>PESSOA QUE TRANSFORMA PESSOA!</Text>
+                <View style={styles.certActions}>
+                  {Platform.OS === 'web' ? (
+                    <Pressable
+                      style={styles.certButton}
+                      onPress={() => {
+                        (globalThis as { print?: () => void }).print?.();
+                      }}
+                    >
+                      <Text style={styles.certButtonText}>SALVAR EM PDF</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable style={styles.certButtonOutline} onPress={() => setIsCertOpen(false)}>
+                    <Text style={styles.certButtonOutlineText}>FECHAR</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        ) : null}
 
         <Text style={styles.share}>
           Divulgue para todas e para todos que você está transformando a vida de pessoas. Quem sabe elas também não começam a atuar por um mundo melhor!
@@ -94,7 +167,13 @@ export function LearnerStageConclusionView({ navigation, route }: Props) {
 
         <View style={styles.socialsRow}>
           {SOCIALS.map((s) => (
-            <Pressable key={s.key} style={styles.socialBtn} accessibilityRole="button" accessibilityLabel={`Compartilhar no ${s.key}`}>
+            <Pressable
+              key={s.key}
+              style={styles.socialBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`Compartilhar no ${s.key}`}
+              onPress={() => void shareTo(s.key, stageNumber)}
+            >
               <Image source={s.src} style={styles.socialIcon} resizeMode="contain" />
             </Pressable>
           ))}
@@ -164,5 +243,79 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 16,
     alignItems: 'center',
+  },
+  certBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  certCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#ffffff',
+    borderWidth: 3,
+    borderColor: '#101a3d',
+    borderRadius: 6,
+    paddingVertical: 28,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+    gap: 10,
+  },
+  certHeading: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 3,
+    color: '#101a3d',
+  },
+  certBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#111111',
+    textAlign: 'center',
+  },
+  certName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#101a3d',
+    textAlign: 'center',
+  },
+  certMotto: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#2fa536',
+  },
+  certActions: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  certButton: {
+    backgroundColor: '#101a3d',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  certButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  certButtonOutline: {
+    borderWidth: 1.5,
+    borderColor: '#101a3d',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  certButtonOutlineText: {
+    color: '#101a3d',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });
