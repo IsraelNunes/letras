@@ -28,7 +28,9 @@ export function EducatorLoadingView({ navigation }: Props) {
         if (!token || !expiresAt || new Date(expiresAt).getTime() <= Date.now()) {
           await EducatorStorage.clearAuthSession();
           httpClient.setAuthToken(null);
-          navigation.replace('EducatorLogin');
+          // Sessão inválida: volta para o login unificado (CPF), não para o
+          // login de educador — o acesso é unificado para os dois perfis.
+          navigation.getParent()?.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] });
           return;
         }
 
@@ -44,7 +46,7 @@ export function EducatorLoadingView({ navigation }: Props) {
         } catch {
           await EducatorStorage.clearAuthSession();
           httpClient.setAuthToken(null);
-          navigation.replace('EducatorLogin');
+          navigation.getParent()?.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] });
         }
       })();
     }, LOADING_DURATION_MS);
