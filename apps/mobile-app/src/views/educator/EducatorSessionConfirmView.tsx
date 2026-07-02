@@ -34,9 +34,11 @@ interface PendingRequest {
 
 type ScreenState = 'loading' | 'list' | 'empty' | 'error' | 'confirmed' | 'deny-reason';
 
+// RN098 — opções exatas da caixa de recusa de vínculo.
 const DENIAL_REASONS = [
-  'Não reconheço esta pessoa',
-  'Desisti da sessão',
+  'Não conheço essa pessoa',
+  'Desistiu da alfabetização',
+  'Não irei mais alfabetizar',
   'Outro motivo',
 ];
 
