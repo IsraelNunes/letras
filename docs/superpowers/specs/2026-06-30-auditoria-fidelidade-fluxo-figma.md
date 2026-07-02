@@ -213,3 +213,18 @@
 ---
 
 **Total:** 45 Importantes, 16 Menores, em 7 telas.
+
+---
+
+## STATUS (2026-07-02) — passe de fidelidade executado
+
+Verificado contra os PDFs reais do Figma (renderizados via pdftoppm) antes de cada mudança:
+
+- ✅ **Abertura (LearnerLessonIntroView)** — feito em 2026-07-01 (RN038/RN039; lista de conteúdos usa lesson.objective até existir campo no painel de conteúdo).
+- ✅ **Conclusão de etapa (LearnerStageConclusionView)** — RN047-050 completos, incluindo compartilhamento social real (RN050) e certificado tocável com salvar-PDF no web (RN049).
+- ✅ **Exercícios (em LearnerLessonScreenView, não na ActivityView como a auditoria apontava)** — bips RN111/RN112, veredito visual por card (verde ✓/vermelho ✗), célula-alvo destacada, seta única AVANÇAR preenchida com estado bloqueado (RN106), chrome mínimo (só logo).
+- ✅ **Aula (LearnerLessonScreenView)** — RN040 (duas linhas), RN041 (box orientação), RN043 (expandir imagem), RN045 (alto-falante), setas navy com labels.
+- ✅ **Orientações (EducatorEtapaOrientacoesView)** — copy exata por etapa com negritos, thumbnail full-width (ilustração extraída do Figma), CTA correto, fundo branco, sino.
+- ✅ **Conclusão de aula** — NÃO existe no Figma (só conclusão por etapa); virou transição automática que grava progresso e navega.
+- ⚠️ **Home do aluno** — NÃO há tela correspondente no Figma ("ETAPA N DE ALFABETIZAÇÃO" e "NO CELULAR DO ALFABETIZANDO" são separadores de seção, não telas). A Home atual é superfície pragmática de navegação; os itens da auditoria sobre ela referenciavam a Tela de Abertura (já fiel). Nada a copiar.
+- Pendências que dependem de dado/produto: campo "Conteúdos a serem abordados" no painel de conteúdo (RN039); menu inferior das telas de Aula da Etapa 1 exibe o menu do aluno (Figma mostra o menu de 5 abas do educador — decidir quando o modo educador-conduz estiver consolidado).
