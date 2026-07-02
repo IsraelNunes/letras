@@ -88,6 +88,13 @@ export type EducatorRootStackParamList = {
   EducatorNotificacoes: {
     educatorId?: string;
   };
+  EducatorTutorial: {
+    educatorId?: string;
+  };
+  EducatorTutorialPlayer: {
+    embedUrl: string;
+    title: string;
+  };
 };
 
 export interface LearnerOnboardingData {

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { SyncEntityType } from '@prisma/client';
@@ -24,20 +24,32 @@ export class PainelController {
   ) {}
 
   @Get('notificacoes')
-  getNotificacoes(
+  async getNotificacoes(
+    @Headers('authorization') authorization: string | undefined,
     @Query('educatorId') educatorId?: string,
     @Query('onlyUnread') onlyUnread?: string,
   ) {
     if (!educatorId) {
       throw new BadRequestException('educatorId is required');
     }
+    const tokenEducatorId = await this.painelService.resolveEducatorIdFromToken(authorization);
+    if (tokenEducatorId !== educatorId) {
+      throw new ForbiddenException('Acesso negado');
+    }
     return this.notificationsService.list(educatorId, onlyUnread === 'true');
   }
 
   @Post('notificacoes/marcar-lidas')
-  markNotificacoesLidas(@Body() body: { educatorId?: string; ids?: string[] }) {
+  async markNotificacoesLidas(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: { educatorId?: string; ids?: string[] },
+  ) {
     if (!body?.educatorId) {
       throw new BadRequestException('educatorId is required');
+    }
+    const tokenEducatorId = await this.painelService.resolveEducatorIdFromToken(authorization);
+    if (tokenEducatorId !== body.educatorId) {
+      throw new ForbiddenException('Acesso negado');
     }
     return this.notificationsService.markRead(body.educatorId, body.ids);
   }

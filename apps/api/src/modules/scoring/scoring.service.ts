@@ -164,13 +164,14 @@ export class ScoringService {
     delta: number;
     description?: string;
   }) {
-    const before = (await this.prisma.educator.findUnique({
-      where: { id: params.educatorId },
-      select: { totalScore: true },
-    }))?.totalScore ?? 0;
+    const before = await this.prisma.$transaction(async (tx) => {
+      const educator = await tx.educator.findUnique({
+        where: { id: params.educatorId },
+        select: { totalScore: true },
+      });
+      const score = educator?.totalScore ?? 0;
 
-    await this.prisma.$transaction([
-      this.prisma.educatorScoreEvent.create({
+      await tx.educatorScoreEvent.create({
         data: {
           educatorId: params.educatorId,
           learnerId: params.learnerId,
@@ -178,12 +179,14 @@ export class ScoringService {
           delta: params.delta,
           description: params.description,
         },
-      }),
-      this.prisma.educator.update({
+      });
+      await tx.educator.update({
         where: { id: params.educatorId },
         data: { totalScore: { increment: params.delta } },
-      }),
-    ]);
+      });
+
+      return score;
+    });
 
     if (params.delta > 0) {
       const after = before + params.delta;

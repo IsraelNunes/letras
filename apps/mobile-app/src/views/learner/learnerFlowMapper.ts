@@ -729,7 +729,9 @@ function mergeAudioIntoFollowingExercise(
     const isNextExercise = nextType.startsWith('exercise-');
 
     if (!audioUrl) {
-      // Bloco de audio sem URL — descarta para nao gerar tela vazia "Ouca o audio"
+      // Bloco de audio sem URL — preserva o bloco sem audioUrl para manter
+      // a contagem de screens e evitar deslocamento de screenIndex.
+      result.push({ ...block, audioUrl: null });
       continue;
     }
     if (!isNextExercise || !next) {
