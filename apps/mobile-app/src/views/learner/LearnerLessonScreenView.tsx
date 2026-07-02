@@ -2,7 +2,7 @@ import { createElement, useCallback, useEffect, useMemo, useRef, useState } from
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio, ResizeMode, Video } from 'expo-av';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LearnerScreenSnapshot } from '@letras/shared-types';
 import { LearnerRootStackParamList } from '../../types';
@@ -41,6 +41,18 @@ function resolveLockMessage(reason: string | null, lockMessage?: string | null) 
 
 function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null) {
   return Boolean(exercise);
+}
+
+// Ícone de expandir (RN043) — quatro cantos, como no Figma (Modelo imagem).
+function ExpandIcon() {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M9 4H4V9" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M15 4H20V9" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M9 20H4V15" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M15 20H20V15" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
 }
 
 function SoundWaveIcon({ large = false, active = false }: { large?: boolean; active?: boolean }) {
@@ -184,6 +196,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const [didFailImageLoad, setDidFailImageLoad] = useState(false);
   const [didFailMediaLoad, setDidFailMediaLoad] = useState(false);
   const [mediaAspectRatio, setMediaAspectRatio] = useState(16 / 9);
+  // RN043: imagem da aula expandida em tela cheia (toque abre/fecha).
+  const [isImageExpanded, setIsImageExpanded] = useState(false);
 
   const [matchSelectedOptions, setMatchSelectedOptions] = useState<Record<string, string>>({});
   const [matchCompletedIds, setMatchCompletedIds] = useState<string[]>([]);
@@ -384,6 +398,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setDidFailImageLoad(false);
     setDidFailMediaLoad(false);
     setMediaAspectRatio(16 / 9);
+    setIsImageExpanded(false);
     setMatchSelectedOptions({});
     setMatchCompletedIds([]);
     setMatchUnlockedIndex(0);
@@ -1096,9 +1111,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
-      roleLabel="alfabetizando"
-      learnerName={learnerSession.learnerName}
-      stageLabel={stageLabel}
+      // Figma (Tela de Aula): header traz apenas logo + sino; o nome do
+      // alfabetizando e a posição na etapa ficam no corpo (RN040).
       isSessionLocked={learnerSession.isLocked}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
@@ -1111,27 +1125,61 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       <View style={styles.wrapper}>
         {isExerciseScreen ? null : (
           <>
-            <View style={styles.progressHeader}>
-              <Text style={styles.path}>{moduleLabel} - {lesson.title}</Text>
-              <Text style={styles.count}>
-                {safeIndex + 1} de {totalScreens}
+            {/* RN040: identificação em duas linhas no corpo (Figma: Tela de
+                Aula) — nome do alfabetizando + posição na etapa. */}
+            <View style={styles.lessonHeaderBlock}>
+              <Text style={styles.lessonLearnerLine}>
+                Alfabetizando {learnerSession.learnerName?.trim() || ''}
+              </Text>
+              <Text style={styles.lessonCountLine}>
+                Tela {safeIndex + 1} de {totalScreens} da Etapa {lesson.stageNumber ?? 1} de Alfabetização
               </Text>
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-            </View>
 
-            <Text style={styles.title}>{screen.title}</Text>
+            {/* RN041: box cinza de orientação ao alfabetizador — presente em
+                todos os modelos de tela de aula do Figma. */}
+            {screen.educatorGuidance ? (
+              <View style={styles.tutorCard}>
+                <Text style={styles.cardTitle}>Orientação para o(a) alfabetizador(a):</Text>
+                <Text style={styles.cardText}>{screen.educatorGuidance}</Text>
+              </View>
+            ) : null}
+
           </>
         )}
 
         {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'image' && !didFailImageLoad ? (
-          <Image
-            source={{ uri: screen.mediaUrl }}
-            style={styles.imageMedia}
-            resizeMode="cover"
-            onError={() => setDidFailImageLoad(true)}
-          />
+          // RN043 + Figma (Modelo imagem): card branco com a imagem inteira
+          // (contain) e ícone de expandir no canto — toque abre em tela cheia.
+          <Pressable
+            style={styles.imageCard}
+            onPress={() => setIsImageExpanded(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ampliar imagem"
+          >
+            <Image
+              source={{ uri: screen.mediaUrl }}
+              style={styles.imageMediaContain}
+              resizeMode="contain"
+              onError={() => setDidFailImageLoad(true)}
+            />
+            <View style={styles.expandIconWrap}>
+              <ExpandIcon />
+            </View>
+          </Pressable>
+        ) : null}
+
+        {isImageExpanded && screen.mediaUrl && screen.mediaKind === 'image' ? (
+          // RN043: imagem ocupa a tela toda; novo toque retorna.
+          <Modal transparent={false} animationType="fade" onRequestClose={() => setIsImageExpanded(false)}>
+            <Pressable style={styles.fullscreenImageWrap} onPress={() => setIsImageExpanded(false)}>
+              <Image
+                source={{ uri: screen.mediaUrl }}
+                style={styles.fullscreenImage}
+                resizeMode="contain"
+              />
+            </Pressable>
+          </Modal>
         ) : null}
 
         {shouldRenderDefaultMedia && screen.mediaKind === 'image' && didFailImageLoad ? (
@@ -1141,34 +1189,46 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaUrl && (screen.mediaKind === 'video' || screen.mediaKind === 'audio') ? (
-          <View style={styles.mediaCard}>
-            <Text style={styles.mediaLabel}>{screen.mediaKind === 'video' ? 'Vídeo da aula' : 'Áudio da aula'}</Text>
-            {screen.mediaKind === 'video' ? (
-              <View style={[styles.videoFrame, { aspectRatio: mediaAspectRatio }]}>
-                {renderVideoPlayer(screen.mediaUrl)}
-              </View>
-            ) : (
-              renderAudioPlayer(screen.mediaUrl)
-            )}
-            {didFailMediaLoad ? <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text> : null}
+        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'video' ? (
+          // Figma (Modelo vídeo): player direto, sem card com rótulo.
+          <View style={[styles.videoFrame, { aspectRatio: mediaAspectRatio }]}>
+            {renderVideoPlayer(screen.mediaUrl)}
           </View>
         ) : null}
 
-        {screen.learnerSpeech && !screen.exercise ? (
-          <View style={styles.narrationCard}>
+        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'audio' ? (
+          // RN045 + Figma (Modelo áudio): apenas o grande alto-falante
+          // centralizado — sem barra de player. Toque reproduz o áudio.
+          <View style={styles.audioSpeakerRow}>
             <SpeakerButton
               large
-              onPress={() =>
-                void playAudioUrl(
-                  screen.narrationAudioUrl,
-                  screen.learnerSpeech,
-                  `narration-${screen.id}`,
-                )
-              }
-              active={playingAudioKey === `narration-${screen.id}`}
+              onPress={() => void playAudioUrl(screen.mediaUrl, null, `media-${screen.id}`)}
+              active={playingAudioKey === `media-${screen.id}`}
             />
-            <Text style={styles.narrationHint}>Toque para ouvir novamente</Text>
+          </View>
+        ) : null}
+
+        {shouldRenderDefaultMedia && didFailMediaLoad && (screen.mediaKind === 'video' || screen.mediaKind === 'audio') ? (
+          <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text>
+        ) : null}
+
+        {screen.learnerSpeech && !screen.exercise ? (
+          // Modelo "só texto" do Figma: o conteúdo em card branco com borda.
+          // O alto-falante de narração acompanha quando houver áudio/fala.
+          <View style={styles.textContentCard}>
+            <Text style={styles.textContentBody}>{screen.learnerSpeech}</Text>
+            <View style={styles.narrationRow}>
+              <SpeakerButton
+                onPress={() =>
+                  void playAudioUrl(
+                    screen.narrationAudioUrl,
+                    screen.learnerSpeech,
+                    `narration-${screen.id}`,
+                  )
+                }
+                active={playingAudioKey === `narration-${screen.id}`}
+              />
+            </View>
           </View>
         ) : null}
 
@@ -1241,7 +1301,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
           />
         ) : (
-          <LearnerActionButtons onBack={goBack} onNext={onNext} />
+          // Figma (Tela de Aula): setas navy com labels VOLTAR/AVANÇAR.
+          <LearnerActionButtons
+            variant="dark"
+            backLabel="VOLTAR"
+            nextLabel="AVANÇAR"
+            onBack={goBack}
+            onNext={onNext}
+          />
         )}
       </View>
     </LearnerScreenLayout>
@@ -1255,6 +1322,73 @@ const styles = StyleSheet.create({
   error: {
     color: learnerTheme.danger,
     fontSize: 14,
+  },
+  // Figma (Tela de Aula): identificação em duas linhas + box de orientação.
+  lessonHeaderBlock: {
+    gap: 2,
+    marginBottom: 4,
+  },
+  lessonLearnerLine: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#111111',
+  },
+  lessonCountLine: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#111111',
+  },
+  textContentCard: {
+    borderWidth: 1.5,
+    borderColor: '#111111',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 10,
+  },
+  textContentBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#111111',
+  },
+  narrationRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  imageCard: {
+    borderWidth: 1.5,
+    borderColor: '#111111',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    padding: 12,
+    minHeight: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageMediaContain: {
+    width: '100%',
+    height: 220,
+  },
+  expandIconWrap: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    padding: 4,
+  },
+  fullscreenImageWrap: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullscreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  audioSpeakerRow: {
+    alignItems: 'center',
+    marginVertical: 22,
   },
   progressHeader: {
     flexDirection: 'row',
