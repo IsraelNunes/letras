@@ -42,9 +42,8 @@ export function LearnerHomeView({ navigation }: Props) {
 
   return (
     <LearnerScreenLayout
-      activeMenu="acompanhar"
+      activeMenu="inicio"
       onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}

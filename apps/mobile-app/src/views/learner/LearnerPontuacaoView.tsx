@@ -54,7 +54,6 @@ export function LearnerPontuacaoView({ navigation }: Props) {
     <LearnerScreenLayout
       activeMenu="pontuacao"
       onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}

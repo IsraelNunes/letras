@@ -32,7 +32,7 @@ export interface LearnerLookupResult {
   id: string;
   displayName: string;
   phoneDigits: string | null;
-  educator: { id: string; name: string } | null;
+  educator: { id: string; name: string; phoneDigits?: string | null } | null;
 }
 
 export interface RegisterLearnerInput {

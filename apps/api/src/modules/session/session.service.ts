@@ -18,37 +18,39 @@ export class SessionService {
   async createSession(dto: CreateLearnerSessionDto) {
     const normalizedRole = this.toSessionRole(dto.role);
 
-    const session = await this.prisma.learnerSession.upsert({
-      where: {
-        learnerProfileId: dto.learnerProfileId,
-      },
-      create: {
-        learnerProfileId: dto.learnerProfileId,
-        deviceId: dto.deviceId,
-        role: normalizedRole,
-        connectedAt: new Date(),
-        sessionState: {
-          create: {
-            currentView: 'home',
-            statePayload: {},
-            isLocked: false,
+    // upsert não é atômico no PostgreSQL: dois requests simultâneos para o mesmo
+    // learnerProfileId podem colidir na criação (P2002). Capturamos o erro e
+    // fazemos um update como fallback, garantindo idempotência.
+    const upserted = await this.prisma.learnerSession
+      .upsert({
+        where: { learnerProfileId: dto.learnerProfileId },
+        create: {
+          learnerProfileId: dto.learnerProfileId,
+          deviceId: dto.deviceId,
+          role: normalizedRole,
+          connectedAt: new Date(),
+          sessionState: {
+            create: { currentView: 'home', statePayload: {}, isLocked: false },
           },
         },
-      },
-      update: {
-        deviceId: dto.deviceId,
-        role: normalizedRole,
-        connectedAt: new Date(),
-      },
-      include: {
-        sessionState: true,
-      },
-    });
+        update: { deviceId: dto.deviceId, role: normalizedRole, connectedAt: new Date() },
+        include: { sessionState: true },
+      })
+      .catch(async (e: unknown) => {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+          await this.prisma.learnerSession.update({
+            where: { learnerProfileId: dto.learnerProfileId },
+            data: { deviceId: dto.deviceId, role: normalizedRole, connectedAt: new Date() },
+          });
+          return null;
+        }
+        throw e;
+      });
 
-    if (!session.sessionState) {
+    if (upserted && !upserted.sessionState) {
       await this.prisma.sessionState.create({
         data: {
-          sessionId: session.id,
+          sessionId: upserted.id,
           currentView: 'home',
           statePayload: {},
           isLocked: false,

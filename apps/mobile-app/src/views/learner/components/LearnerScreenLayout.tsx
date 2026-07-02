@@ -1,7 +1,7 @@
 import { PropsWithChildren, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { EducatorBottomMenu } from '../../educator/components/EducatorBottomMenu';
+import { LearnerBottomMenu, LearnerMenuKey } from './LearnerBottomMenu';
 import { LearnerHeaderBar } from './LearnerHeaderBar';
 import { LearnerHintVideoOverlay } from './LearnerHintVideoOverlay';
 import { learnerTheme } from '../learnerTheme';
@@ -91,13 +91,10 @@ function PlayCircleIcon() {
   );
 }
 
-type MenuKey = 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
-
 interface LearnerScreenLayoutProps extends PropsWithChildren {
-  activeMenu?: MenuKey;
+  activeMenu?: LearnerMenuKey;
   onMenuHome?: () => void;
   onMenuTutorial?: () => void;
-  onMenuTrack?: () => void;
   onMenuScore?: () => void;
   onMenuProfile?: () => void;
   roleLabel?: string;
@@ -119,10 +116,9 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
 
 export function LearnerScreenLayout({
   children,
-  activeMenu = 'acompanhar',
+  activeMenu = 'inicio',
   onMenuHome,
   onMenuTutorial,
-  onMenuTrack,
   onMenuScore,
   onMenuProfile,
   roleLabel,
@@ -208,11 +204,10 @@ export function LearnerScreenLayout({
         </Pressable>
       ) : null}
 
-      <EducatorBottomMenu
+      <LearnerBottomMenu
         active={activeMenu}
         onInicioPress={onMenuHome}
         onTutorialPress={onMenuTutorial}
-        onAcompanharPress={onMenuTrack}
         onPontuacaoPress={onMenuScore}
         onPerfilPress={onMenuProfile}
       />
