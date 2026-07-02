@@ -65,7 +65,7 @@ export function LearnerStageConclusionView({ navigation, route }: Props) {
 
   return (
     <LearnerScreenLayout
-      activeMenu="acompanhar"
+      activeMenu="inicio"
       onMenuHome={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
