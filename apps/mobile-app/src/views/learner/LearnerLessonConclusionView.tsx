@@ -74,9 +74,13 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
           activityId: lesson?.progressId ?? lessonId,
           status: 'COMPLETED',
         });
-
-        navigationTimeoutRef.current = setTimeout(resolveNextStep, TRANSITION_DELAY_MS);
       }
+
+      // (Re)arma a navegação em TODA execução do efeito: o registro do
+      // progresso atualiza o estado do fluxo, o efeito re-executa e o
+      // cleanup cancela o timeout anterior — sem rearmar aqui a tela
+      // ficava carregando para sempre.
+      navigationTimeoutRef.current = setTimeout(resolveNextStep, TRANSITION_DELAY_MS);
 
       return () => {
         if (navigationTimeoutRef.current) {

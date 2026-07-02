@@ -1212,9 +1212,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text>
         ) : null}
 
-        {screen.learnerSpeech && !screen.exercise ? (
-          // Modelo "só texto" do Figma: o conteúdo em card branco com borda.
-          // O alto-falante de narração acompanha quando houver áudio/fala.
+        {screen.learnerSpeech && !screen.exercise && !screen.mediaUrl ? (
+          // Modelo "só texto" do Figma: conteúdo em card branco com borda.
+          // Restrito a telas de texto puro — telas de áudio/imagem/vídeo NÃO
+          // exibem transcrição (o alfabetizando escuta, não lê).
           <View style={styles.textContentCard}>
             <Text style={styles.textContentBody}>{screen.learnerSpeech}</Text>
             <View style={styles.narrationRow}>
@@ -1301,14 +1302,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
           />
         ) : (
-          // Figma (Tela de Aula): setas navy com labels VOLTAR/AVANÇAR.
-          <LearnerActionButtons
-            variant="dark"
-            backLabel="VOLTAR"
-            nextLabel="AVANÇAR"
-            onBack={goBack}
-            onNext={onNext}
-          />
+          // Setas verdes (Figma das etapas do aluno) — as navy são das telas
+          // de abertura/orientações do educador, não das telas de aula.
+          <LearnerActionButtons onBack={goBack} onNext={onNext} />
         )}
       </View>
     </LearnerScreenLayout>

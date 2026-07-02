@@ -18,8 +18,15 @@
 const HINT_SLUG_BY_TEMPLATE: Record<string, string> = {
   // Exercício de marcar imagens/caixas — navegação por formas e cores.
   'exercise-mark-images': 'etapa2-formas-cores',
-  // Tela de conteúdo/mídia — encorajamento genérico.
+  // Telas de conteúdo (RN042: o card "Está com dúvidas?" aparece em todos os
+  // modelos de tela de aula) — encorajamento genérico. Os blocos do painel
+  // usam o type do bloco como template, então cada tipo precisa do mapeamento
+  // (só 'default' deixava text/image/audio/video sem card).
   'default': 'geral-e-simples',
+  'text': 'geral-e-simples',
+  'image': 'geral-e-simples',
+  'audio': 'geral-e-simples',
+  'video': 'geral-e-simples',
   // Tela bloqueada aguardando apoio — encorajamento genérico.
   'locked': 'geral-e-simples',
   // 'exercise-match-letter' propositalmente AUSENTE: nenhum dos 14 vídeos
