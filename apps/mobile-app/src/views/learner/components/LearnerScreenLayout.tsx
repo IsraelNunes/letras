@@ -112,6 +112,10 @@ interface LearnerScreenLayoutProps extends PropsWithChildren {
   canRequestHelp?: boolean;
   sessionErrorMessage?: string | null;
   hintVideoUrl?: string | null;
+  // Telas de exercício do Figma (Marcar Caixas / Quadrado da Letra) não têm
+  // texto no header nem menu inferior — apenas o logo. O foco fica todo na
+  // atividade; a navegação acontece pela seta AVANÇAR.
+  minimalChrome?: boolean;
 }
 
 export function LearnerScreenLayout({
@@ -131,16 +135,21 @@ export function LearnerScreenLayout({
   canRequestHelp = false,
   sessionErrorMessage,
   hintVideoUrl,
+  minimalChrome = false,
 }: LearnerScreenLayoutProps) {
   const [hintOpen, setHintOpen] = useState(false);
   const hasHint = Boolean(hintVideoUrl);
-  const bottomPadding = hasHint ? 210 : 130;
+  const bottomPadding = hasHint ? 210 : minimalChrome ? 90 : 130;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]}>
         <View style={styles.shell}>
-          <LearnerHeaderBar roleLabel={roleLabel} learnerName={learnerName} stageLabel={stageLabel} />
+          {minimalChrome ? (
+            <LearnerHeaderBar />
+          ) : (
+            <LearnerHeaderBar roleLabel={roleLabel} learnerName={learnerName} stageLabel={stageLabel} />
+          )}
           {sessionErrorMessage ? (
             <View style={styles.alertError}>
               <Text style={styles.alertErrorText}>{sessionErrorMessage}</Text>
@@ -204,13 +213,15 @@ export function LearnerScreenLayout({
         </Pressable>
       ) : null}
 
-      <LearnerBottomMenu
-        active={activeMenu}
-        onInicioPress={onMenuHome}
-        onTutorialPress={onMenuTutorial}
-        onPontuacaoPress={onMenuScore}
-        onPerfilPress={onMenuProfile}
-      />
+      {minimalChrome ? null : (
+        <LearnerBottomMenu
+          active={activeMenu}
+          onInicioPress={onMenuHome}
+          onTutorialPress={onMenuTutorial}
+          onPontuacaoPress={onMenuScore}
+          onPerfilPress={onMenuProfile}
+        />
+      )}
 
       {hintOpen && hintVideoUrl ? (
         <LearnerHintVideoOverlay

@@ -10,8 +10,24 @@ interface LearnerActionButtonsProps {
   // 'green' (padrão) = setas de exercício com destravamento progressivo (RN106/107).
   // 'dark' = setas de navegação (VOLTAR/AVANÇAR) das telas de abertura, contorno
   // escuro navy, labels em maiúsculas — fiel ao Figma (Etapa - Tela de Abertura).
-  variant?: 'green' | 'dark';
+  // 'filled' = seta única PREENCHIDA verde das telas de exercício do Figma
+  // (Marcar Caixas / Quadrado da Letra): verde-claro enquanto o exercício não
+  // foi concluído (RN106), verde forte quando liberada.
+  variant?: 'green' | 'dark' | 'filled';
+  // Estado apenas visual de "ainda não liberado": a seta continua tocável para
+  // o exercício responder com áudio/feedback sobre o que falta.
+  nextVisualDisabled?: boolean;
 }
+
+const NEXT_ARROW_FILLED = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 17H30V8L51 23L30 38V29H4V17Z" fill="#2fa536"/>
+</svg>`;
+
+const NEXT_ARROW_FILLED_DISABLED = `
+<svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 17H30V8L51 23L30 38V29H4V17Z" fill="#9be39f"/>
+</svg>`;
 
 const NEXT_ARROW_DARK = `
 <svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -54,13 +70,27 @@ export function LearnerActionButtons({
   backLabel,
   hideBack = false,
   variant = 'green',
+  nextVisualDisabled = false,
 }: LearnerActionButtonsProps) {
   const backDisabled = !onBack;
   const nextDisabled = !onNext;
   const dark = variant === 'dark';
+  const filled = variant === 'filled';
   const backXml = dark ? BACK_ARROW_DARK : backDisabled ? BACK_ARROW_DISABLED : BACK_ARROW_ACTIVE;
-  const nextXml = dark ? NEXT_ARROW_DARK : nextDisabled ? NEXT_ARROW_DISABLED : NEXT_ARROW_ACTIVE;
-  const labelStyle = dark ? [styles.label, styles.labelDark] : styles.label;
+  const nextXml = filled
+    ? nextVisualDisabled || nextDisabled
+      ? NEXT_ARROW_FILLED_DISABLED
+      : NEXT_ARROW_FILLED
+    : dark
+      ? NEXT_ARROW_DARK
+      : nextDisabled
+        ? NEXT_ARROW_DISABLED
+        : NEXT_ARROW_ACTIVE;
+  const labelStyle = dark
+    ? [styles.label, styles.labelDark]
+    : filled
+      ? [styles.label, styles.labelFilled, nextVisualDisabled ? styles.labelFilledDisabled : null]
+      : styles.label;
 
   return (
     <View style={styles.row}>
@@ -110,5 +140,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  labelFilled: {
+    color: '#2fa536',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  labelFilledDisabled: {
+    color: '#9be39f',
   },
 });

@@ -12,6 +12,7 @@ import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
 import { LearnerExerciseConfig } from './learnerFlowMapper';
 import { useLearnerSession } from './learnerSessionContext';
+import { playErrorBeep, playSuccessBeep } from './exerciseSounds';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonScreen'>;
 
@@ -189,6 +190,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const [matchUnlockedIndex, setMatchUnlockedIndex] = useState(0);
   const [matchWrongIds, setMatchWrongIds] = useState<string[]>([]);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
+  // Veredito visual do Marcar Caixas após o AVANÇAR (Figma: borda verde +
+  // badge ✓ no card correto, borda vermelha + badge ✗ no errado).
+  const [markVerdicts, setMarkVerdicts] = useState<Record<string, 'ok' | 'err'>>({});
+  const markVerdictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [exerciseLocked, setExerciseLocked] = useState(false);
   const [remoteLockWasObserved, setRemoteLockWasObserved] = useState(false);
@@ -384,6 +389,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setMatchUnlockedIndex(0);
     setMatchWrongIds([]);
     setSelectedImageIds([]);
+    setMarkVerdicts({});
+    if (markVerdictTimeoutRef.current) {
+      clearTimeout(markVerdictTimeoutRef.current);
+      markVerdictTimeoutRef.current = null;
+    }
     setExerciseAttempts(0);
     setExerciseLocked(false);
     setRemoteLockWasObserved(false);
@@ -620,6 +630,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   });
 
   const lockCurrentExercise = (message: string) => {
+    // RN111: bip de erro também no bloqueio por tentativas.
+    playErrorBeep();
     const nextAttempts = Math.max(exerciseAttempts, screen.exercise?.maxAttemptsBeforeLock ?? 1);
     setExerciseLocked(true);
     setExerciseFeedback({
@@ -704,6 +716,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     }));
 
     if (isCorrect) {
+      // RN112: bip de acerto.
+      playSuccessBeep();
       setMatchCompletedIds((previous) => (previous.includes(itemId) ? previous : [...previous, itemId]));
       if (screen.exercise.progressiveUnlock) {
         setMatchUnlockedIndex((previous) => Math.max(previous, itemIndex + 1));
@@ -715,6 +729,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
+    // RN111: bip de erro.
+    playErrorBeep();
     setMatchWrongIds((previous) => [...previous.filter((id) => id !== itemId), itemId]);
 
     if (wrongSelectionTimeoutRef.current) {
@@ -746,6 +762,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
   const handleToggleMarkImageItem = (itemId: string) => {
     if (screen.screenTemplate !== 'exercise-mark-images' || !screen.exercise || isInteractionLocked) {
+      return;
+    }
+    // Enquanto o veredito (✓/✗) está na tela, os toques ficam suspensos —
+    // o flash termina sozinho e libera a próxima tentativa.
+    if (Object.keys(markVerdicts).length > 0) {
       return;
     }
     setSelectedImageIds((previous) => {
@@ -823,14 +844,33 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       const hasOnlyCorrectSelections = [...selectedSet].every((itemId) => correctSet.has(itemId));
       const isCorrect = hasOnlyCorrectSelections && selectedSet.size === expectedSelections;
 
+      // Veredito visual por card (Figma): verde+✓ nos corretos selecionados,
+      // vermelho+✗ nos errados selecionados.
+      const verdicts: Record<string, 'ok' | 'err'> = {};
+      for (const itemId of selectedSet) {
+        verdicts[itemId] = correctSet.has(itemId) ? 'ok' : 'err';
+      }
+      setMarkVerdicts(verdicts);
+
       if (isCorrect) {
+        // RN112: bip de acerto.
+        playSuccessBeep();
         setExerciseFeedback({
           type: 'ok',
           message: screen.exercise.successFeedback || 'Muito bem! Avançando para a próxima tela.',
         });
-        goNextDefault();
+        // Deixa o aluno VER os ✓ antes de trocar de tela.
+        if (markVerdictTimeoutRef.current) {
+          clearTimeout(markVerdictTimeoutRef.current);
+        }
+        markVerdictTimeoutRef.current = setTimeout(() => {
+          goNextDefault();
+        }, 900);
         return;
       }
+
+      // RN111: bip de erro.
+      playErrorBeep();
 
       const nextAttempts = exerciseAttempts + 1;
       setExerciseAttempts(nextAttempts);
@@ -838,6 +878,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         lockCurrentExercise(resolveLockMessage(screen.lockReason, screen.lockMessage));
         return;
       }
+
+      // Mantém o veredito visível por um instante, depois limpa os cards
+      // errados (os corretos permanecem selecionados) para nova tentativa.
+      if (markVerdictTimeoutRef.current) {
+        clearTimeout(markVerdictTimeoutRef.current);
+      }
+      markVerdictTimeoutRef.current = setTimeout(() => {
+        setMarkVerdicts({});
+        setSelectedImageIds((previous) => previous.filter((id) => correctSet.has(id)));
+      }, 1400);
 
       setExerciseFeedback({
         type: 'error',
@@ -918,6 +968,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       isWrongFlash &&
                       Boolean(selectedLetter) &&
                       wordLetters.indexOf(selectedLetter) === squareIndex;
+                    // Figma: ao acertar, a palavra inteira é revelada mas só a
+                    // célula da letra-alvo ganha o destaque verde.
+                    const targetLetter = (item.correctOptions[0] ?? '').toUpperCase();
+                    const isTargetSquare = squareIndex === wordLetters.indexOf(targetLetter);
 
                     return (
                       <Pressable
@@ -928,16 +982,21 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                         style={[
                           styles.letterSquare,
                           isWrongSquare ? styles.letterSquareWrong : null,
-                          // Verde = simbolo de acerto. (Antes ficava amarelo
-                          // no quadrado da letra-alvo, o que confundia
-                          // acerto com selecao.)
-                          isCompleted ? styles.letterSquareFilled : null,
+                          isCompleted
+                            ? isTargetSquare
+                              ? styles.letterSquareFilled
+                              : styles.letterSquareRevealed
+                            : null,
                         ]}
                       >
                         <Text
                           style={[
                             styles.letterSquareText,
-                            isCompleted ? styles.letterSquareTextFilled : null,
+                            isCompleted
+                              ? isTargetSquare
+                                ? styles.letterSquareTextFilled
+                                : styles.letterSquareTextRevealed
+                              : null,
                           ]}
                         >
                           {isCompleted ? letter : ''}
@@ -972,13 +1031,21 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <View style={styles.markGrid}>
             {screen.exercise.items.map((item) => {
               const isSelected = selectedImageIds.includes(item.id);
+              const verdict = markVerdicts[item.id];
               return (
                 <Pressable
                   key={item.id}
                   onPress={() => handleToggleMarkImageItem(item.id)}
                   disabled={isInteractionLocked}
                   hitSlop={8}
-                  style={[styles.markItem, isSelected ? styles.markItemSelected : null]}
+                  style={[
+                    styles.markItem,
+                    isSelected && !verdict ? styles.markItemSelected : null,
+                    // Após o AVANÇAR o veredito substitui a seleção amarela:
+                    // verde+✓ no correto, vermelho+✗ no errado (Figma).
+                    verdict === 'ok' ? styles.markItemOk : null,
+                    verdict === 'err' ? styles.markItemErr : null,
+                  ]}
                 >
                   {item.imageUrl ? (
                     <Image source={{ uri: item.imageUrl }} style={styles.markItemImage} resizeMode="contain" />
@@ -992,6 +1059,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       via texto e remover o circulo de selecao
                       redundante. O feedback visual fica todo na borda
                       amarela da imagem. */}
+                  {verdict ? (
+                    <View
+                      style={[
+                        styles.markVerdictBadge,
+                        verdict === 'ok' ? styles.markVerdictBadgeOk : styles.markVerdictBadgeErr,
+                      ]}
+                    >
+                      <Text style={styles.markVerdictBadgeText}>{verdict === 'ok' ? '✓' : '✗'}</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -1004,6 +1081,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const stageLabel = `tela ${safeIndex + 1} de ${totalScreens} · Etapa ${lesson.stageNumber ?? 2}`;
+
+  // Telas de exercício seguem o Figma "Marcar Caixas"/"Quadrado da Letra":
+  // fundo branco só com o logo, sem header de texto, sem menu inferior, sem
+  // barra de progresso/título — o áudio carrega a instrução.
+  const isExerciseScreen =
+    screen.screenTemplate === 'exercise-match-letter' ||
+    screen.screenTemplate === 'exercise-mark-images';
 
   return (
     <LearnerScreenLayout
@@ -1022,19 +1106,24 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       canRequestHelp={exerciseLocked}
       sessionErrorMessage={learnerSession.errorMessage}
       hintVideoUrl={screen.hintVideoUrl ?? null}
+      minimalChrome={isExerciseScreen}
     >
       <View style={styles.wrapper}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.path}>{moduleLabel} - {lesson.title}</Text>
-          <Text style={styles.count}>
-            {safeIndex + 1} de {totalScreens}
-          </Text>
-        </View>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-        </View>
+        {isExerciseScreen ? null : (
+          <>
+            <View style={styles.progressHeader}>
+              <Text style={styles.path}>{moduleLabel} - {lesson.title}</Text>
+              <Text style={styles.count}>
+                {safeIndex + 1} de {totalScreens}
+              </Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            </View>
 
-        <Text style={styles.title}>{screen.title}</Text>
+            <Text style={styles.title}>{screen.title}</Text>
+          </>
+        )}
 
         {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'image' && !didFailImageLoad ? (
           <Image
@@ -1140,7 +1229,20 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <LearnerActionButtons onBack={goBack} onNext={onNext} />
+        {isExerciseScreen ? (
+          // Figma: seta única AVANÇAR preenchida, centralizada, sem VOLTAR;
+          // verde-claro até o exercício ser concluído (RN106). Continua
+          // tocável para o feedback explicar o que falta.
+          <LearnerActionButtons
+            variant="filled"
+            hideBack
+            nextLabel="AVANÇAR"
+            onNext={onNext}
+            nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
+          />
+        ) : (
+          <LearnerActionButtons onBack={goBack} onNext={onNext} />
+        )}
       </View>
     </LearnerScreenLayout>
   );
@@ -1494,6 +1596,12 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b',
     backgroundColor: '#fef3c7',
   },
+  // Célula revelada (não-alvo) após o acerto: letra visível em cinza-escuro,
+  // borda neutra — só a célula-alvo fica verde (Figma Quadrado da Letra 5).
+  letterSquareRevealed: {
+    borderColor: learnerTheme.border,
+    backgroundColor: learnerTheme.surface,
+  },
   letterSquareText: {
     fontSize: 15,
     fontWeight: '700',
@@ -1504,6 +1612,9 @@ const styles = StyleSheet.create({
   },
   letterSquareTextTarget: {
     color: '#92400e',
+  },
+  letterSquareTextRevealed: {
+    color: '#374151',
   },
   selectionHint: {
     color: learnerTheme.textMuted,
@@ -1532,6 +1643,45 @@ const styles = StyleSheet.create({
     borderColor: '#f59e0b',
     borderWidth: 3,
     backgroundColor: '#fef3c7',
+  },
+  // Veredito pós-AVANÇAR (Figma Marcar Caixas 3/6): verde no correto,
+  // vermelho no errado, com badge circular sobreposto no canto.
+  markItemOk: {
+    borderColor: '#2fa536',
+    borderWidth: 3,
+    backgroundColor: '#ffffff',
+  },
+  markItemErr: {
+    borderColor: '#e11d2c',
+    borderWidth: 3,
+    backgroundColor: '#ffffff',
+  },
+  markVerdictBadge: {
+    position: 'absolute',
+    top: -14,
+    right: -12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  markVerdictBadgeOk: {
+    backgroundColor: '#2fa536',
+  },
+  markVerdictBadgeErr: {
+    backgroundColor: '#e11d2c',
+  },
+  markVerdictBadgeText: {
+    color: '#ffffff',
+    fontSize: 19,
+    fontWeight: '900',
+    lineHeight: 22,
   },
   markItemImage: {
     width: 78,
