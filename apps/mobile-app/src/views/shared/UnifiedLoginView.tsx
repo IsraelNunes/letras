@@ -100,37 +100,42 @@ export function UnifiedLoginView({ navigation }: Props) {
     const query = looksLikeCpf ? normalizeDigits(cpf) : cpf.trim().toUpperCase();
 
     try {
-      // 1. Tenta como alfabetizando
+      // 1. Busca como alfabetizando (apenas o lookup — erros de sessão ficam fora deste bloco)
+      let learner: Awaited<ReturnType<typeof learnerRepo.lookupLearner>> | null = null;
       try {
-        const learner = await learnerRepo.lookupLearner(query, undefined);
-
-        if (learner.educator) {
-          const request = await learnerRepo.createSessionRequest({
-            learnerProfileId: learner.id,
-            educatorId: learner.educator.id,
-          });
-          navigation.navigate('LearnerFlow', {
-            screen: 'LearnerSessionPending',
-            params: {
-              requestId: request.id,
-              learnerProfileId: learner.id,
-              educatorId: learner.educator.id,
-              educatorName: learner.educator.name,
-            },
-          });
-          return;
-        }
-
-        // Aluno sem educador vinculado: NÃO liberar acesso direto (RN084/RN101).
-        // Encaminha para o fluxo de Vinculação para solicitar o vínculo ao
-        // alfabetizador. Só entra no app após a confirmação do alfabetizador.
-        navigation.navigate('LearnerFlow', { screen: 'LearnerLinkStep1' });
-        return;
+        learner = await learnerRepo.lookupLearner(query, undefined);
       } catch (learnerError) {
         if (!isNotFoundError(learnerError)) throw learnerError;
       }
 
-      // 2. Tenta como educador
+      if (learner) {
+        if (!learner.educator) {
+          // Alfabetizando sem educador vinculado: não pode acessar
+          setErrorMessage(
+            'Você ainda não foi cadastrado por um alfabetizador. Procure seu alfabetizador para que ele faça seu cadastro no aplicativo.',
+          );
+          return;
+        }
+
+        const request = await learnerRepo.createSessionRequest({
+          learnerProfileId: learner.id,
+          educatorId: learner.educator.id,
+        });
+        navigation.navigate('LearnerFlow', {
+          screen: 'LearnerSessionPending',
+          params: {
+            requestId: request.id,
+            learnerProfileId: learner.id,
+            educatorId: learner.educator.id,
+            educatorName: learner.educator.name,
+            learnerName: learner.displayName,
+            educatorPhone: learner.educator.phoneDigits ?? undefined,
+          },
+        });
+        return;
+      }
+
+      // 2. Não é alfabetizando — tenta como educador
       const auth = await educatorRepo.loginEducator(query);
       await EducatorStorage.saveAuthSession(auth.token, auth.expiresAt, auth.educator);
       httpClient.setAuthToken(auth.token);

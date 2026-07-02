@@ -53,7 +53,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
 
   if (!lesson) {
     return (
-      <LearnerScreenLayout activeMenu="acompanhar" onMenuHome={() => navigation.navigate('LearnerHome')}>
+      <LearnerScreenLayout activeMenu="inicio" onMenuHome={() => navigation.navigate('LearnerHome')}>
         <Text style={styles.error}>Atividade não encontrada.</Text>
       </LearnerScreenLayout>
     );
@@ -210,9 +210,8 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
 
   return (
     <LearnerScreenLayout
-      activeMenu="acompanhar"
+      activeMenu="inicio"
       onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => navigation.navigate('LearnerProfile')}

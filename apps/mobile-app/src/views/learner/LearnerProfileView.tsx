@@ -43,6 +43,7 @@ export function LearnerProfileView({ navigation }: Props) {
   const [profile, setProfile] = useState<LearnerProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -50,13 +51,19 @@ export function LearnerProfileView({ navigation }: Props) {
       try {
         const profileId = await SessionStorage.getLearnerProfileId();
         if (!profileId) {
-          setErrorMessage('Sessão não encontrada.');
+          if (mounted) setErrorMessage('Sessão não encontrada.');
           return;
         }
         const data = await httpClient.get<LearnerProfileData>(`/cadastros/alfabetizandos/${profileId}`);
         if (mounted) setProfile(data);
       } catch (error) {
-        if (mounted) setErrorMessage(error instanceof Error ? error.message : 'Erro ao carregar perfil.');
+        if (!mounted) return;
+        const msg = error instanceof Error ? error.message : '';
+        if (msg.includes('(404)')) {
+          setSessionExpired(true);
+        } else {
+          setErrorMessage(msg || 'Erro ao carregar perfil.');
+        }
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -68,7 +75,7 @@ export function LearnerProfileView({ navigation }: Props) {
   const handleLogout = async () => {
     await SessionStorage.clearLearnerSession();
     navigation.getParent()?.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'LearnerFlow' }] }),
+      CommonActions.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] }),
     );
   };
 
@@ -76,7 +83,6 @@ export function LearnerProfileView({ navigation }: Props) {
     <LearnerScreenLayout
       activeMenu="perfil"
       onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTrack={() => navigation.navigate('LearnerHome')}
       onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
       onMenuScore={() => navigation.navigate('LearnerScore')}
       onMenuProfile={() => {}}
@@ -94,6 +100,15 @@ export function LearnerProfileView({ navigation }: Props) {
           <View style={styles.loadingBlock}>
             <ActivityIndicator size="small" color="#101010" />
             <Text style={styles.loadingText}>Carregando perfil...</Text>
+          </View>
+        ) : sessionExpired ? (
+          <View style={styles.loadingBlock}>
+            <Text style={styles.errorText}>
+              {'Sessão expirada. Faça login novamente para continuar.'}
+            </Text>
+            <Pressable style={styles.logoutButton} onPress={() => void handleLogout()}>
+              <Text style={styles.logoutLabel}>FAZER LOGIN</Text>
+            </Pressable>
           </View>
         ) : errorMessage ? (
           <View style={styles.loadingBlock}>

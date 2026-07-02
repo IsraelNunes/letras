@@ -1,11 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerLoadingView } from '../../views/learner/LearnerLoadingView';
-import { LearnerFirstAccessGateView } from '../../views/learner/LearnerFirstAccessGateView';
-import { LearnerCpfLoginView } from '../../views/learner/LearnerCpfLoginView';
 import { LearnerSessionPendingView } from '../../views/learner/LearnerSessionPendingView';
-import { LearnerLinkStep1View } from '../../views/learner/LearnerLinkStep1View';
-import { LearnerLinkSuccessView } from '../../views/learner/LearnerLinkSuccessView';
 import { LearnerOnboardingStep1View } from '../../views/learner/LearnerOnboardingStep1View';
 import { LearnerOnboardingStep2View } from '../../views/learner/LearnerOnboardingStep2View';
 import { LearnerOnboardingConfirmView } from '../../views/learner/LearnerOnboardingConfirmView';
@@ -32,29 +28,9 @@ export function LearnerNavigator() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
-          name="LearnerFirstAccessGate"
-          component={LearnerFirstAccessGateView}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="LearnerCpfLogin"
-          component={LearnerCpfLoginView}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
           name="LearnerSessionPending"
           component={LearnerSessionPendingView}
           options={{ headerShown: false, gestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="LearnerLinkStep1"
-          component={LearnerLinkStep1View}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="LearnerLinkSuccess"
-          component={LearnerLinkSuccessView}
-          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="LearnerOnboardingStep1"

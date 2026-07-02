@@ -109,6 +109,7 @@ export class CadastrosService {
       select: {
         id: true,
         displayName: true,
+        cpfOrPassport: true,
         phoneDigits: true,
         learnerThemes: {
           select: { theme: { select: { name: true } } },
@@ -172,7 +173,7 @@ export class CadastrosService {
         displayName: true,
         phoneDigits: true,
         educator: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, phoneDigits: true },
         },
       },
     });
@@ -192,6 +193,34 @@ export class CadastrosService {
       requestingEducatorId = await this.resolveEducatorIdFromToken(authorization);
     }
 
+    // Learner self-access (no token): lightweight query without nested themes/completions
+    // to avoid timeouts on development databases with lots of data.
+    if (requestingEducatorId === null) {
+      const learner = await this.prisma.learnerProfile.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          displayName: true,
+          cpfOrPassport: true,
+          phoneDigits: true,
+          birthDate: true,
+          uf: true,
+          city: true,
+          photoUri: true,
+          educator: { select: { id: true, name: true } },
+        },
+      });
+      if (!learner) throw new NotFoundException(`Alfabetizando ${id} nao encontrado.`);
+      return {
+        ...learner,
+        notes: null,
+        createdAt: null,
+        educatorId: learner.educator?.id ?? null,
+        progresso: { totalTracked: 0, completedCount: 0, progressPercent: 0 },
+      };
+    }
+
+    // Educator access: full query with ownership check.
     const learner = await this.prisma.learnerProfile.findUnique({
       where: { id },
       select: {
@@ -231,22 +260,15 @@ export class CadastrosService {
       throw new NotFoundException(`Alfabetizando ${id} nao encontrado.`);
     }
 
-    // Educator requests: must be the educator assigned to this learner.
-    if (requestingEducatorId !== null && requestingEducatorId !== learner.educatorId) {
+    if (requestingEducatorId !== learner.educatorId) {
       throw new UnauthorizedException('Sem permissão para visualizar este alfabetizando.');
     }
 
     const completedCount = learner.completions.filter((completion) => completion.status === 'COMPLETED').length;
     const totalTracked = learner.completions.length;
 
-    // Unauthenticated (learner self-access): strip educator's private contact fields.
-    const educatorView = requestingEducatorId !== null
-      ? learner.educator
-      : learner.educator ? { id: learner.educator.id, name: learner.educator.name } : null;
-
     return {
       ...learner,
-      educator: educatorView,
       progresso: {
         totalTracked,
         completedCount,
@@ -486,7 +508,7 @@ export class CadastrosService {
       where: { educatorId, status: SessionRequestStatus.PENDING },
       include: {
         learnerProfile: {
-          select: { id: true, displayName: true, cpfOrPassport: true },
+          select: { id: true, displayName: true, cpfOrPassport: true, phoneDigits: true, birthDate: true, uf: true, city: true },
         },
       },
       orderBy: { requestedAt: 'asc' },
