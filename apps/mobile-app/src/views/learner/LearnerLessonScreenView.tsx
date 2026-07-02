@@ -43,20 +43,6 @@ function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null)
   return Boolean(exercise);
 }
 
-// Telefone com bolha de fala (preto) do botão PRECISO DE AJUDA — Figma
-// "Modelo de Ensino ao Alfabetizando".
-function PendingPhoneDarkIcon() {
-  return (
-    <Svg width={26} height={26} viewBox="0 0 32 32" fill="none">
-      <Path
-        d="M6 9 C6 7 7 6 9 6 L11 6 C12 6 13 7 13 8 L13 11 C13 12 12 13 11 13 L10 13 C10 17 13 20 17 20 L17 19 C17 18 18 17 19 17 L22 17 C23 17 24 18 24 19 L24 21 C24 23 23 24 21 24 C12 24 6 18 6 9 Z"
-        fill="#111111"
-      />
-      <Path d="M18 5 C23 5 27 9 27 14" stroke="#111111" strokeWidth={2.5} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
 // Ícone de expandir (RN043) — quatro cantos, como no Figma (Modelo imagem).
 function ExpandIcon() {
   return (
@@ -149,7 +135,7 @@ function buildSpellingNarration(label: string): string {
     .join(', ');
 }
 
-function speakWithBrowserVoice(text: string): boolean {
+function speakWithBrowserVoice(text: string, onEnd?: () => void): boolean {
   const normalized = String(text || '').trim();
   if (!normalized || Platform.OS !== 'web') {
     return false;
@@ -184,6 +170,10 @@ function speakWithBrowserVoice(text: string): boolean {
   utterance.pitch = 1;
   if (preferredVoice) {
     utterance.voice = preferredVoice;
+  }
+
+  if (onEnd) {
+    (utterance as { onend?: () => void }).onend = onEnd;
   }
 
   runtime.speechSynthesis.cancel();
@@ -327,7 +317,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
       if (!normalizedUrl) {
         if (requestId === audioRequestIdRef.current) {
-          speakWithBrowserVoice(normalizedFallback);
+          // Registra a chave também para a voz do navegador: sem isso o
+          // segundo toque não vira toggle e a fala reinicia em vez de parar.
+          const spoke = speakWithBrowserVoice(normalizedFallback, () => {
+            setPlayingAudioKey((current) => (current === audioKey ? null : current));
+          });
+          if (spoke && audioKey) {
+            setPlayingAudioKey(audioKey);
+          }
         }
         return;
       }
@@ -1352,24 +1349,6 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <LearnerActionButtons onBack={goBack} onNext={onNext} />
         )}
 
-        {isLearnerDriven ? (
-          // Figma (Modelo de Ensino): botão amarelo PRECISO DE AJUDA fixo no
-          // rodapé do conteúdo — canal direto de apoio ao alfabetizador.
-          <View style={styles.helpYellowRow}>
-            <Pressable
-              style={styles.helpYellowBtn}
-              onPress={() => learnerSession.requestHelp('Preciso de ajuda nesta tela.', buildHelpSnapshot())}
-              accessibilityRole="button"
-              accessibilityLabel="Preciso de ajuda"
-            >
-              <Text style={styles.helpYellowText}>PRECISO{'\n'}DE AJUDA</Text>
-              <PendingPhoneDarkIcon />
-            </Pressable>
-            {learnerSession.isHelpPending ? (
-              <Text style={styles.helpYellowPending}>Aviso enviado ao alfabetizador</Text>
-            ) : null}
-          </View>
-        ) : null}
       </View>
     </LearnerScreenLayout>
   );
@@ -1449,31 +1428,6 @@ const styles = StyleSheet.create({
   audioSpeakerRow: {
     alignItems: 'center',
     marginVertical: 22,
-  },
-  // Botão amarelo PRECISO DE AJUDA (Figma Modelo de Ensino ao Alfabetizando).
-  helpYellowRow: {
-    marginTop: 20,
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  helpYellowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#f7e733',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  helpYellowText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#111111',
-    lineHeight: 15,
-  },
-  helpYellowPending: {
-    fontSize: 12,
-    color: '#4b5563',
   },
   progressHeader: {
     flexDirection: 'row',

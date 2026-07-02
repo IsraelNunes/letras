@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAssets } from 'expo-asset';
+import { SvgUri } from 'react-native-svg';
 import { LearnerRootStackParamList } from '../../types';
-import { LearnerScreenLayout } from './components/LearnerScreenLayout';
-import { learnerTheme } from './learnerTheme';
+import { BellIcon } from '../shared/BellIcon';
+import { PhraseProgressWidget } from '../educator/components/PhraseProgressWidget';
+import { LearnerBottomMenu } from './components/LearnerBottomMenu';
 import { useLearnerSession } from './learnerSessionContext';
 import { httpClient } from '../../infra/api/http-client';
 
@@ -15,16 +28,28 @@ interface ScoreData {
   totalActivities: number;
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
-  return (
-    <Text style={[styles.star, filled && styles.starFilled]}>★</Text>
-  );
+// Figma (Pontuação): "Cada 200 pontos, você ganha uma nova Letra" —
+// ex.: 2.620 pontos → 13 letras no marcador.
+const POINTS_PER_LETTER = 200;
+
+const SHARE_TEXT =
+  'Estou me alfabetizando pelo app Letras e transformando a minha vida! #Letras #Alfabetização';
+
+function buildSocialShareUrl(platform: 'linkedin' | 'facebook' | 'instagram' | 'x'): string {
+  const encoded = encodeURIComponent(SHARE_TEXT);
+  if (platform === 'linkedin') return `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
+  if (platform === 'facebook') return `https://www.facebook.com/sharer/sharer.php?quote=${encoded}`;
+  if (platform === 'instagram') return 'https://www.instagram.com/';
+  return `https://x.com/intent/tweet?text=${encoded}`;
 }
 
 export function LearnerPontuacaoView({ navigation }: Props) {
   const learnerSession = useLearnerSession();
   const [scoreData, setScoreData] = useState<ScoreData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [logoAsset] = useAssets([require('../../../assets/Logo-LETRAS.svg')]);
+  const logoUri = logoAsset?.[0]?.localUri ?? logoAsset?.[0]?.uri;
 
   useEffect(() => {
     const learnerId = learnerSession.learnerProfileId;
@@ -43,264 +68,155 @@ export function LearnerPontuacaoView({ navigation }: Props) {
     })();
   }, [learnerSession.learnerProfileId]);
 
-  const completionPercent =
-    scoreData && scoreData.totalActivities > 0
-      ? Math.round((scoreData.completedCount / scoreData.totalActivities) * 100)
-      : 0;
+  const totalPoints = scoreData?.totalPoints ?? 0;
+  const lettersUnlocked = Math.floor(totalPoints / POINTS_PER_LETTER);
+  const updatedDateStr = new Date().toLocaleDateString('pt-BR');
 
-  const filledStars = Math.min(5, Math.floor((completionPercent / 100) * 5));
+  const handleSocial = async (platform: 'linkedin' | 'facebook' | 'instagram' | 'x') => {
+    const url = buildSocialShareUrl(platform);
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) await Linking.openURL(url);
+  };
 
   return (
-    <LearnerScreenLayout
-      activeMenu="pontuacao"
-      onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
-      onMenuScore={() => navigation.navigate('LearnerScore')}
-      onMenuProfile={() => navigation.navigate('LearnerProfile')}
-      roleLabel="alfabetizando"
-      learnerName={learnerSession.learnerName}
-      isSessionLocked={learnerSession.isLocked}
-      sessionErrorMessage={learnerSession.errorMessage}
-    >
-      <ScrollView contentContainerStyle={styles.wrapper}>
-        {/* Heading */}
-        <View style={styles.headingBlock}>
-          <Text style={styles.headingMain}>PESSOA QUE</Text>
-          <Text style={styles.headingMain}>TRANSFORMA</Text>
-          <Text style={styles.headingMain}>PESSOA</Text>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <View style={styles.logoWrap}>
+          {logoUri ? (
+            <SvgUri uri={logoUri} width={84} height={50} />
+          ) : (
+            <View style={{ width: 84, height: 50 }} />
+          )}
         </View>
+        <BellIcon size={22} />
+      </View>
 
-        {/* Learner name */}
-        {learnerSession.learnerName ? (
-          <Text style={styles.learnerName}>{learnerSession.learnerName}</Text>
-        ) : null}
-
-        {/* Stars */}
-        <View style={styles.starsRow}>
-          {Array.from({ length: 5 }, (_, i) => (
-            <StarIcon key={i} filled={i < filledStars} />
-          ))}
-        </View>
-
-        {/* Score card */}
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {isLoading ? (
-          <ActivityIndicator color={learnerTheme.primary} style={styles.loader} />
-        ) : scoreData ? (
+          <ActivityIndicator style={{ marginTop: 40 }} color="#000" />
+        ) : (
           <>
-            <View style={styles.scoreCard}>
-              <Text style={styles.scoreLabel}>PONTOS TOTAIS</Text>
-              <Text style={styles.scoreValue}>
-                {scoreData.totalPoints > 0
-                  ? scoreData.totalPoints.toLocaleString('pt-BR')
-                  : '—'}
+            {/* Figma (Pontuação): ícone de certificado + textos do sistema */}
+            <View style={styles.summaryCard}>
+              <Image source={require('../../../assets/menu/pontuacao.png')} style={styles.awardIcon} />
+              <Text style={styles.summaryText}>
+                Letras tem um sistema de pontuação. Cada {POINTS_PER_LETTER} pontos, você ganha uma nova Letra no seu Alfabeto de PESSOA QUE TRANSFORMA PESSOA.
+              </Text>
+              <Text style={styles.scoreText}>
+                Sua pontuação atual:{' '}
+                <Text style={styles.scoreHighlight}>{totalPoints.toLocaleString('pt-BR')} pontos obtidos.</Text>
+                {' '}(atualizado em {updatedDateStr})
+              </Text>
+              <Text style={styles.summaryText}>
+                Você já conseguiu incluir {lettersUnlocked} letra{lettersUnlocked !== 1 ? 's' : ''} no seu marcador.
               </Text>
             </View>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statBlock}>
-                <Text style={styles.statValue}>{scoreData.completedCount}</Text>
-                <Text style={styles.statLabel}>telas concluídas</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBlock}>
-                <Text style={styles.statValue}>{completionPercent}%</Text>
-                <Text style={styles.statLabel}>do conteúdo</Text>
-              </View>
+            {/* RN096: PESSOA QUE TRANSFORMA PESSOA com letras destravadas */}
+            <View style={styles.phraseContainer}>
+              <PhraseProgressWidget lettersUnlocked={lettersUnlocked} />
             </View>
 
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${completionPercent}%` }]} />
-            </View>
-
-            <Text style={styles.motivationText}>
-              {completionPercent === 0
-                ? 'Comece sua jornada de alfabetização!'
-                : completionPercent < 50
-                ? 'Você está no caminho certo. Continue!'
-                : completionPercent < 100
-                ? 'Ótimo progresso! Siga em frente!'
-                : 'Incrível! Você concluiu todo o conteúdo!'}
+            <Text style={styles.shareIntro}>
+              Compartilhe suas conquistas e mostre que outras pessoas também podem fazer o mundo um lugar mais humano pra se viver.
             </Text>
-          </>
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>Nenhuma pontuação registrada ainda.</Text>
-            <Text style={styles.emptySubtext}>Comece as aulas para acumular pontos.</Text>
-          </View>
-        )}
 
-        <Pressable
-          style={styles.homeBtn}
-          onPress={() => navigation.navigate('LearnerHome')}
-          accessibilityRole="button"
-          accessibilityLabel="Ir para início"
-        >
-          <Text style={styles.homeBtnText}>IR PARA INÍCIO</Text>
-        </Pressable>
+            <View style={styles.socialsRow}>
+              <Pressable onPress={() => void handleSocial('linkedin')} style={styles.socialBtn}>
+                <Image source={require('../../../assets/social-linkedin.png')} style={styles.socialIcon} />
+              </Pressable>
+              <Pressable onPress={() => void handleSocial('facebook')} style={styles.socialBtn}>
+                <Image source={require('../../../assets/social-facebook.png')} style={styles.socialIcon} />
+              </Pressable>
+              <Pressable onPress={() => void handleSocial('instagram')} style={styles.socialBtn}>
+                <Image source={require('../../../assets/social-instagram.png')} style={styles.socialIcon} />
+              </Pressable>
+              <Pressable onPress={() => void handleSocial('x')} style={styles.socialBtn}>
+                <Image source={require('../../../assets/social-x.png')} style={styles.socialIcon} />
+              </Pressable>
+            </View>
+          </>
+        )}
       </ScrollView>
-    </LearnerScreenLayout>
+
+      <LearnerBottomMenu
+        active="pontuacao"
+        onInicioPress={() => navigation.navigate('LearnerHome')}
+        onTutorialPress={() => navigation.navigate('LearnerTutorials')}
+        onPontuacaoPress={() => navigation.navigate('LearnerScore')}
+        onPerfilPress={() => navigation.navigate('LearnerProfile')}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    gap: 18,
-    alignItems: 'center',
-    paddingBottom: 24,
-  },
-  loader: {
-    marginTop: 24,
-  },
-
-  // Heading
-  headingBlock: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
-  headingMain: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: learnerTheme.textStrong,
-    letterSpacing: 1.5,
-    lineHeight: 34,
-    textAlign: 'center',
-  },
-
-  // Learner name
-  learnerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: learnerTheme.text,
-    textAlign: 'center',
-  },
-
-  // Stars
-  starsRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  star: {
-    fontSize: 28,
-    color: learnerTheme.border,
-  },
-  starFilled: {
-    color: '#f59e0b',
-  },
-
-  // Score card
-  scoreCard: {
-    width: '100%',
-    backgroundColor: learnerTheme.primary,
-    borderRadius: 16,
-    paddingVertical: 22,
-    paddingHorizontal: 18,
-    alignItems: 'center',
-    gap: 6,
-  },
-  scoreLabel: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  scoreValue: {
-    color: '#ffffff',
-    fontSize: 48,
-    fontWeight: '900',
-    letterSpacing: -1,
-    lineHeight: 56,
-  },
-
-  // Stats
-  statsRow: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: learnerTheme.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
-    paddingVertical: 16,
-  },
-  statBlock: {
+  safe: {
     flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 22,
+    paddingTop: 20,
+  },
+  logoWrap: {
+    minHeight: 50,
+    justifyContent: 'center',
+  },
+  scroll: {
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 110,
+  },
+  summaryCard: {
+    gap: 10,
     alignItems: 'center',
-    gap: 4,
   },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: learnerTheme.border,
+  awardIcon: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: learnerTheme.textStrong,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: learnerTheme.textMuted,
-    fontWeight: '600',
-  },
-
-  // Progress bar
-  progressTrack: {
-    width: '100%',
-    height: 8,
-    backgroundColor: learnerTheme.border,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: 8,
-    backgroundColor: learnerTheme.successText,
-    borderRadius: 4,
-  },
-
-  // Motivation
-  motivationText: {
-    color: learnerTheme.textMuted,
+  summaryText: {
     fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 21,
+    color: '#111111',
+    textDecorationLine: 'underline',
   },
-
-  // Empty state
-  emptyCard: {
-    width: '100%',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    backgroundColor: learnerTheme.surfaceMuted,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: learnerTheme.border,
+  scoreText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#111111',
+    textDecorationLine: 'underline',
   },
-  emptyText: {
-    color: learnerTheme.textStrong,
-    fontSize: 15,
+  scoreHighlight: {
     fontWeight: '700',
-    textAlign: 'center',
   },
-  emptySubtext: {
-    color: learnerTheme.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
+  phraseContainer: {
+    marginVertical: 18,
   },
-
-  // Home button
-  homeBtn: {
-    width: '100%',
-    backgroundColor: learnerTheme.primary,
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  homeBtnText: {
-    color: '#ffffff',
+  shareIntro: {
     fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    lineHeight: 21,
+    color: '#111111',
+    textDecorationLine: 'underline',
+    marginBottom: 14,
+  },
+  socialsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  socialBtn: {
+    padding: 6,
+  },
+  socialIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
 });

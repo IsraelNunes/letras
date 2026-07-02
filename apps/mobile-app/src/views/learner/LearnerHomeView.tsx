@@ -40,6 +40,32 @@ export function LearnerHomeView({ navigation }: Props) {
     return completedLessonIds.has(lessons[index - 1].progressId);
   }
 
+  // Etapa atual do alfabetizando: a etapa seguinte só abre quando TODAS as
+  // aulas da etapa vigente estiverem concluídas (mesma regra do painel, que
+  // deriva a "Etapa" do aluno a partir do progresso). Módulos/aulas de etapas
+  // futuras não aparecem.
+  const allLessons = modules.flatMap((m) => m.lessons);
+  const stageNumbers = [...new Set(allLessons.map((l) => l.stageNumber || 1))].sort((a, b) => a - b);
+  let currentStage = stageNumbers[0] ?? 1;
+  for (const stage of stageNumbers) {
+    const stageLessons = allLessons.filter((l) => (l.stageNumber || 1) === stage);
+    const stageDone =
+      stageLessons.length > 0 && stageLessons.every((l) => completedLessonIds.has(l.progressId));
+    if (stageDone) {
+      currentStage = Math.max(currentStage, stage + 1);
+    } else {
+      currentStage = Math.max(currentStage, stage);
+      break;
+    }
+  }
+
+  const gatedModules = modules
+    .map((moduleItem) => ({
+      ...moduleItem,
+      lessons: moduleItem.lessons.filter((l) => (l.stageNumber || 1) <= currentStage),
+    }))
+    .filter((moduleItem) => moduleItem.lessons.length > 0);
+
   return (
     <LearnerScreenLayout
       activeMenu="inicio"
@@ -71,7 +97,7 @@ export function LearnerHomeView({ navigation }: Props) {
           </View>
         ) : null}
 
-        {modules.map((moduleItem, moduleIndex) => {
+        {gatedModules.map((moduleItem, moduleIndex) => {
           const firstLesson = moduleItem.lessons[0] ?? null;
           const moduleLabel = firstLesson?.moduleLabel ?? `MÓDULO ${moduleIndex + 1}`;
           return (
