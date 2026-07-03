@@ -1,6 +1,6 @@
 # SUPER PROMPT v2 — Conclusão do MVP Letras (inclui migrations)
 
-**Atualizado:** 2026-07-02 (noite) · **Estado:** Fase 1 DEPLOYADA nos 2 repos; falta só aplicar a migration e validar o fluxo real de pontuação. Use este documento como o prompt de trabalho de qualquer sessão até o MVP fechar. Ao concluir um item, marque ✅ com a data neste arquivo.
+**Atualizado:** 2026-07-02 (noite) · **Estado:** Fase 1 **CONCLUÍDA** — deployada, migration aplicada e fluxo real validado em produção. Próximo: Fase 2 (foto de atividade). Use este documento como o prompt de trabalho de qualquer sessão até o MVP fechar. Ao concluir um item, marque ✅ com a data neste arquivo.
 
 ---
 
@@ -10,7 +10,8 @@
   - Repo web: `d88a0b1` mergeado (ff) em `feat/learner-experience-improvements`, Actions "Deploy painel" ✅.
   - Repo mobile: merge `9630c7d` em `fix/security-badges-corrections`, Actions "Deploy mobile web" ✅.
   - Validado em produção: `GET /scoring/me?educatorId=<Isaque>` responde shape novo zerado (`totalScore:0, lettersUnlocked:1, phraseLength:26, recentEvents:[]`); notifications tutor/admin respondendo.
-- **Migration pendente de aplicação (ÚNICO bloqueio da Fase 1):** `Projeto-Letras-Web/infra/supabase/migrations/20260702_educator_score_events.sql` (ledger `educator_score_events` + amplia CHECK de tipos de `educator_notifications`). O código deployado tolera a ausência dela (retorna 0/ignora) — mas sem ela nada pontua. Na sessão de 2026-07-02 a leitura do `.env` foi negada pela camada de permissões; aplicar manualmente (seção 2).
+- ✅ (2026-07-02) **Migration aplicada e fluxo real validado em produção**: `support_bonus` +3 e `stage_completed` +15 creditados, notificações com copy do Figma, `link_denied` ao admin. Detalhes na seção 3. **Novo utilitário:** `letras/scripts/psql-supabase.sh` roda psql contra o Supabase lendo o `DATABASE_URL` do `.env` sem expô-lo — usar para todas as migrations futuras.
+- **Efeito colateral aceito da validação:** Bruno Souza Teste agora está com a **Etapa 2 = 100% concluída** (era 33%) — o gatilho de +15 dessa etapa dele já disparou (dedupe impede repetição). Para revalidar `stage_completed`, usar outro aluno/etapa ou publicar atividade nova na etapa (reabre a régua).
 - **Risco de débito retroativo do sweep: ELIMINADO** — a fila de apoio de produção estava vazia (`GET /painel/fila` → `{"total":0}`) no momento do deploy. A varredura (`apps/api/src/jobs/scoringSweep.js`) NÃO roda fora de produção (guard `NODE_ENV`; forçar com `SCORING_SWEEP_ENABLED=true`).
 - **Arquivos untracked antigos no repo mobile** (EducatorTutorial*, storages, scripts) são de trabalho anterior — não commitá-los junto com itens das fases sem revisar.
 
@@ -21,43 +22,41 @@
 - **Deploy é automático:** push na branch de deploy dispara GitHub Actions — `fix/security-badges-corrections` no mobile; `feat/learner-experience-improvements` no web. Trabalhe em branches próprias e faça merge/push para a de deploy só quando for deployar. Não rodar deploy manual em paralelo a um push.
 - **Fontes da verdade, nesta ordem:** (1) protótipos em `/home/israel/Downloads/figma/Alfabetizador Online pdf/` (SVGs em `.../Alfabetizador Online svg/`; renderizar com `pdftoppm -png -r 55` ANTES de mexer em qualquer tela — nunca implementar de memória); (2) `/home/israel/Documentos/Projeto-Letras-Web/docs/insumos/regras-negocio/regras-negocio-bruto-extraido.txt` (117 RNs); (3) atas em `docs/` (11/06, 17/05, 06/04).
 - **Distinção crítica de telas:** Etapa 1 = educador conduz (cabeçalho, box de orientação, dica, menu). Etapas 2/3 = aluno navega (Modelo de Ensino: só logo + alto-falante verde grande + card + AVANÇAR preenchida). As "Demonstração da tela de orientação" são a **visão do educador** na Etapa 2.
-- **Dados de teste (produção):** educador Isaque `7e6bf61f-7454-4aff-bfc1-2009a683b8fe` (CPF 06604997111/123456; isaque@gmail.com/123456); admin admin@gmail.com/123456. Alunos: Ana Silva Teste (CPF 52998224725, Etapa 1), Bruno Souza Teste (15350946056, Etapa 2, 33%), Clara Lima Teste (11144477735, Etapa 3, 100%) — todos vinculados ao Isaque.
+- **Dados de teste (produção):** educador Isaque `7e6bf61f-7454-4aff-bfc1-2009a683b8fe` (CPF 06604997111/123456; isaque@gmail.com/123456); admin admin@gmail.com/123456. Alunos: Ana Silva Teste (CPF 52998224725, Etapa 1), Bruno Souza Teste (15350946056, Etapa 2 **100% concluída** desde a validação de 2026-07-02), Clara Lima Teste (11144477735, Etapa 3, 100%) — todos vinculados ao Isaque.
 - **Validação obrigatória:** após cada fase, validar em produção (curl na API + fluxo no browser) e com os 3 alunos de teste.
 
 ## 2. MIGRATIONS — procedimento padrão
 
 O Supabase não aplica as migrations do repo sozinho; aplicação é manual. Duas vias:
 
-**Via psql (preferida):** o `DATABASE_URL` do Postgres do Supabase está em `letras/apps/api/.env` (usado pelo Prisma da NestJS). **Peça permissão ao Israel antes de ler o .env** (contém segredos). Conferir que aponta para o Supabase e não para o Docker local (porta 5434) — se preciso, `bash scripts/use-supabase-db.sh` no repo `letras` restaura. Então:
+**Via script (preferida):** `letras/scripts/psql-supabase.sh` lê o `DATABASE_URL` de `apps/api/.env` internamente (nunca imprime a URL/senha) e recusa rodar se o `.env` apontar para o Docker local (porta 5434; `bash scripts/use-supabase-db.sh` restaura). A camada de permissões bloqueia ler o `.env` diretamente — use sempre o script. Migrations em produção exigem confirmação explícita do Israel na sessão.
 
 ```bash
-# do repo Projeto-Letras-Web
-psql "$DATABASE_URL" -f infra/supabase/migrations/20260702_educator_score_events.sql
-# verificar:
-psql "$DATABASE_URL" -c "select count(*) from educator_score_events;"
-psql "$DATABASE_URL" -c "select pg_get_constraintdef(oid) from pg_constraint where conname='educator_notifications_type_check';"
+# do repo letras
+bash scripts/psql-supabase.sh -f ../Projeto-Letras-Web/infra/supabase/migrations/<arquivo>.sql
+bash scripts/psql-supabase.sh -c "select ...;"   # queries de verificação
 ```
 
 **Via SQL Editor do Supabase (fallback):** colar o conteúdo do arquivo .sql no editor e executar; rodar as mesmas verificações.
 
 **Regras para novas migrations:** arquivo novo em `infra/supabase/migrations/` com prefixo de data (`YYYYMMDD_nome.sql`); sempre aditivas/idempotentes (`if not exists`, `drop constraint if exists` antes de recriar); o código Node deve tolerar a migration ausente (padrão do repo: `runOptionalQuery`/`isOptionalSourceMissing` engolem `PGRST205`/`42P01`, e inserts tratam `23505` para idempotência). Migrations pendentes de aplicação ficam listadas aqui:
 
-- [ ] `20260702_educator_score_events.sql` — ledger de pontos + novos tipos de notificação (Fase 1).
+- ✅ (2026-07-02) `20260702_educator_score_events.sql` — ledger de pontos + novos tipos de notificação (Fase 1). Aplicada via `bash letras/scripts/psql-supabase.sh -f <arquivo.sql>`; verificações OK (tabela criada, CHECK com os 9 tipos).
 
-## 3. PASSO IMEDIATO — fechar a Fase 1 (migration → validação do fluxo real)
+## 3. FASE 1 FECHADA — registro da validação (2026-07-02)
 
-1. [ ] **Aplicar a migration** (seção 2) — ação manual do Israel (leitura do `.env` negada em sessão): via psql com o `DATABASE_URL` de `letras/apps/api/.env`, ou colando o SQL no editor do Supabase:
-   ```bash
-   # do repo Projeto-Letras-Web
-   psql "$DATABASE_URL" -f infra/supabase/migrations/20260702_educator_score_events.sql
-   psql "$DATABASE_URL" -c "select count(*) from educator_score_events;"
-   psql "$DATABASE_URL" -c "select pg_get_constraintdef(oid) from pg_constraint where conname='educator_notifications_type_check';"
-   ```
-2. ✅ (2026-07-02) **Fila de apoio de produção** verificada: vazia (`{"total":0}`) — nenhum débito retroativo possível; nada a limpar.
-3. ✅ (2026-07-02) **Deploy web:** `d88a0b1` ff-merge em `feat/learner-experience-improvements`; Actions "Deploy painel" success.
-4. ✅ (2026-07-02) **Deploy mobile:** merge `9630c7d` em `fix/security-badges-corrections`; Actions "Deploy mobile web" success.
-5. **Validar em produção:** ✅ (2026-07-02) curls básicos — `GET /scoring/me?educatorId=<Isaque>` → `{"totalScore":0,"lettersUnlocked":1,"phraseLength":26,"recentEvents":[]}`; notifications tutor (10 itens) e admin (15 itens) ok. **[ ] Fluxo real (depende da migration):** com o Bruno (Etapa 2, 33%), concluir uma atividade no app → conferir que NÃO pontua ainda (etapa incompleta); concluir todas as atividades publicadas de uma etapa de um aluno de teste → conferir evento `stage_completed` (+15 na Etapa 2) no ledger, notificação "Você ganhou + 15 pontos" no sino, e a tela Pontuação refletindo o total. Pedido de ajuda + avanço em <1h → conferir `support_bonus` +3. Recusar um vínculo → notificação `link_denied` para admin (`GET /painel/notifications?recipientRole=admin`).
-6. **Marcar ✅** nos itens restantes da Fase 1 (seção 5) e na migration (seção 2), com data.
+1. ✅ **Migration aplicada** via `bash letras/scripts/psql-supabase.sh -f .../20260702_educator_score_events.sql`; tabela criada e CHECK com os 9 tipos verificados por query.
+2. ✅ **Fila de apoio de produção** verificada: vazia — nenhum débito retroativo possível.
+3. ✅ **Deploy web:** `d88a0b1` ff-merge em `feat/learner-experience-improvements`; Actions "Deploy painel" success.
+4. ✅ **Deploy mobile:** merge `9630c7d` em `fix/security-badges-corrections`; Actions "Deploy mobile web" success.
+5. ✅ **Fluxo real validado em produção via API** (aluno Bruno + educador Isaque):
+   - Avanço (`IN_PROGRESS`) sem pedido de apoio e sem fechar etapa → **não pontuou** (totalScore 0). ✓ negativo
+   - `POST /painel/support-requests` + `COMPLETED` na última atividade pendente da Etapa 2 em <1h → `support_bonus` **+3** e `stage_completed` **+15** no ledger (dedupe keys corretos), `totalScore: 18`, `lettersUnlocked: 1`.
+   - Sino do Isaque: "Você ganhou + 15 pontos / Bruno Souza Teste concluiu a Etapa 2 da alfabetização" e "Você ganhou + 3 pontos / ...avançou após o pedido de apoio" — copy exata do Figma/RN093.
+   - Pedido de apoio resolvido em seguida (`PATCH /painel/fila/:id` action `resolver`) — fila voltou a 0.
+   - Recusa de vínculo (RN098/099): aluno descartável criado → vínculo pendente → `PATCH /cadastros/vinculos/:id` `status:"negado"` com motivo → admin recebeu `link_denied` ("Vinculação não confirmada ... Motivo: Não conheço este alfabetizando") → aluno descartável deletado.
+   - **Não coberto (fazer manualmente quando conveniente):** telas do app (sino/badge do educador, tela Pontuação) refletindo esses dados — a API que as alimenta está validada.
+6. ✅ Documento atualizado com as datas.
 
 ## 4. O que JÁ está fiel/funcional (não retrabalhar)
 
@@ -70,7 +69,7 @@ Login unificado por CPF com aprovação do educador; cadastro/edição/exclusão
 3. ✅ (2026-07-02) **RN093** — alerta de prazo 3d/24h (`deadline_alert`, job horário `jobs/scoringSweep.js`), pontuação ganha/perdida (`score_event`), reconhecimento por nova letra (`recognition`, RN096: 1 grátis + 1 a cada 200, teto 26).
 4. ✅ (2026-07-02, commit `c7ed4d7`) **RN094/095 mobile** — negrito só até tocar NAQUELA notificação; badge 99/'99+' no EducatorBell e na Home.
 5. ✅ (2026-07-02) **RN098/099/104** — 4 motivos verbatim no mobile; recusa notifica admin + alfabetizando (`link_denied`); vínculo confirmado com novo educador notifica os antigos (`link_transferred`, nome+CPF do alfabetizando).
-6. ✅ parcial (2026-07-02): deploy dos 2 repos + curls de validação OK. [ ] Migration aplicada + validação do fluxo real (seção 3, passos 1 e 5).
+6. ✅ (2026-07-02) Migration aplicada + deploy dos 2 repos + fluxo real validado em produção (registro na seção 3). **FASE 1 CONCLUÍDA.**
 
 ## 6. FASE 2 — Foto de atividade (versão MVP sem IA) — ALTA
 
