@@ -46,6 +46,21 @@ export type EducatorRootStackParamList = {
     learnerId?: string;
     educatorId?: string;
   };
+  // Fase 2 (RN076-083): comparativo "Atividade solicitada" × "Atividade
+  // entregue" com APROVAR TAREFA; também abre a foto avulsa (RN059/070).
+  EducatorActivityPhoto: {
+    photoId: string;
+    photoUrl: string;
+    photoStatus?: string;
+    photoKind?: string;
+    learnerId?: string;
+    learnerName?: string;
+    learnerPhone?: string | null;
+    requestedMediaUrl?: string | null;
+    activityTitle?: string | null;
+    educatorId?: string;
+    fullName?: string;
+  };
   EducatorLinkConfirm: {
     educatorId: string;
     fullName: string;
@@ -154,6 +169,14 @@ export type LearnerRootStackParamList = {
     lessonId: string;
     moduleLabel: string;
     moduleTitle: string;
+  };
+  // Fase 2 (RN113/114): revisão da foto do exercício feito no papel —
+  // FAZER OUTRA FOTO / ENVIAR FOTO. kind 'carta' reusa a tela para a
+  // carta de agradecimento da Etapa 3 (Fase 5).
+  LearnerPhotoReview: {
+    photoUri: string;
+    activityId: string | null;
+    kind?: 'atividade' | 'carta';
   };
 };
 

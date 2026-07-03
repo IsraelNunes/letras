@@ -14,6 +14,7 @@ import { LearnerLessonIntroView } from '../../views/learner/LearnerLessonIntroVi
 import { LearnerLessonScreenView } from '../../views/learner/LearnerLessonScreenView';
 import { LearnerLessonActivityView } from '../../views/learner/LearnerLessonActivityView';
 import { LearnerLessonConclusionView } from '../../views/learner/LearnerLessonConclusionView';
+import { LearnerPhotoReviewView } from '../../views/learner/LearnerPhotoReviewView';
 import { LearnerSessionProvider } from '../../views/learner/learnerSessionContext';
 
 const Stack = createNativeStackNavigator<LearnerRootStackParamList>();
@@ -90,6 +91,11 @@ export function LearnerNavigator() {
         <Stack.Screen
           name="LearnerLessonConclusion"
           component={LearnerLessonConclusionView}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="LearnerPhotoReview"
+          component={LearnerPhotoReviewView}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

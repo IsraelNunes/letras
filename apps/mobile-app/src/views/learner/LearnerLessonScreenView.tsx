@@ -2,7 +2,8 @@ import { createElement, useCallback, useEffect, useMemo, useRef, useState } from
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio, ResizeMode, Video } from 'expo-av';
-import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Alert, Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LearnerScreenSnapshot } from '@letras/shared-types';
 import { LearnerRootStackParamList } from '../../types';
@@ -654,6 +655,27 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     highlightMessage: screen.highlightMessage,
     exercise: screen.exercise ?? null,
   });
+
+  // RN113: câmera do celular fotografa o exercício feito no papel; a revisão
+  // (FAZER OUTRA FOTO / ENVIAR FOTO) acontece na LearnerPhotoReview (RN114).
+  const takeActivityPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permissao necessaria', 'Precisamos da permissao da camera para fotografar a atividade.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      navigation.navigate('LearnerPhotoReview', {
+        photoUri: result.assets[0].uri,
+        activityId: screen.id,
+        kind: 'atividade',
+      });
+    }
+  };
 
   const lockCurrentExercise = (message: string) => {
     // RN111: bip de erro também no bloqueio por tentativas.
@@ -1341,9 +1363,17 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
           />
         ) : isLearnerDriven ? (
-          // Figma (Modelo de Ensino): seta única AVANÇAR verde preenchida —
-          // o aluno "folheia" para frente; sem VOLTAR.
-          <LearnerActionButtons variant="filled" hideBack nextLabel="AVANÇAR" onNext={onNext} />
+          // Figma (Modelo de Ensino / Demonstração de Tela com Pedido de
+          // Apoio): câmera verde FOTOGRAFAR ATIVIDADE à esquerda (RN113) e
+          // seta única AVANÇAR verde preenchida — o aluno "folheia" pra frente.
+          <LearnerActionButtons
+            variant="filled"
+            hideBack
+            nextLabel="AVANÇAR"
+            onNext={onNext}
+            onPhoto={() => void takeActivityPhoto()}
+            photoLabel={'FOTOGRAFAR\nATIVIDADE'}
+          />
         ) : (
           // Etapa 1 (educador conduz): setas verdes VOLTAR/AVANÇAR.
           <LearnerActionButtons onBack={goBack} onNext={onNext} />
