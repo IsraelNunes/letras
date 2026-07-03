@@ -8,6 +8,7 @@ import { EducatorOnboardingStepTwoView } from '../../views/educator/EducatorOnbo
 import { EducatorOnboardingStepThreeView } from '../../views/educator/EducatorOnboardingStepThreeView';
 import { EducatorOnboardingConfirmView } from '../../views/educator/EducatorOnboardingConfirmView';
 import { EducatorLearningModeView } from '../../views/educator/EducatorLearningModeView';
+import { EducatorLiveMirrorView } from '../../views/educator/EducatorLiveMirrorView';
 import { EducatorComparativoView } from '../../views/educator/EducatorComparativoView';
 import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
 import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfirmView';
@@ -118,6 +119,13 @@ export function EducatorNavigator() {
       <Stack.Screen
         name="EducatorLearningMode"
         component={EducatorLearningModeView}
+        options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="EducatorLiveMirror"
+        component={EducatorLiveMirrorView}
         options={{
           headerShown: false,
         }}

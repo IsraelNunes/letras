@@ -26,9 +26,22 @@ export function LearnerLessonIntroView({ navigation, route }: Props) {
         statePayload: {
           moduleId,
           lessonId,
+          // Snapshot parcial (Fase 1): identifica aula/etapa para o espelho do
+          // educador mesmo antes de o aprendiz entrar nas telas da aula.
+          snapshot: {
+            moduleId,
+            lessonId,
+            moduleLabel,
+            moduleTitle,
+            lessonTitle: lesson?.title ?? null,
+            screenTitle: lesson?.title ?? null,
+            totalScreens: lesson?.screens.length,
+            stage: lesson?.stageNumber ? String(lesson.stageNumber) : undefined,
+            screenTemplate: 'lesson-intro',
+          },
         },
       });
-    }, [learnerSession, lessonId, moduleId]),
+    }, [learnerSession, lesson, lessonId, moduleId, moduleLabel, moduleTitle]),
   );
 
   const startLesson = () => {

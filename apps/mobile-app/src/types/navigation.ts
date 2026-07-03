@@ -46,6 +46,14 @@ export type EducatorRootStackParamList = {
     learnerId?: string;
     educatorId?: string;
   };
+  // Espelhamento ao vivo da tela do alfabetizando (Socket.IO). Mesma assinatura
+  // de EducatorLearningMode para reaproveitar a navegação do clique no nome.
+  EducatorLiveMirror: {
+    fullName?: string;
+    learnerName?: string;
+    learnerId?: string;
+    educatorId?: string;
+  };
   // Fase 2 (RN076-RN083): comparativo da atividade enviada + APROVAR TAREFA.
   EducatorComparativo: {
     educatorId?: string;

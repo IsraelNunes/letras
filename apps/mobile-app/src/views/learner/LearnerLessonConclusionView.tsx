@@ -65,6 +65,17 @@ export function LearnerLessonConclusionView({ navigation, route }: Props) {
         statePayload: {
           moduleId,
           lessonId,
+          // Snapshot parcial (Fase 1): sinaliza ao espelho do educador que o
+          // aprendiz concluiu a aula.
+          snapshot: {
+            moduleId,
+            lessonId,
+            lessonTitle: lesson?.title ?? null,
+            screenTitle: lesson?.conclusionTitle ?? 'Aula concluída',
+            totalScreens: lesson?.screens.length,
+            stage: lesson?.stageNumber ? String(lesson.stageNumber) : undefined,
+            screenTemplate: 'lesson-conclusion',
+          },
         },
       });
 

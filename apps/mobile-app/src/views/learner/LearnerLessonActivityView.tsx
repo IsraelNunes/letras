@@ -73,6 +73,24 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
           moduleId,
           lessonId,
           screenIndex: safeIndex,
+          // Snapshot da atividade (Fase 1) para o espelho ao vivo do educador.
+          snapshot: {
+            moduleId,
+            lessonId,
+            moduleLabel,
+            moduleTitle,
+            lessonTitle: lesson.title,
+            screenIndex: safeIndex,
+            totalScreens,
+            stage: String(lesson.stageNumber ?? 2),
+            screenId: activity?.id ?? screen.id,
+            screenTitle: activity?.title ?? screen.title,
+            screenTemplate: activity ? 'lesson-activity' : screen.screenTemplate,
+            mediaUrl: activity?.mediaUrl ?? screen.mediaUrl,
+            mediaKind: activity?.mediaKind ?? screen.mediaKind,
+            learnerSpeech: activity?.learnerSpeech ?? screen.learnerSpeech,
+            exercise: screen.exercise ?? null,
+          },
         },
       });
       if (activity?.id) {
@@ -86,7 +104,7 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
         void audioRef.current?.pauseAsync().catch(() => {});
         pauseAllPageMedia();
       };
-    }, [activity?.id, learnerSession, lessonId, moduleId, safeIndex, screen.id]),
+    }, [activity, learnerSession, lesson, lessonId, moduleId, moduleLabel, moduleTitle, safeIndex, screen, totalScreens]),
   );
 
   useEffect(() => {
