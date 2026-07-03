@@ -6,6 +6,10 @@
 
 ## 0. ESTADO ATUAL — leia primeiro
 
+- ✅ **Fase 1 CONCLUÍDA (2026-07-03):** migration `educator_score_events` aplicada, motor validado em produção (ledger creditando: stage_completed +15, support_bonus +3; `/scoring/me` refletindo).
+- ✅ **Fase 2 CONCLUÍDA (2026-07-03):** migration `activity_photos` aplicada; API `POST/GET /painel/fotos-atividade` + `PATCH /:id/aprovar` + notificações photo_sent/photo_approved DEPLOYADAS e validadas E2E; mobile deployado — aluno FOTOGRAFAR ATIVIDADE + revisão (FAZER OUTRA FOTO/ENVIAR FOTO), educador ATIVIDADE ENVIADA → Comparativo com APROVAR TAREFA (manual; IA=MVP-3), card de última tela/pedido de apoio reativado. Ficaram de fora: players de tutorial (EducatorTutorialPlayerView*) — incompletos, dependem de react-native-youtube-iframe/webview; recuperáveis em feat/conclusao-mvp-letras.
+- **Próxima fase: 3 (Acompanhamento Etapa 3 + retomada RN020).**
+
 - **Fase 1 (motor de pontuação e notificações) DEPLOYADA em 2026-07-02:**
   - Repo web: `d88a0b1` mergeado (ff) em `feat/learner-experience-improvements`, Actions "Deploy painel" ✅.
   - Repo mobile: merge `9630c7d` em `fix/security-badges-corrections`, Actions "Deploy mobile web" ✅.
