@@ -220,9 +220,24 @@ export function EducatorLearningModeView({ navigation, route }: Props) {
                 >
                   <Text style={styles.actionText}>WHATSAPP</Text>
                 </Pressable>
+                {/* RN059/RN070: atividade fotografada pelo aluno -> comparativo. */}
+                <Pressable
+                  style={styles.actionButton}
+                  onPress={() =>
+                    learnerId &&
+                    navigation.navigate('EducatorComparativo', {
+                      educatorId,
+                      learnerId,
+                      learnerName: learner?.displayName ?? learnerName,
+                      phoneDigits,
+                    })
+                  }
+                >
+                  <Text style={styles.actionText}>ATIVIDADE ENVIADA</Text>
+                </Pressable>
               </View>
 
-              {false ? (
+              {sessionState ? (
                 <View style={[styles.supportCard, sessionState?.isLocked ? styles.supportCardLocked : null]}>
                   <Text style={styles.supportEyebrow}>
                     {sessionState?.isLocked ? 'PEDIDO DE APOIO ATIVO' : 'ULTIMA TELA REGISTRADA'}

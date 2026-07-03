@@ -8,6 +8,7 @@ import { EducatorOnboardingStepTwoView } from '../../views/educator/EducatorOnbo
 import { EducatorOnboardingStepThreeView } from '../../views/educator/EducatorOnboardingStepThreeView';
 import { EducatorOnboardingConfirmView } from '../../views/educator/EducatorOnboardingConfirmView';
 import { EducatorLearningModeView } from '../../views/educator/EducatorLearningModeView';
+import { EducatorComparativoView } from '../../views/educator/EducatorComparativoView';
 import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
 import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfirmView';
 import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
@@ -120,6 +121,11 @@ export function EducatorNavigator() {
         options={{
           headerShown: false,
         }}
+      />
+      <Stack.Screen
+        name="EducatorComparativo"
+        component={EducatorComparativoView}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="EducatorLinkConfirm"

@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Audio, ResizeMode, Video } from 'expo-av';
 import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { LearnerScreenSnapshot } from '@letras/shared-types';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerActionButtons } from './components/LearnerActionButtons';
@@ -1329,6 +1329,41 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
+        {isLearnerDriven && !screen.exercise && screen.mediaKind === 'image' && screen.mediaUrl ? (
+          // Fase 2 (RN113/RN114 + Figma Modelo de Ensino 1/2): FOTOGRAFAR
+          // ATIVIDADE — o aluno fotografa o exercício feito no papel.
+          // Centralizado, como pedido.
+          <View style={styles.photoBtnRow}>
+            <Pressable
+              style={styles.photoBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Fotografar atividade"
+              onPress={() => {
+                void (async () => {
+                  const { captureActivityPhoto } = await import('./LearnerPhotoReviewView');
+                  const captured = await captureActivityPhoto();
+                  if (captured) {
+                    navigation.navigate('LearnerPhotoReview', {
+                      photoUri: captured.uri,
+                      photoBase64: captured.base64,
+                      mimeType: captured.mimeType,
+                      activityId: screen.id,
+                    });
+                  }
+                })();
+              }}
+            >
+              <Svg width={46} height={36} viewBox="0 0 52 38" fill="none">
+                <Path d="M13 8 L16 2 H28 L31 8" fill="#2fa536" />
+                <Path d="M2 12 a4 4 0 0 1 4 -4 H46 a4 4 0 0 1 4 4 V34 a4 4 0 0 1 -4 4 H6 a4 4 0 0 1 -4 -4 Z" fill="#2fa536" />
+                <Circle cx={26} cy={23} r={9} fill="#ffffff" />
+                <Circle cx={26} cy={23} r={5} fill="#2fa536" />
+              </Svg>
+              <Text style={styles.photoBtnLabel}>FOTOGRAFAR{'\n'}ATIVIDADE</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {isExerciseScreen ? (
           // Figma: seta única AVANÇAR preenchida, centralizada, sem VOLTAR;
           // verde-claro até o exercício ser concluído (RN106). Continua
@@ -1428,6 +1463,21 @@ const styles = StyleSheet.create({
   audioSpeakerRow: {
     alignItems: 'center',
     marginVertical: 22,
+  },
+  photoBtnRow: {
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  photoBtn: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  photoBtnLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2fa536',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   progressHeader: {
     flexDirection: 'row',

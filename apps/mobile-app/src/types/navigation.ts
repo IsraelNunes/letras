@@ -46,6 +46,13 @@ export type EducatorRootStackParamList = {
     learnerId?: string;
     educatorId?: string;
   };
+  // Fase 2 (RN076-RN083): comparativo da atividade enviada + APROVAR TAREFA.
+  EducatorComparativo: {
+    educatorId?: string;
+    learnerId: string;
+    learnerName?: string;
+    phoneDigits?: string | null;
+  };
   EducatorLinkConfirm: {
     educatorId: string;
     fullName: string;
@@ -154,6 +161,14 @@ export type LearnerRootStackParamList = {
     lessonId: string;
     moduleLabel: string;
     moduleTitle: string;
+  };
+  // Fase 2 (RN113/RN114): revisão da foto da atividade feita no papel.
+  LearnerPhotoReview: {
+    photoUri: string;
+    photoBase64: string;
+    mimeType: string;
+    activityId: string | null;
+    kind?: 'atividade' | 'carta';
   };
 };
 
