@@ -162,7 +162,9 @@ export type LearnerRootStackParamList = {
     moduleLabel: string;
     moduleTitle: string;
   };
-  // Fase 2 (RN113/RN114): revisão da foto da atividade feita no papel.
+  // Fase 2 (RN113/RN114): revisão da foto da atividade feita no papel —
+  // FAZER OUTRA FOTO / ENVIAR FOTO; kind 'carta' reusa a tela para a carta
+  // de agradecimento da Etapa 3 (Fase 5).
   LearnerPhotoReview: {
     photoUri: string;
     photoBase64: string;

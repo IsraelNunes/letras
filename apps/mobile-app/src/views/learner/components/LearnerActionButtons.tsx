@@ -17,11 +17,23 @@ interface LearnerActionButtonsProps {
   // Estado apenas visual de "ainda não liberado": a seta continua tocável para
   // o exercício responder com áudio/feedback sobre o que falta.
   nextVisualDisabled?: boolean;
+  // RN113 (Figma "Etapas 2 e 3"): câmera verde FOTOGRAFAR ATIVIDADE no lugar
+  // do VOLTAR — o aluno fotografa o exercício feito no papel.
+  onPhoto?: () => void;
+  photoLabel?: string;
 }
 
 const NEXT_ARROW_FILLED = `
 <svg width="55" height="46" viewBox="0 0 55 46" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M4 17H30V8L51 23L30 38V29H4V17Z" fill="#2fa536"/>
+</svg>`;
+
+// Câmera verde preenchida do Figma (Etapas 2 e 3 - Foto do exercício).
+const CAMERA_GREEN = `
+<svg width="50" height="42" viewBox="0 0 50 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M17 7L20.5 2H29.5L33 7H43C45.2 7 47 8.8 47 11V36C47 38.2 45.2 40 43 40H7C4.8 40 3 38.2 3 36V11C3 8.8 4.8 7 7 7H17Z" fill="#2fa536"/>
+  <circle cx="25" cy="23" r="8.5" fill="#ffffff"/>
+  <circle cx="25" cy="23" r="4.8" fill="#2fa536"/>
 </svg>`;
 
 const NEXT_ARROW_FILLED_DISABLED = `
@@ -71,6 +83,8 @@ export function LearnerActionButtons({
   hideBack = false,
   variant = 'green',
   nextVisualDisabled = false,
+  onPhoto,
+  photoLabel,
 }: LearnerActionButtonsProps) {
   const backDisabled = !onBack;
   const nextDisabled = !onNext;
@@ -94,7 +108,12 @@ export function LearnerActionButtons({
 
   return (
     <View style={styles.row}>
-      {hideBack ? (
+      {onPhoto ? (
+        <Pressable style={styles.action} onPress={onPhoto}>
+          <SvgXml xml={CAMERA_GREEN} width={50} height={42} />
+          {photoLabel ? <Text style={[styles.label, styles.labelFilled]}>{photoLabel}</Text> : null}
+        </Pressable>
+      ) : hideBack ? (
         <View style={styles.placeholder} />
       ) : (
         <Pressable style={styles.action} onPress={onBack} disabled={backDisabled}>
