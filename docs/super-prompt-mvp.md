@@ -1,17 +1,17 @@
 # SUPER PROMPT v2 — Conclusão do MVP Letras (inclui migrations)
 
-**Atualizado:** 2026-07-02 · **Estado:** Fase 1 IMPLEMENTADA e commitada (falta migration + deploy + validação). Use este documento como o prompt de trabalho de qualquer sessão até o MVP fechar. Ao concluir um item, marque ✅ com a data neste arquivo.
+**Atualizado:** 2026-07-02 (noite) · **Estado:** Fase 1 DEPLOYADA nos 2 repos; falta só aplicar a migration e validar o fluxo real de pontuação. Use este documento como o prompt de trabalho de qualquer sessão até o MVP fechar. Ao concluir um item, marque ✅ com a data neste arquivo.
 
 ---
 
 ## 0. ESTADO ATUAL — leia primeiro
 
-- **Fase 1 (motor de pontuação e notificações) está codada e commitada, NÃO deployada:**
-  - Repo web: branch `feat/fase1-pontuacao-notificacoes` (criada a partir de `origin/feat/learner-experience-improvements`), commit `d88a0b1`.
-  - Repo mobile: branch `feat/conclusao-mvp-letras`, commit `c7ed4d7`.
-  - Testes da API 10/10; `tsc --noEmit` do mobile limpo.
-- **Migration pendente de aplicação:** `Projeto-Letras-Web/infra/supabase/migrations/20260702_educator_score_events.sql` (ledger `educator_score_events` + amplia CHECK de tipos de `educator_notifications`). O código tolera a ausência dela (retorna 0/ignora), então a ordem migration↔deploy é livre — mas sem ela nada pontua.
-- **Cuidado no primeiro deploy da Fase 1:** a varredura horária (`apps/api/src/jobs/scoringSweep.js`) aplica a RN085 retroativamente sobre pedidos de apoio ainda abertos — pedidos antigos podem gerar débitos acumulados (até −30 cada) e rajada de notificações na primeira execução. Antes do deploy, resolver/cancelar pedidos de teste antigos na fila OU adicionar horizonte de data no sweep (decisão do Israel). A varredura NÃO roda fora de produção (guard `NODE_ENV`; forçar com `SCORING_SWEEP_ENABLED=true`).
+- **Fase 1 (motor de pontuação e notificações) DEPLOYADA em 2026-07-02:**
+  - Repo web: `d88a0b1` mergeado (ff) em `feat/learner-experience-improvements`, Actions "Deploy painel" ✅.
+  - Repo mobile: merge `9630c7d` em `fix/security-badges-corrections`, Actions "Deploy mobile web" ✅.
+  - Validado em produção: `GET /scoring/me?educatorId=<Isaque>` responde shape novo zerado (`totalScore:0, lettersUnlocked:1, phraseLength:26, recentEvents:[]`); notifications tutor/admin respondendo.
+- **Migration pendente de aplicação (ÚNICO bloqueio da Fase 1):** `Projeto-Letras-Web/infra/supabase/migrations/20260702_educator_score_events.sql` (ledger `educator_score_events` + amplia CHECK de tipos de `educator_notifications`). O código deployado tolera a ausência dela (retorna 0/ignora) — mas sem ela nada pontua. Na sessão de 2026-07-02 a leitura do `.env` foi negada pela camada de permissões; aplicar manualmente (seção 2).
+- **Risco de débito retroativo do sweep: ELIMINADO** — a fila de apoio de produção estava vazia (`GET /painel/fila` → `{"total":0}`) no momento do deploy. A varredura (`apps/api/src/jobs/scoringSweep.js`) NÃO roda fora de produção (guard `NODE_ENV`; forçar com `SCORING_SWEEP_ENABLED=true`).
 - **Arquivos untracked antigos no repo mobile** (EducatorTutorial*, storages, scripts) são de trabalho anterior — não commitá-los junto com itens das fases sem revisar.
 
 ## 1. Contexto operacional
@@ -44,23 +44,20 @@ psql "$DATABASE_URL" -c "select pg_get_constraintdef(oid) from pg_constraint whe
 
 - [ ] `20260702_educator_score_events.sql` — ledger de pontos + novos tipos de notificação (Fase 1).
 
-## 3. PASSO IMEDIATO — fechar a Fase 1 (migration → deploy → validação)
+## 3. PASSO IMEDIATO — fechar a Fase 1 (migration → validação do fluxo real)
 
-1. **Aplicar a migration** acima (seção 2).
-2. **Limpar a fila de apoio de produção** (evitar débitos retroativos): `GET /api/v1/painel/fila` e resolver/cancelar pedidos de teste antigos via `PATCH /painel/fila/:id` com action `resolver` — ou decidir com o Israel manter o retroativo.
-3. **Deploy web:** do repo web, merge/push `feat/fase1-pontuacao-notificacoes` → `feat/learner-experience-improvements` (dispara CI). Acompanhar o Actions até o fim.
-4. **Deploy mobile:** do repo mobile, merge/push `feat/conclusao-mvp-letras` → `fix/security-badges-corrections` (dispara CI).
-5. **Validar em produção:**
+1. [ ] **Aplicar a migration** (seção 2) — ação manual do Israel (leitura do `.env` negada em sessão): via psql com o `DATABASE_URL` de `letras/apps/api/.env`, ou colando o SQL no editor do Supabase:
    ```bash
-   BASE=https://painel.letras.cloud/api/v1
-   ISAQUE=7e6bf61f-7454-4aff-bfc1-2009a683b8fe
-   # scoring zerado porém respondendo com shape novo (totalScore/lettersUnlocked/recentEvents):
-   curl -s "$BASE/scoring/me?educatorId=$ISAQUE"
-   # notificações do Isaque:
-   curl -s "$BASE/painel/notifications?recipientId=$ISAQUE&recipientRole=tutor" | head -c 2000
+   # do repo Projeto-Letras-Web
+   psql "$DATABASE_URL" -f infra/supabase/migrations/20260702_educator_score_events.sql
+   psql "$DATABASE_URL" -c "select count(*) from educator_score_events;"
+   psql "$DATABASE_URL" -c "select pg_get_constraintdef(oid) from pg_constraint where conname='educator_notifications_type_check';"
    ```
-   Depois, fluxo real: com o Bruno (Etapa 2, 33%), concluir uma atividade no app → conferir que NÃO pontua ainda (etapa incompleta); concluir todas as atividades publicadas de uma etapa de um aluno de teste → conferir evento `stage_completed` (+15 na Etapa 2) no ledger, notificação "Você ganhou + 15 pontos" no sino, e a tela Pontuação refletindo o total. Pedido de ajuda + avanço em <1h → conferir `support_bonus` +3. Recusar um vínculo → notificação `link_denied` para admin (`GET /painel/notifications?recipientRole=admin`).
-6. **Marcar ✅** nos itens da Fase 1 (seção 5) e na migration (seção 2), com data.
+2. ✅ (2026-07-02) **Fila de apoio de produção** verificada: vazia (`{"total":0}`) — nenhum débito retroativo possível; nada a limpar.
+3. ✅ (2026-07-02) **Deploy web:** `d88a0b1` ff-merge em `feat/learner-experience-improvements`; Actions "Deploy painel" success.
+4. ✅ (2026-07-02) **Deploy mobile:** merge `9630c7d` em `fix/security-badges-corrections`; Actions "Deploy mobile web" success.
+5. **Validar em produção:** ✅ (2026-07-02) curls básicos — `GET /scoring/me?educatorId=<Isaque>` → `{"totalScore":0,"lettersUnlocked":1,"phraseLength":26,"recentEvents":[]}`; notifications tutor (10 itens) e admin (15 itens) ok. **[ ] Fluxo real (depende da migration):** com o Bruno (Etapa 2, 33%), concluir uma atividade no app → conferir que NÃO pontua ainda (etapa incompleta); concluir todas as atividades publicadas de uma etapa de um aluno de teste → conferir evento `stage_completed` (+15 na Etapa 2) no ledger, notificação "Você ganhou + 15 pontos" no sino, e a tela Pontuação refletindo o total. Pedido de ajuda + avanço em <1h → conferir `support_bonus` +3. Recusar um vínculo → notificação `link_denied` para admin (`GET /painel/notifications?recipientRole=admin`).
+6. **Marcar ✅** nos itens restantes da Fase 1 (seção 5) e na migration (seção 2), com data.
 
 ## 4. O que JÁ está fiel/funcional (não retrabalhar)
 
@@ -73,7 +70,7 @@ Login unificado por CPF com aprovação do educador; cadastro/edição/exclusão
 3. ✅ (2026-07-02) **RN093** — alerta de prazo 3d/24h (`deadline_alert`, job horário `jobs/scoringSweep.js`), pontuação ganha/perdida (`score_event`), reconhecimento por nova letra (`recognition`, RN096: 1 grátis + 1 a cada 200, teto 26).
 4. ✅ (2026-07-02, commit `c7ed4d7`) **RN094/095 mobile** — negrito só até tocar NAQUELA notificação; badge 99/'99+' no EducatorBell e na Home.
 5. ✅ (2026-07-02) **RN098/099/104** — 4 motivos verbatim no mobile; recusa notifica admin + alfabetizando (`link_denied`); vínculo confirmado com novo educador notifica os antigos (`link_transferred`, nome+CPF do alfabetizando).
-6. [ ] Migration aplicada + deploy dos 2 repos + validação da seção 3.
+6. ✅ parcial (2026-07-02): deploy dos 2 repos + curls de validação OK. [ ] Migration aplicada + validação do fluxo real (seção 3, passos 1 e 5).
 
 ## 6. FASE 2 — Foto de atividade (versão MVP sem IA) — ALTA
 
@@ -136,7 +133,7 @@ Decisão 17/05 §4: MVP = "upload acontece, URL registrada" (IA fica pro MVP-3).
 3. SMS/WhatsApp: aprovar custo/provedor ou adiar formalmente.
 4. Conteúdo Etapa 1: quem produz (Isabel?) e quando — sem isso nenhum aluno começa do zero.
 5. Paleta de cores oficial (hex) — pendência do Roberto desde a ata 11/06.
-6. (novo) Débitos retroativos do sweep sobre pedidos de apoio antigos: aplicar desde já ou definir data de corte?
+6. ✅ (2026-07-02) Débitos retroativos do sweep: sem efeito — a fila de produção estava vazia no primeiro deploy; sweep parte do zero.
 
 ## 14. Método de execução (por fase)
 
