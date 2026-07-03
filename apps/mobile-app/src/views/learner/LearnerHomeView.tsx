@@ -28,6 +28,11 @@ export function LearnerHomeView({ navigation }: Props) {
         currentView: 'LearnerHome',
         statePayload: {
           modulesCount: modules.length,
+          // Snapshot parcial (Fase 1): o aprendiz está na tela inicial.
+          snapshot: {
+            screenTemplate: 'home',
+            screenTitle: 'Tela inicial',
+          },
         },
       });
       // Recarrega progresso sempre que a home ganha foco (ex: ao voltar da conclusão).

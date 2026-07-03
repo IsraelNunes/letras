@@ -18,11 +18,20 @@ export interface SocketIdentity {
   role: ParticipantRole;
 }
 
+// Corpo do `state` emitido pelo aprendiz. Continua sendo JSON livre
+// (Record<string, unknown>) para compatibilidade, mas expoe os campos
+// conhecidos que o espelho do educador consome: `timestamp` e, sobretudo,
+// o `snapshot` rico da tela atual (Fase 1 do espelhamento ao vivo).
+export type LearnerStateBody = Record<string, unknown> & {
+  timestamp?: string;
+  snapshot?: LearnerScreenSnapshot;
+};
+
 export interface LearnerStateUpdatePayload {
   learnerProfileId: string;
   currentView?: string;
   currentActivityId?: string;
-  state: Record<string, unknown>;
+  state: LearnerStateBody;
 }
 
 export interface LockPayload {
@@ -35,6 +44,20 @@ export interface LockedChangedPayload {
 }
 
 export type LearnerScreenStage = '1' | '2' | '3';
+
+// Estado de interação do aprendiz na tela atual — permite ao espelho do
+// educador refletir as seleções feitas (letras marcadas, imagens escolhidas,
+// itens concluídos), e não apenas a configuração estática do exercício.
+export interface LearnerScreenInteraction {
+  // exercise-match-letter: itemId -> letra atualmente selecionada.
+  selectedLetters?: Record<string, string>;
+  // exercise-match-letter: ids dos itens já concluídos (palavra revelada).
+  completedItemIds?: string[];
+  // exercise-mark-images: ids das imagens marcadas pelo aprendiz.
+  selectedImageIds?: string[];
+  isLocked?: boolean;
+  feedback?: { type: 'ok' | 'error'; message: string } | null;
+}
 
 export interface LearnerScreenSnapshot {
   // Identificacao da tela em que o alfabetizando estava ao pedir ajuda.
@@ -60,6 +83,8 @@ export interface LearnerScreenSnapshot {
   // unknown porque o LearnerExerciseConfig vive no mobile-app, mas o
   // shape e estavel o suficiente para o painel/educator renderizarem.
   exercise?: unknown;
+  // Estado de interacao atual do aprendiz (seleções, itens concluídos).
+  interaction?: LearnerScreenInteraction;
 }
 
 export interface HelpPayload {

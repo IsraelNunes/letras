@@ -376,16 +376,85 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     [playingAudioKey, stopCurrentAudio],
   );
 
+  // Estado de interação do aprendiz mantido em ref para que o snapshot builder
+  // permaneça estável (não re-dispara os efeitos de foco/áudio) e ainda leia
+  // sempre as seleções mais recentes ao emitir para o espelho do educador.
+  const interactionRef = useRef<{
+    selectedLetters: Record<string, string>;
+    completedItemIds: string[];
+    selectedImageIds: string[];
+    isLocked: boolean;
+    feedback: ExerciseFeedback | null;
+  }>({ selectedLetters: {}, completedItemIds: [], selectedImageIds: [], isLocked: false, feedback: null });
+  interactionRef.current = {
+    selectedLetters: matchSelectedOptions,
+    completedItemIds: matchCompletedIds,
+    selectedImageIds,
+    isLocked: isInteractionLocked,
+    feedback: exerciseFeedback,
+  };
+
+  // Snapshot rico da tela atual — usado tanto no pedido de ajuda quanto no
+  // estado emitido a cada troca de tela (espelhamento ao vivo do educador).
+  const buildScreenSnapshot = useCallback(
+    (): LearnerScreenSnapshot => ({
+      moduleId,
+      lessonId,
+      moduleLabel,
+      moduleTitle,
+      lessonTitle: lesson.title,
+      screenIndex: safeIndex,
+      totalScreens,
+      stage: String(lesson.stageNumber ?? 2) as LearnerScreenSnapshot['stage'],
+      screenId: screen.id,
+      screenTitle: screen.title,
+      screenTemplate: screen.screenTemplate,
+      mediaUrl: screen.mediaUrl,
+      mediaKind: screen.mediaKind,
+      learnerSpeech: screen.learnerSpeech,
+      highlightMessage: screen.highlightMessage,
+      exercise: screen.exercise ?? null,
+      interaction: {
+        selectedLetters: interactionRef.current.selectedLetters,
+        completedItemIds: interactionRef.current.completedItemIds,
+        selectedImageIds: interactionRef.current.selectedImageIds,
+        isLocked: interactionRef.current.isLocked,
+        feedback: interactionRef.current.feedback,
+      },
+    }),
+    [
+      lesson.stageNumber,
+      lesson.title,
+      lessonId,
+      moduleId,
+      moduleLabel,
+      moduleTitle,
+      safeIndex,
+      screen.exercise,
+      screen.highlightMessage,
+      screen.id,
+      screen.learnerSpeech,
+      screen.mediaKind,
+      screen.mediaUrl,
+      screen.screenTemplate,
+      screen.title,
+      totalScreens,
+    ],
+  );
+
   useFocusEffect(
     useCallback(() => {
       void learnerSession.syncCurrentState({
         currentView: 'LearnerLessonScreen',
         currentActivityId: screen.id,
         statePayload: {
+          // Campos "magros" mantidos por compatibilidade com o card de dados
+          // cadastrais; o `snapshot` rico alimenta o espelho ao vivo (Fase 1).
           moduleId,
           lessonId,
           screenIndex: safeIndex,
           screenTemplate: screen.screenTemplate,
+          snapshot: buildScreenSnapshot(),
         },
       });
       void learnerSession.recordProgress({
@@ -401,8 +470,27 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return () => {
         void stopCurrentAudio();
       };
-    }, [learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate, stopCurrentAudio]),
+    }, [buildScreenSnapshot, learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate, stopCurrentAudio]),
   );
+
+  // Reemite o estado quando a interação do exercício muda (letra marcada,
+  // imagem escolhida, item concluído, feedback/lock), para o espelho do
+  // educador refletir as seleções do aprendiz em tempo real. Desacoplado do
+  // useFocusEffect para não reprocessar áudio/progresso a cada toque.
+  useEffect(() => {
+    void learnerSession.syncCurrentState({
+      currentView: 'LearnerLessonScreen',
+      currentActivityId: screen.id,
+      statePayload: {
+        moduleId,
+        lessonId,
+        screenIndex: safeIndex,
+        screenTemplate: screen.screenTemplate,
+        snapshot: buildScreenSnapshot(),
+      },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchSelectedOptions, matchCompletedIds, selectedImageIds, markVerdicts, exerciseLocked, exerciseFeedback]);
 
   useEffect(() => {
     void stopCurrentAudio();
@@ -633,27 +721,6 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
     navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
   };
-
-  const buildHelpSnapshot = (): LearnerScreenSnapshot => ({
-    moduleId,
-    lessonId,
-    moduleLabel,
-    moduleTitle,
-    lessonTitle: lesson.title,
-    screenIndex: safeIndex,
-    totalScreens,
-    // Por enquanto so a Etapa 2 esta no mobile. O painel pode consumir esse
-    // campo como pista, mas nao depende dele.
-    stage: '2',
-    screenId: screen.id,
-    screenTitle: screen.title,
-    screenTemplate: screen.screenTemplate,
-    mediaUrl: screen.mediaUrl,
-    mediaKind: screen.mediaKind,
-    learnerSpeech: screen.learnerSpeech,
-    highlightMessage: screen.highlightMessage,
-    exercise: screen.exercise ?? null,
-  });
 
   const lockCurrentExercise = (message: string) => {
     // RN111: bip de erro também no bloqueio por tentativas.
@@ -1132,7 +1199,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       // Figma (Tela de Aula): header traz apenas logo + sino; o nome do
       // alfabetizando e a posição na etapa ficam no corpo (RN040).
       isSessionLocked={learnerSession.isLocked}
-      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildHelpSnapshot())}
+      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildScreenSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       canRequestHelp={exerciseLocked}

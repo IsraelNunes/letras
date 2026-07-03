@@ -320,7 +320,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   };
 
   const handleOpenLearner = (item: LearnerItem) => {
-    navigation.navigate('EducatorLearningMode', {
+    navigation.navigate('EducatorLiveMirror', {
       fullName: educatorName,
       educatorId,
       learnerName: item.displayName,
@@ -406,7 +406,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     onContactPress={() => handleClearHelpAlert(item.learnerId)}
                     onPress={() => {
                       handleClearHelpAlert(item.learnerId);
-                      navigation.navigate('EducatorLearningMode', {
+                      navigation.navigate('EducatorLiveMirror', {
                         fullName: educatorName,
                         educatorId,
                         learnerName: item.displayName,
@@ -429,7 +429,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     onContactPress={() => dismissLockedSession(item.id)}
                     onUnlockPress={() => { void handleUnlockSession(item.id); }}
                     onPress={() => {
-                      navigation.navigate('EducatorLearningMode', {
+                      navigation.navigate('EducatorLiveMirror', {
                         fullName: educatorName,
                         educatorId,
                         learnerName: item.displayName,
