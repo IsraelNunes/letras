@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAssets } from 'expo-asset';
 import { SvgUri } from 'react-native-svg';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { EducatorRootStackParamList } from '../../types';
 import { httpClient } from '../../infra/api/http-client';
@@ -58,12 +59,6 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
       );
       const list = res?.items ?? [];
       setItems(list);
-      // Marca as não-lidas como lidas ao abrir (Express: PATCH por id).
-      for (const n of list) {
-        if (!n.read_at) {
-          void httpClient.patch(`/painel/notifications/${n.id}/read`, {});
-        }
-      }
     } catch {
       setError('Não foi possível carregar as notificações. Tente novamente.');
     } finally {
@@ -71,7 +66,19 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
     }
   }, [educatorId]);
 
-  useEffect(() => { void fetchNotifs(); }, [fetchNotifs]);
+  // Recarrega ao focar a tela (mesmo padrão do EducatorBell).
+  useFocusEffect(
+    useCallback(() => {
+      void fetchNotifs();
+    }, [fetchNotifs]),
+  );
+
+  // RN094: ao tocar numa notificação não-lida, ela é marcada como lida e a
+  // tipografia volta ao tom regular. Atualização local, sem refetch completo.
+  const markAsRead = useCallback((id: string) => {
+    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n)));
+    void httpClient.patch(`/painel/notifications/${id}/read`, {}).catch(() => {});
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -98,13 +105,30 @@ export function EducatorNotificacoesView({ navigation, route }: Props) {
           <Text style={styles.empty}>Nenhuma notificação por enquanto.</Text>
         ) : (
           <View style={styles.list}>
-            {items.map((n) => (
-              <View key={n.id} style={styles.item}>
-                <Text style={styles.itemTitle}>{n.title}</Text>
-                {n.body ? <Text style={styles.itemBody}>{n.body}</Text> : null}
-                <Text style={styles.itemStamp}>{formatStamp(n.created_at)}</Text>
-              </View>
-            ))}
+            {items.map((n) => {
+              const isUnread = !n.read_at;
+              return (
+                <Pressable
+                  key={n.id}
+                  style={styles.item}
+                  onPress={isUnread ? () => markAsRead(n.id) : undefined}
+                  accessibilityRole="button"
+                  accessibilityLabel={isUnread ? `Notificação não lida: ${n.title}` : `Notificação lida: ${n.title}`}
+                >
+                  <Text style={[styles.itemTitle, isUnread ? styles.itemTitleUnread : styles.itemTitleRead]}>
+                    {n.title}
+                  </Text>
+                  {n.body ? (
+                    <Text style={[styles.itemBody, isUnread ? styles.itemBodyUnread : styles.itemBodyRead]}>
+                      {n.body}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.itemStamp, isUnread ? styles.itemStampUnread : styles.itemStampRead]}>
+                    {formatStamp(n.created_at)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -128,9 +152,16 @@ const styles = StyleSheet.create({
   pageTitle: { color: '#111111', fontSize: 16, fontWeight: '800', marginBottom: 18 },
   list: { gap: 22 },
   item: { gap: 2 },
-  itemTitle: { color: '#111111', fontSize: 15, fontWeight: '700', lineHeight: 22 },
-  itemBody: { color: '#111111', fontSize: 14, lineHeight: 21 },
-  itemStamp: { color: '#888888', fontSize: 14, lineHeight: 21 },
+  // RN094: não-lida em negrito preto; lida em tipografia regular e mais clara.
+  itemTitle: { fontSize: 15, lineHeight: 22 },
+  itemTitleUnread: { color: '#111111', fontWeight: '700' },
+  itemTitleRead: { color: '#111111', fontWeight: '400' },
+  itemBody: { fontSize: 14, lineHeight: 21 },
+  itemBodyUnread: { color: '#111111', fontWeight: '700' },
+  itemBodyRead: { color: '#888888', fontWeight: '400' },
+  itemStamp: { fontSize: 14, lineHeight: 21 },
+  itemStampUnread: { color: '#111111', fontWeight: '700' },
+  itemStampRead: { color: '#888888', fontWeight: '400' },
   loader: { marginTop: 40 },
   empty: { marginTop: 40, color: '#888888', fontSize: 14 },
   errorWrap: { marginTop: 40, alignItems: 'center', gap: 14 },

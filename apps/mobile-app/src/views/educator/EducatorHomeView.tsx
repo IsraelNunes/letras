@@ -298,7 +298,8 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
   const visibleLockedSessions = lockedSessions.filter((session) => !dismissedLockedIds.has(session.id));
   const notificationCount = mergedHelpAlerts.length + visibleLockedSessions.length + pendingSessionRequests.length;
-  const notificationBadgeLabel = notificationCount > 9 ? '9+' : String(notificationCount);
+  // RN095 — badge numérico com máximo de 99.
+  const notificationBadgeLabel = notificationCount > 99 ? '99+' : String(notificationCount);
   const completedTutorialCount = getCompletedTutorialCount(tutorials);
   const obrigatorioTutorials = tutorials.filter((t) => t.tags.includes('tutorial-obrigatorio'));
   const tutorialsReady =
@@ -368,7 +369,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
               onPress={() => setIsTrackListOpen(false)}
             >
               <SvgXml xml={ICON_BELL} width={26} height={26} />
-              {notificationCount > 0 && <View style={styles.badge} />}
+              {notificationCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{notificationBadgeLabel}</Text>
+                </View>
+              )}
             </Pressable>
           ) : (
             <View style={styles.notificationButtonPlaceholder} />
@@ -714,15 +719,17 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#ef4444',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
+    right: -4,
+    top: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
+  badgeText: { color: '#ffffff', fontSize: 10, fontWeight: '800' },
   notificationsPanel: {
     marginBottom: 22,
   },

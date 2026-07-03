@@ -34,7 +34,7 @@ export function EducatorBell({ educatorId }: { educatorId?: string }) {
       <BellIcon size={22} />
       {unread > 0 ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{unread > 9 ? '9+' : String(unread)}</Text>
+          <Text style={styles.badgeText}>{unread > 99 ? '99+' : String(unread)}</Text>
         </View>
       ) : null}
     </Pressable>
