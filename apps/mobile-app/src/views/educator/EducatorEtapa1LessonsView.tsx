@@ -49,18 +49,18 @@ function Etapa1LessonListScreen({
   navigation,
 }: NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>) {
   const runner = useRunner();
-  const { modules, loading, error, completedLessonIds, refresh } = useLearnerFlowData();
+  const { modules, loading, error, completedLessonIds, refresh, firstStage } = useLearnerFlowData();
 
-  // A "Etapa 1" conduzida pelo educador = menor etapa presente no tema (mesma
-  // semântica do painel: "menor etapa"), não o número 1 fixo.
+  // A "Etapa 1" conduzida pelo educador = menor etapa-ENTIDADE do tema (mesma
+  // fonte da verdade do painel), não a menor etapa com conteúdo. Assim, se a
+  // Etapa 1 estiver vazia, o runner mostra o aviso "configure no painel" em vez
+  // de rodar a Etapa 2 disfarçada de Etapa 1.
   const etapa1Modules = useMemo(() => {
     const scoped = modules.filter((m) => !runner.themeId || m.id === runner.themeId);
-    const stageNumbers = scoped.flatMap((m) => m.lessons.map((l) => l.stageNumber));
-    const firstStage = stageNumbers.length ? Math.min(...stageNumbers) : 1;
     return scoped
       .map((m) => ({ ...m, lessons: m.lessons.filter((l) => l.stageNumber === firstStage) }))
       .filter((m) => m.lessons.length > 0);
-  }, [modules, runner.themeId]);
+  }, [modules, runner.themeId, firstStage]);
 
   return (
     <SafeAreaView style={styles.safe}>

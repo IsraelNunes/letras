@@ -72,6 +72,10 @@ export interface StageRollup {
   unlockedStages: Set<number>;
   currentStage: number;
   etapa1Completed: boolean;
+  // Menor etapa-ENTIDADE do tema (a conduzida pelo educador). Vem do stage-status
+  // do painel, que enumera todas as etapas ativas — inclusive uma Etapa 1 vazia.
+  // No fallback local cai para a menor etapa COM conteúdo (aproximação offline).
+  firstStage: number;
 }
 
 // Desbloqueio sequencial de aulas dentro de um módulo: a 1ª é sempre aberta; as
@@ -110,7 +114,7 @@ export function computeStageRollup(
   }
 
   const currentStage = unlockedStages.size > 0 ? Math.max(...unlockedStages) : firstStage ?? 1;
-  return { unlockedStages, currentStage, etapa1Completed };
+  return { unlockedStages, currentStage, etapa1Completed, firstStage: firstStage ?? 1 };
 }
 
 export function useLearnerFlowData() {
@@ -170,6 +174,11 @@ export function useLearnerFlowData() {
                 ),
                 currentStage: status.currentStageNumber,
                 etapa1Completed: status.etapa1Completed,
+                // Menor etapa-entidade (inclui uma Etapa 1 vazia, que não aparece
+                // nos módulos/conteúdo) — fonte da verdade do "quem é a Etapa 1".
+                firstStage: status.stages.length
+                  ? Math.min(...status.stages.map((s) => s.stageNumber))
+                  : 1,
               }
             : null,
         );
@@ -212,5 +221,6 @@ export function useLearnerFlowData() {
     unlockedStages: rollup.unlockedStages,
     currentStage: rollup.currentStage,
     etapa1Completed: rollup.etapa1Completed,
+    firstStage: rollup.firstStage,
   };
 }

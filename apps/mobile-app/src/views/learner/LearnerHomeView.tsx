@@ -18,7 +18,8 @@ const LOCK_ICON = `
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
 export function LearnerHomeView({ navigation }: Props) {
-  const { modules, loading, error, completedLessonIds, refresh, unlockedStages } = useLearnerFlowData();
+  const { modules, loading, error, completedLessonIds, refresh, unlockedStages, firstStage } =
+    useLearnerFlowData();
   const learnerSession = useLearnerSession();
 
   useFocusEffect(
@@ -39,13 +40,12 @@ export function LearnerHomeView({ navigation }: Props) {
     }, [learnerSession, modules.length, refresh]),
   );
 
-  // Gate do alfabetizando: a Etapa 1 (a MENOR etapa presente — mesma semântica
-  // do painel, não o número 1 fixo) é conduzida presencialmente pelo alfabetizador
-  // no runner do modo educador — o learner NUNCA a vê. Só aparecem etapas acima
-  // dela e desbloqueadas; a próxima abre quando o alfabetizador conclui a primeira
-  // (unlockedStages vem do stage-status do painel, com fallback local).
-  const allStageNumbers = modules.flatMap((m) => m.lessons.map((l) => l.stageNumber));
-  const firstStage = allStageNumbers.length > 0 ? Math.min(...allStageNumbers) : 1;
+  // Gate do alfabetizando: a Etapa 1 (a menor etapa-ENTIDADE do tema — mesma
+  // semântica do painel, inclusive quando ela está vazia) é conduzida
+  // presencialmente pelo alfabetizador no runner do modo educador — o learner
+  // NUNCA a vê. Só aparecem etapas acima dela e desbloqueadas; a próxima abre
+  // quando o alfabetizador conclui a primeira (firstStage/unlockedStages vêm do
+  // stage-status do painel, com fallback local).
   const gatedModules = modules
     .map((moduleItem) => ({
       ...moduleItem,
