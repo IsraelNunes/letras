@@ -14,7 +14,7 @@ import {
 } from '@react-navigation/native-stack';
 import { EducatorRootStackParamList, LearnerRootStackParamList } from '../../types';
 import { LearnerChromeContext, LearnerSessionProvider } from '../learner/learnerSessionContext';
-import { useLearnerFlowData, LearnerFlowLesson } from '../learner/learnerFlowData';
+import { isLessonUnlocked, useLearnerFlowData } from '../learner/learnerFlowData';
 import { LearnerLessonIntroView } from '../learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../learner/LearnerLessonScreenView';
 import { LearnerLessonActivityView } from '../learner/LearnerLessonActivityView';
@@ -62,11 +62,6 @@ function Etapa1LessonListScreen({
       .filter((m) => m.lessons.length > 0);
   }, [modules, runner.themeId]);
 
-  function isLessonUnlocked(lessons: LearnerFlowLesson[], index: number): boolean {
-    if (index === 0) return true;
-    return completedLessonIds.has(lessons[index - 1].progressId);
-  }
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -94,7 +89,7 @@ function Etapa1LessonListScreen({
           <View key={moduleItem.id} style={styles.moduleBlock}>
             <Text style={styles.moduleTitle}>{moduleItem.title}</Text>
             {moduleItem.lessons.map((lesson, lessonIndex) => {
-              const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex);
+              const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex, completedLessonIds);
               const done = completedLessonIds.has(lesson.progressId);
               if (!unlocked) {
                 return (

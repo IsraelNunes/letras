@@ -33,6 +33,7 @@ interface LearnerItem {
   etapa1Completed?: boolean;
   mirrorUnlocked?: boolean;
   currentStageNumber?: number;
+  themeId?: string | null;
 }
 
 interface LockedSession {
@@ -352,6 +353,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
       learnerId: item.id,
       learnerName: item.displayName,
       educatorId,
+      themeId: item.themeId ?? undefined,
     });
   };
 

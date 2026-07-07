@@ -6,9 +6,8 @@ import { SvgXml } from 'react-native-svg';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
-import { useLearnerFlowData } from './learnerFlowData';
+import { isLessonUnlocked, useLearnerFlowData } from './learnerFlowData';
 import { useLearnerSession } from './learnerSessionContext';
-import { LearnerFlowLesson } from './learnerFlowMapper';
 
 const LOCK_ICON = `
 <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -39,11 +38,6 @@ export function LearnerHomeView({ navigation }: Props) {
       void refresh();
     }, [learnerSession, modules.length, refresh]),
   );
-
-  function isLessonUnlocked(lessons: LearnerFlowLesson[], index: number): boolean {
-    if (index === 0) return true;
-    return completedLessonIds.has(lessons[index - 1].progressId);
-  }
 
   // Gate do alfabetizando: a Etapa 1 (a MENOR etapa presente — mesma semântica
   // do painel, não o número 1 fixo) é conduzida presencialmente pelo alfabetizador
@@ -119,7 +113,7 @@ export function LearnerHomeView({ navigation }: Props) {
               <Text style={styles.moduleSubtitle}>{moduleItem.subtitle}</Text>
 
               {moduleItem.lessons.map((lesson, lessonIndex) => {
-                const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex);
+                const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex, completedLessonIds);
 
                 if (!unlocked) {
                   return (

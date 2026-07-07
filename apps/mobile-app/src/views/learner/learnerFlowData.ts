@@ -74,6 +74,18 @@ export interface StageRollup {
   etapa1Completed: boolean;
 }
 
+// Desbloqueio sequencial de aulas dentro de um módulo: a 1ª é sempre aberta; as
+// demais abrem quando a aula anterior está concluída. Compartilhado entre a home
+// do alfabetizando e o runner da Etapa 1 do educador (fonte única da regra).
+export function isLessonUnlocked(
+  lessons: LearnerFlowLesson[],
+  index: number,
+  completedLessonIds: Set<string>,
+): boolean {
+  if (index === 0) return true;
+  return completedLessonIds.has(lessons[index - 1].progressId);
+}
+
 // Rollup local a partir das aulas visíveis + progresso concluído. Regra igual à
 // do painel: uma etapa desbloqueia se é a menor ou se todas as anteriores estão
 // concluídas; "Etapa 1" é a menor etapa presente.
