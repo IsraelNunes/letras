@@ -19,7 +19,7 @@ const LOCK_ICON = `
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
 export function LearnerHomeView({ navigation }: Props) {
-  const { modules, loading, error, completedLessonIds, refresh } = useLearnerFlowData();
+  const { modules, loading, error, completedLessonIds, refresh, unlockedStages } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
 
   useFocusEffect(
@@ -45,31 +45,21 @@ export function LearnerHomeView({ navigation }: Props) {
     return completedLessonIds.has(lessons[index - 1].progressId);
   }
 
-  // Etapa atual do alfabetizando: a etapa seguinte só abre quando TODAS as
-  // aulas da etapa vigente estiverem concluídas (mesma regra do painel, que
-  // deriva a "Etapa" do aluno a partir do progresso). Módulos/aulas de etapas
-  // futuras não aparecem.
-  const allLessons = modules.flatMap((m) => m.lessons);
-  const stageNumbers = [...new Set(allLessons.map((l) => l.stageNumber || 1))].sort((a, b) => a - b);
-  let currentStage = stageNumbers[0] ?? 1;
-  for (const stage of stageNumbers) {
-    const stageLessons = allLessons.filter((l) => (l.stageNumber || 1) === stage);
-    const stageDone =
-      stageLessons.length > 0 && stageLessons.every((l) => completedLessonIds.has(l.progressId));
-    if (stageDone) {
-      currentStage = Math.max(currentStage, stage + 1);
-    } else {
-      currentStage = Math.max(currentStage, stage);
-      break;
-    }
-  }
-
+  // Gate do alfabetizando: a Etapa 1 é conduzida presencialmente pelo
+  // alfabetizador (runner do modo educador) — o learner NUNCA a vê. Só aparecem
+  // etapas >= 2 desbloqueadas; a Etapa 2 abre quando o alfabetizador conclui a
+  // Etapa 1 (unlockedStages vem do stage-status do painel, com fallback local).
   const gatedModules = modules
     .map((moduleItem) => ({
       ...moduleItem,
-      lessons: moduleItem.lessons.filter((l) => (l.stageNumber || 1) <= currentStage),
+      lessons: moduleItem.lessons.filter((l) => l.stageNumber >= 2 && unlockedStages.has(l.stageNumber)),
     }))
     .filter((moduleItem) => moduleItem.lessons.length > 0);
+
+  const hasPublishedContent = modules.some((m) => m.lessons.length > 0);
+  // Distingue "esperando a Etapa 1" de "nada publicado": há conteúdo, mas nenhuma
+  // etapa >= 2 liberada ainda.
+  const isWaitingForEtapa1 = !loading && hasPublishedContent && gatedModules.length === 0;
 
   return (
     <LearnerScreenLayout
@@ -90,7 +80,19 @@ export function LearnerHomeView({ navigation }: Props) {
         {loading ? <Text style={styles.helper}>Carregando aulas...</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {!loading && modules.length === 0 ? (
+        {isWaitingForEtapa1 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>Aguardando liberação</Text>
+            <Text style={styles.emptyStateText}>
+              Suas aulas serão liberadas quando o alfabetizador concluir a Etapa 1 com você.
+            </Text>
+            <Pressable style={styles.retryButton} onPress={() => void refresh()}>
+              <Text style={styles.retryText}>Atualizar</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {!loading && !hasPublishedContent ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateTitle}>Nenhum conteúdo publicado</Text>
             <Text style={styles.emptyStateText}>

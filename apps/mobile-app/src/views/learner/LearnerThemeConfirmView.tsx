@@ -14,9 +14,16 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAssets } from 'expo-asset';
 import { SvgUri } from 'react-native-svg';
 import { EducatorRepositoryImpl } from '../../data/repositories/educator-repository.impl';
+import { httpClient } from '../../infra/api/http-client';
 import { EducatorRootStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'LearnerThemeConfirm'>;
+
+interface ThemeStage {
+  id: string;
+  stage_number: number;
+  is_active?: boolean;
+}
 
 export function LearnerThemeConfirmView({ navigation, route }: Props) {
   const { learnerId, learnerName, educatorId, themeId, themeName, themeDescription } = route.params;
@@ -35,12 +42,30 @@ export function LearnerThemeConfirmView({ navigation, route }: Props) {
     try {
       setIsSubmitting(true);
       await repository.assignTheme(learnerId, themeId);
+
+      // Etapa inicial = menor stage_number ativo do tema (não mais o "1" fixo).
+      const stages = await httpClient.get<ThemeStage[]>(
+        `/painel/conteudo/etapas?themeId=${encodeURIComponent(themeId)}`,
+      );
+      const firstStageNumber = stages
+        .filter((s) => s.is_active !== false && typeof s.stage_number === 'number')
+        .map((s) => s.stage_number)
+        .sort((a, b) => a - b)[0];
+
+      if (firstStageNumber === undefined) {
+        Alert.alert(
+          'Tema sem etapas',
+          'Este tema ainda não tem etapas configuradas no painel. Crie a Etapa 1 antes de iniciar a alfabetização.',
+        );
+        return;
+      }
+
       navigation.reset({
         index: 0,
         routes: [{
           name: 'EducatorEtapaOrientacoes' as never,
           params: {
-            stageNumber: 1,
+            stageNumber: firstStageNumber,
             learnerName,
             learnerId,
             educatorId,

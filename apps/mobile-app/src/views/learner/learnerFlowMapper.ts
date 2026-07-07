@@ -130,6 +130,7 @@ interface PainelLearningUnit {
   id: string;
   slug?: string;
   theme_id?: string;
+  stage_id?: string | null;
   stage_number?: number;
   order?: number;
   sort_order?: number;
@@ -165,8 +166,17 @@ interface PainelMediaLibraryItem {
   storage_path?: string | null;
 }
 
+interface PainelStage {
+  id: string;
+  theme_id?: string;
+  stage_number?: number;
+  title?: string;
+  is_active?: boolean;
+}
+
 export interface PainelConteudoResponse {
   themes: PainelTheme[];
+  stages?: PainelStage[];
   modules?: PainelLearningUnit[];
   activities?: PainelActivity[];
   assets?: PainelAsset[];
@@ -969,7 +979,33 @@ function resolveHintVideoUrl(
   return media ? media.public_url || media.storage_path || null : null;
 }
 
+// Resolve o número da etapa do módulo: prioriza o vínculo forte stage_id →
+// learning_stages (via payload.stages) e cai para stage_number (legado). Sem
+// resolução retorna null — a aula é então excluída do fluxo do alfabetizando
+// (nunca mais o antigo default silencioso "2").
+function buildStageNumberByStageId(payload: PainelConteudoResponse): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const stage of payload.stages || []) {
+    if (stage.id && typeof stage.stage_number === 'number') {
+      map.set(stage.id, stage.stage_number);
+    }
+  }
+  return map;
+}
+
+function resolveUnitStageNumber(
+  unit: PainelLearningUnit,
+  stageNumberByStageId: Map<string, number>,
+): number | null {
+  if (unit.stage_id && stageNumberByStageId.has(unit.stage_id)) {
+    return stageNumberByStageId.get(unit.stage_id) ?? null;
+  }
+  if (typeof unit.stage_number === 'number') return unit.stage_number;
+  return null;
+}
+
 export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {
+  const stageNumberByStageId = buildStageNumberByStageId(payload);
   const mediaById = new Map<string, PainelMediaLibraryItem>();
   for (const item of payload.mediaLibrary || []) {
     if (item.id) mediaById.set(item.id, item);
@@ -1002,7 +1038,16 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           (unit.activities || []).some((activity) => isPublishedActivity(activity) && !isDemoActivity(activity)),
       );
 
-      const lessons: LearnerFlowLesson[] = learningUnits.map((unit) => {
+      const lessons: LearnerFlowLesson[] = learningUnits.map((unit): LearnerFlowLesson | null => {
+        const stageNumber = resolveUnitStageNumber(unit, stageNumberByStageId);
+        if (stageNumber === null) {
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn(`[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`);
+          }
+          return null;
+        }
+
         const activities = [...(unit.activities || [])]
           .filter((activity) => isPublishedActivity(activity) && !isDemoActivity(activity))
           .sort((a, b) =>
@@ -1128,13 +1173,13 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.name || theme.title, 'Módulo'),
-          stageNumber: unit.stage_number ?? 2,
+          stageNumber,
           screens: safeScreens,
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
             'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
         };
-      });
+      }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 
       return {
         id: theme.id,
@@ -1217,7 +1262,16 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           return compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id);
         });
 
-      const lessons: LearnerFlowLesson[] = units.map((unit, unitIndex) => {
+      const lessons: LearnerFlowLesson[] = units.map((unit, unitIndex): LearnerFlowLesson | null => {
+        const stageNumber = resolveUnitStageNumber(unit, stageNumberByStageId);
+        if (stageNumber === null) {
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn(`[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`);
+          }
+          return null;
+        }
+
         const unitActivities = activitiesByModule.get(unit.id) ?? [];
         const linkedBlueprints = blueprintsByModule.get(unit.id) ?? [];
 
@@ -1334,13 +1388,13 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           objective: buildLessonObjective(unit.description, safeScreens[0]),
           moduleLabel: `MÓDULO ${themeIndex + 1}`,
           moduleTitle: normalizeText(theme.title || theme.name, 'Módulo'),
-          stageNumber: unit.stage_number ?? 2,
+          stageNumber,
           screens: safeScreens,
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
             'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
         };
-      });
+      }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 
       return {
         id: theme.id,

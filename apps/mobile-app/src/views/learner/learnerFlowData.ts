@@ -40,6 +40,67 @@ async function fetchCompletedProgressIds(learnerProfileId: string): Promise<Set<
   }
 }
 
+interface StageStatusEntry {
+  stageNumber: number;
+  completed: boolean;
+  unlocked: boolean;
+}
+
+interface StageStatusResponse {
+  stages: StageStatusEntry[];
+  etapa1Completed: boolean;
+  currentStageNumber: number;
+}
+
+// Busca o status por etapa autoritativo do painel (fonte da verdade do gate).
+// Retorna null em 404/erro de rede/API antiga — o chamador cai no rollup local,
+// o que torna a ordem de deploy (painel antes do mobile) segura.
+async function fetchStageStatus(
+  learnerProfileId: string,
+  themeId: string,
+): Promise<StageStatusResponse | null> {
+  try {
+    return await httpClient.get<StageStatusResponse>(
+      `/painel/learners/${learnerProfileId}/stage-status?themeId=${encodeURIComponent(themeId)}`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+export interface StageRollup {
+  unlockedStages: Set<number>;
+  currentStage: number;
+  etapa1Completed: boolean;
+}
+
+// Rollup local a partir das aulas visíveis + progresso concluído. Regra igual à
+// do painel: uma etapa desbloqueia se é a menor ou se todas as anteriores estão
+// concluídas; "Etapa 1" é a menor etapa presente.
+export function computeStageRollup(
+  modules: LearnerFlowModule[],
+  completedLessonIds: Set<string>,
+): StageRollup {
+  const allLessons = modules.flatMap((m) => m.lessons);
+  const stageNumbers = [...new Set(allLessons.map((l) => l.stageNumber))].sort((a, b) => a - b);
+  const unlockedStages = new Set<number>();
+  const firstStage = stageNumbers[0];
+  let previousComplete = true;
+  let etapa1Completed = false;
+
+  for (const stage of stageNumbers) {
+    if (previousComplete) unlockedStages.add(stage);
+    const stageLessons = allLessons.filter((l) => l.stageNumber === stage);
+    const stageDone =
+      stageLessons.length > 0 && stageLessons.every((l) => completedLessonIds.has(l.progressId));
+    if (stage === firstStage) etapa1Completed = stageDone;
+    previousComplete = previousComplete && stageDone;
+  }
+
+  const currentStage = unlockedStages.size > 0 ? Math.max(...unlockedStages) : firstStage ?? 1;
+  return { unlockedStages, currentStage, etapa1Completed };
+}
+
 export function useLearnerFlowData() {
   const session = useOptionalLearnerSession();
   const learnerProfileId = session?.learnerProfileId ?? null;
@@ -48,10 +109,15 @@ export function useLearnerFlowData() {
   const [loading, setLoading] = useState(cachedModules === null);
   const [error, setError] = useState<string | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
+  // Override autoritativo do painel (quando o endpoint stage-status responde);
+  // null = usar apenas o rollup local.
+  const [remoteRollup, setRemoteRollup] = useState<StageRollup | null>(null);
 
   const load = useCallback(async () => {
     const now = Date.now();
+    let activeModules: LearnerFlowModule[] = [];
     if (cachedModules && now - cacheTimestamp < CACHE_TTL_MS) {
+      activeModules = cachedModules;
       setModules(cachedModules);
       setLoading(false);
     } else {
@@ -61,6 +127,7 @@ export function useLearnerFlowData() {
         const fetched = await fetchLearnerModules();
         cachedModules = fetched;
         cacheTimestamp = now;
+        activeModules = fetched;
         setModules(fetched);
       } catch (fetchError) {
         const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
@@ -76,6 +143,27 @@ export function useLearnerFlowData() {
     if (learnerProfileId && !learnerProfileId.startsWith('learner-local-profile-')) {
       const ids = await fetchCompletedProgressIds(learnerProfileId);
       setCompletedLessonIds(ids);
+
+      // Status autoritativo do painel para o tema do alfabetizando. Cada
+      // LearnerFlowModule.id é o id do tema; a jornada é travada em um tema, então
+      // usamos o primeiro presente. Falha/404 → mantém só o rollup local (fallback).
+      const themeId = activeModules[0]?.id ?? null;
+      if (themeId) {
+        const status = await fetchStageStatus(learnerProfileId, themeId);
+        setRemoteRollup(
+          status
+            ? {
+                unlockedStages: new Set(
+                  status.stages.filter((s) => s.unlocked).map((s) => s.stageNumber),
+                ),
+                currentStage: status.currentStageNumber,
+                etapa1Completed: status.etapa1Completed,
+              }
+            : null,
+        );
+      } else {
+        setRemoteRollup(null);
+      }
     }
   }, [learnerProfileId]);
 
@@ -94,6 +182,14 @@ export function useLearnerFlowData() {
     [moduleMap],
   );
 
+  // Rollup do gate: prioriza o status autoritativo do painel; cai para o cálculo
+  // local (offline ou API antiga) sem quebrar o desbloqueio de etapas.
+  const localRollup = useMemo(
+    () => computeStageRollup(modules, completedLessonIds),
+    [modules, completedLessonIds],
+  );
+  const rollup = remoteRollup ?? localRollup;
+
   return {
     modules,
     loading,
@@ -101,5 +197,8 @@ export function useLearnerFlowData() {
     completedLessonIds,
     refresh: load,
     getLesson,
+    unlockedStages: rollup.unlockedStages,
+    currentStage: rollup.currentStage,
+    etapa1Completed: rollup.etapa1Completed,
   };
 }
