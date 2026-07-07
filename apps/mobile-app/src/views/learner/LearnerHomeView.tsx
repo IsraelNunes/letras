@@ -45,14 +45,19 @@ export function LearnerHomeView({ navigation }: Props) {
     return completedLessonIds.has(lessons[index - 1].progressId);
   }
 
-  // Gate do alfabetizando: a Etapa 1 é conduzida presencialmente pelo
-  // alfabetizador (runner do modo educador) — o learner NUNCA a vê. Só aparecem
-  // etapas >= 2 desbloqueadas; a Etapa 2 abre quando o alfabetizador conclui a
-  // Etapa 1 (unlockedStages vem do stage-status do painel, com fallback local).
+  // Gate do alfabetizando: a Etapa 1 (a MENOR etapa presente — mesma semântica
+  // do painel, não o número 1 fixo) é conduzida presencialmente pelo alfabetizador
+  // no runner do modo educador — o learner NUNCA a vê. Só aparecem etapas acima
+  // dela e desbloqueadas; a próxima abre quando o alfabetizador conclui a primeira
+  // (unlockedStages vem do stage-status do painel, com fallback local).
+  const allStageNumbers = modules.flatMap((m) => m.lessons.map((l) => l.stageNumber));
+  const firstStage = allStageNumbers.length > 0 ? Math.min(...allStageNumbers) : 1;
   const gatedModules = modules
     .map((moduleItem) => ({
       ...moduleItem,
-      lessons: moduleItem.lessons.filter((l) => l.stageNumber >= 2 && unlockedStages.has(l.stageNumber)),
+      lessons: moduleItem.lessons.filter(
+        (l) => l.stageNumber > firstStage && unlockedStages.has(l.stageNumber),
+      ),
     }))
     .filter((moduleItem) => moduleItem.lessons.length > 0);
 

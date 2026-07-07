@@ -13,7 +13,7 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 import { EducatorRootStackParamList, LearnerRootStackParamList } from '../../types';
-import { LearnerSessionProvider } from '../learner/learnerSessionContext';
+import { LearnerChromeContext, LearnerSessionProvider } from '../learner/learnerSessionContext';
 import { useLearnerFlowData, LearnerFlowLesson } from '../learner/learnerFlowData';
 import { LearnerLessonIntroView } from '../learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../learner/LearnerLessonScreenView';
@@ -51,14 +51,16 @@ function Etapa1LessonListScreen({
   const runner = useRunner();
   const { modules, loading, error, completedLessonIds, refresh } = useLearnerFlowData();
 
-  const etapa1Modules = useMemo(
-    () =>
-      modules
-        .filter((m) => !runner.themeId || m.id === runner.themeId)
-        .map((m) => ({ ...m, lessons: m.lessons.filter((l) => l.stageNumber === 1) }))
-        .filter((m) => m.lessons.length > 0),
-    [modules, runner.themeId],
-  );
+  // A "Etapa 1" conduzida pelo educador = menor etapa presente no tema (mesma
+  // semântica do painel: "menor etapa"), não o número 1 fixo.
+  const etapa1Modules = useMemo(() => {
+    const scoped = modules.filter((m) => !runner.themeId || m.id === runner.themeId);
+    const stageNumbers = scoped.flatMap((m) => m.lessons.map((l) => l.stageNumber));
+    const firstStage = stageNumbers.length ? Math.min(...stageNumbers) : 1;
+    return scoped
+      .map((m) => ({ ...m, lessons: m.lessons.filter((l) => l.stageNumber === firstStage) }))
+      .filter((m) => m.lessons.length > 0);
+  }, [modules, runner.themeId]);
 
   function isLessonUnlocked(lessons: LearnerFlowLesson[], index: number): boolean {
     if (index === 0) return true;
@@ -185,9 +187,10 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   );
 
   return (
-    <LearnerSessionProvider overrideLearnerProfileId={learnerId}>
-      <RunnerContext.Provider value={runnerValue}>
-        <RunnerStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="LearnerHome">
+    <LearnerSessionProvider overrideLearnerProfileId={learnerId} overrideLearnerName={learnerName}>
+      <LearnerChromeContext.Provider value={{ hideBottomMenu: true }}>
+        <RunnerContext.Provider value={runnerValue}>
+          <RunnerStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="LearnerHome">
           <RunnerStack.Screen name="LearnerHome" component={Etapa1LessonListScreen} />
           <RunnerStack.Screen name="LearnerLessonIntro" component={LearnerLessonIntroView} />
           <RunnerStack.Screen name="LearnerLessonScreen" component={LearnerLessonScreenView} />
@@ -198,8 +201,9 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
           <RunnerStack.Screen name="LearnerTutorials" component={BackToListScreen} />
           <RunnerStack.Screen name="LearnerScore" component={BackToListScreen} />
           <RunnerStack.Screen name="LearnerProfile" component={BackToListScreen} />
-        </RunnerStack.Navigator>
-      </RunnerContext.Provider>
+          </RunnerStack.Navigator>
+        </RunnerContext.Provider>
+      </LearnerChromeContext.Provider>
     </LearnerSessionProvider>
   );
 }

@@ -47,10 +47,13 @@ interface LearnerHomeViewModelOptions {
   // realtime e lock-polling; recordProgress posta com este UUID. O guard de
   // perfil local (learner-local-profile-*) segue valendo.
   overrideLearnerProfileId?: string;
+  // Nome do alfabetizando no modo override (o bootstrap que buscaria o nome é
+  // pulado; sem isto o cabeçalho das aulas do runner mostraria "—").
+  overrideLearnerName?: string;
 }
 
 export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {}) {
-  const { overrideLearnerProfileId } = options;
+  const { overrideLearnerProfileId, overrideLearnerName } = options;
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
   const { connect, disconnect, sendStateUpdate, requestHelp: emitHelp } = realtime;
@@ -73,6 +76,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     // apenas conduz as aulas e grava progresso sob o id do alfabetizando.
     if (overrideLearnerProfileId) {
       setLearnerProfileId(overrideLearnerProfileId);
+      if (overrideLearnerName) setLearnerName(overrideLearnerName);
       setLoading(false);
       return;
     }
@@ -129,7 +133,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     } finally {
       setLoading(false);
     }
-  }, [connect, repository, overrideLearnerProfileId]);
+  }, [connect, repository, overrideLearnerProfileId, overrideLearnerName]);
 
   const syncCurrentState = useCallback(
     async ({

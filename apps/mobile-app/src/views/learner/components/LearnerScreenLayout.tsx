@@ -1,6 +1,7 @@
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren, useContext, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { LearnerChromeContext } from '../learnerSessionContext';
 import { LearnerBottomMenu, LearnerMenuKey } from './LearnerBottomMenu';
 import { LearnerHeaderBar } from './LearnerHeaderBar';
 import { LearnerHintVideoOverlay } from './LearnerHintVideoOverlay';
@@ -138,8 +139,11 @@ export function LearnerScreenLayout({
   minimalChrome = false,
 }: LearnerScreenLayoutProps) {
   const [hintOpen, setHintOpen] = useState(false);
+  const { hideBottomMenu } = useContext(LearnerChromeContext);
   const hasHint = Boolean(hintVideoUrl);
-  const bottomPadding = hasHint ? 210 : minimalChrome ? 90 : 130;
+  // No runner da Etapa 1 (educador) o menu do aluno é escondido.
+  const showBottomMenu = !minimalChrome && !hideBottomMenu;
+  const bottomPadding = hasHint ? 210 : showBottomMenu ? 130 : 90;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -216,7 +220,7 @@ export function LearnerScreenLayout({
         </View>
       </ScrollView>
 
-      {minimalChrome ? null : (
+      {showBottomMenu ? (
         <LearnerBottomMenu
           active={activeMenu}
           onInicioPress={onMenuHome}
@@ -224,7 +228,7 @@ export function LearnerScreenLayout({
           onPontuacaoPress={onMenuScore}
           onPerfilPress={onMenuProfile}
         />
-      )}
+      ) : null}
 
       {hintOpen && hintVideoUrl ? (
         <LearnerHintVideoOverlay

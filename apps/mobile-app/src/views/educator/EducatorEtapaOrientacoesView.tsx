@@ -132,9 +132,11 @@ export function EducatorEtapaOrientacoesView({ navigation, route }: Props) {
   };
 
   const handleAvancar = () => {
-    // Etapa 1 é conduzida pelo alfabetizador no runner de aulas; as demais etapas
-    // seguem no fluxo antigo (contato/acompanhamento) até haver runner próprio.
-    if (stageNumber === 1 && learnerId) {
+    // Esta tela de orientações só é aberta para a PRIMEIRA etapa do tema (a
+    // conduzida presencialmente pelo alfabetizador) — ver LearnerThemeConfirmView,
+    // que navega para cá com a menor stage_number ativa. Portanto seguimos para o
+    // runner da Etapa 1 independentemente do número da etapa (não mais `=== 1`).
+    if (learnerId) {
       navigation.navigate('EducatorEtapa1Lessons', {
         learnerId,
         learnerName,

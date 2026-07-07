@@ -357,9 +357,20 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
   const openLearnerById = (learnerId: string, displayName: string) => {
     const match = learners.find((learner) => learner.id === learnerId);
-    handleOpenLearner(
-      match ?? { id: learnerId, displayName, phoneDigits: null, learnerThemes: [] },
-    );
+    if (match) {
+      handleOpenLearner(match);
+      return;
+    }
+    // Sem o registro completo do aluno (ex.: linha de sessão travada, cujo fetch é
+    // separado da lista) não sabemos mirrorUnlocked. Fail-open: abre o espelho e
+    // deixa a defesa em profundidade do próprio EducatorLiveMirror decidir — em vez
+    // de mandar ao runner da Etapa 1 quem talvez já a tenha concluído.
+    navigation.navigate('EducatorLiveMirror', {
+      fullName: educatorName,
+      educatorId,
+      learnerName: displayName,
+      learnerId,
+    });
   };
 
   const learnersInProgress = useMemo(() => {
