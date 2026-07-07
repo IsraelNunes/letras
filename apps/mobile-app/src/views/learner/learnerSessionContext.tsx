@@ -20,14 +20,20 @@ interface LearnerSessionProviderProps {
   // Runner da Etapa 1 no educador: opera sob o perfil do alfabetizando.
   overrideLearnerProfileId?: string;
   overrideLearnerName?: string;
+  overrideThemeId?: string;
 }
 
 export function LearnerSessionProvider({
   children,
   overrideLearnerProfileId,
   overrideLearnerName,
+  overrideThemeId,
 }: PropsWithChildren<LearnerSessionProviderProps>) {
-  const viewModel = useLearnerHomeViewModel({ overrideLearnerProfileId, overrideLearnerName });
+  const viewModel = useLearnerHomeViewModel({
+    overrideLearnerProfileId,
+    overrideLearnerName,
+    overrideThemeId,
+  });
   const { initialize, cleanup } = viewModel;
 
   useEffect(() => {

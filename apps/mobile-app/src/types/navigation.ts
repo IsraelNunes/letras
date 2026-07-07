@@ -88,14 +88,6 @@ export type EducatorRootStackParamList = {
     fullName?: string;
   };
   EducatorScoreRules: undefined;
-  EducatorEtapaOrientacoes: {
-    stageNumber: number;
-    learnerId?: string;
-    learnerName?: string;
-    educatorId?: string;
-    fullName?: string;
-    themeId?: string;
-  };
   // Runner da Etapa 1 no modo educador: navegador aninhado que reaproveita as
   // telas de aula do learner sob o perfil do alfabetizando (progresso gravado
   // sob o UUID dele). Gate da Etapa 2 e do espelhamento.

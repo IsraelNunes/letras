@@ -120,6 +120,7 @@ export function computeStageRollup(
 export function useLearnerFlowData() {
   const session = useOptionalLearnerSession();
   const learnerProfileId = session?.learnerProfileId ?? null;
+  const sessionThemeId = session?.themeId ?? null;
 
   const [modules, setModules] = useState<LearnerFlowModule[]>(cachedModules ?? []);
   const [loading, setLoading] = useState(cachedModules === null);
@@ -160,10 +161,12 @@ export function useLearnerFlowData() {
       const ids = await fetchCompletedProgressIds(learnerProfileId);
       setCompletedLessonIds(ids);
 
-      // Status autoritativo do painel para o tema do alfabetizando. Cada
-      // LearnerFlowModule.id é o id do tema; a jornada é travada em um tema, então
-      // usamos o primeiro presente. Falha/404 → mantém só o rollup local (fallback).
-      const themeId = activeModules[0]?.id ?? null;
+      // Status autoritativo do painel para o tema do alfabetizando: prioriza o
+      // tema da sessão (runner do educador injeta o tema atribuído ao aluno).
+      // Cada LearnerFlowModule.id é o id do tema; a jornada é travada em um tema,
+      // então sem tema na sessão usamos o primeiro presente. Falha/404 → mantém
+      // só o rollup local (fallback).
+      const themeId = sessionThemeId ?? activeModules[0]?.id ?? null;
       if (themeId) {
         const status = await fetchStageStatus(learnerProfileId, themeId);
         setRemoteRollup(
@@ -186,7 +189,7 @@ export function useLearnerFlowData() {
         setRemoteRollup(null);
       }
     }
-  }, [learnerProfileId]);
+  }, [learnerProfileId, sessionThemeId]);
 
   useEffect(() => {
     void load();

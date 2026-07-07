@@ -50,10 +50,13 @@ interface LearnerHomeViewModelOptions {
   // Nome do alfabetizando no modo override (o bootstrap que buscaria o nome é
   // pulado; sem isto o cabeçalho das aulas do runner mostraria "—").
   overrideLearnerName?: string;
+  // Tema do alfabetizando no modo override: escopa o stage-status/firstStage do
+  // runner ao tema atribuído (sem isto, cairia no primeiro tema publicado).
+  overrideThemeId?: string;
 }
 
 export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {}) {
-  const { overrideLearnerProfileId, overrideLearnerName } = options;
+  const { overrideLearnerProfileId, overrideLearnerName, overrideThemeId } = options;
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
   const { connect, disconnect, sendStateUpdate, requestHelp: emitHelp } = realtime;
@@ -315,6 +318,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     loading,
     errorMessage,
     learnerProfileId,
+    themeId: overrideThemeId ?? null,
     learnerName,
     deviceId,
     themeNames,

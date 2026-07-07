@@ -349,11 +349,21 @@ export function EducatorHomeView({ navigation, route }: Props) {
       });
       return;
     }
+    // Sem tema resolvido no painel (aluno novo sem atribuição, ou tema legado
+    // inválido): refazer a seleção de tema antes de abrir o runner.
+    if (!item.themeId) {
+      navigation.navigate('LearnerThemeSelect', {
+        learnerId: item.id,
+        learnerName: item.displayName,
+        educatorId,
+      });
+      return;
+    }
     navigation.navigate('EducatorEtapa1Lessons', {
       learnerId: item.id,
       learnerName: item.displayName,
       educatorId,
-      themeId: item.themeId ?? undefined,
+      themeId: item.themeId,
     });
   };
 

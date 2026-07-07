@@ -182,7 +182,11 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   );
 
   return (
-    <LearnerSessionProvider overrideLearnerProfileId={learnerId} overrideLearnerName={learnerName}>
+    <LearnerSessionProvider
+      overrideLearnerProfileId={learnerId}
+      overrideLearnerName={learnerName}
+      overrideThemeId={themeId}
+    >
       <LearnerChromeContext.Provider value={{ hideBottomMenu: true }}>
         <RunnerContext.Provider value={runnerValue}>
           <RunnerStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="LearnerHome">
