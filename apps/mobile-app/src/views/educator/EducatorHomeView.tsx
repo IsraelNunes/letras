@@ -29,6 +29,10 @@ interface LearnerItem {
   learnerThemes: Array<{ theme: { name: string } }>;
   grupo?: string | null;
   etapa?: string | null;
+  // Gate Etapa 1 → Etapa 2 / espelhamento (vem de GET /cadastros/alfabetizandos).
+  etapa1Completed?: boolean;
+  mirrorUnlocked?: boolean;
+  currentStageNumber?: number;
 }
 
 interface LockedSession {
@@ -70,6 +74,18 @@ function normalizeGroupName(value: string | null | undefined) {
 function normalizeStageLabel(value: string | null | undefined) {
   const normalized = String(value ?? '').trim();
   return normalized || 'Etapa 1';
+}
+
+// Chip explícito do gate do espelhamento — nunca esconde silenciosamente:
+// verde "Etapa 1 concluída" (espelho liberado) ou âmbar com cadeado.
+function MirrorGateChip({ mirrorUnlocked }: { mirrorUnlocked?: boolean }) {
+  return (
+    <View style={[styles.gateChip, mirrorUnlocked ? styles.gateChipDone : styles.gateChipLocked]}>
+      <Text style={[styles.gateChipText, mirrorUnlocked ? styles.gateChipTextDone : styles.gateChipTextLocked]}>
+        {mirrorUnlocked ? 'Etapa 1 concluída' : '🔒 Espelhamento bloqueado'}
+      </Text>
+    </View>
+  );
 }
 
 function TutorialPreviewMedia({
@@ -319,13 +335,31 @@ export function EducatorHomeView({ navigation, route }: Props) {
     navigation.navigate('LearnerOnboardingStep1', { isEducatorFlow: true });
   };
 
+  // Gate do espelhamento: só abre o espelho ao vivo quando a Etapa 1 do
+  // alfabetizando está concluída; caso contrário conduz o alfabetizador ao
+  // runner da Etapa 1 (não esconde silenciosamente — a linha mostra o chip).
   const handleOpenLearner = (item: LearnerItem) => {
-    navigation.navigate('EducatorLiveMirror', {
-      fullName: educatorName,
-      educatorId,
-      learnerName: item.displayName,
+    if (item.mirrorUnlocked) {
+      navigation.navigate('EducatorLiveMirror', {
+        fullName: educatorName,
+        educatorId,
+        learnerName: item.displayName,
+        learnerId: item.id,
+      });
+      return;
+    }
+    navigation.navigate('EducatorEtapa1Lessons', {
       learnerId: item.id,
+      learnerName: item.displayName,
+      educatorId,
     });
+  };
+
+  const openLearnerById = (learnerId: string, displayName: string) => {
+    const match = learners.find((learner) => learner.id === learnerId);
+    handleOpenLearner(
+      match ?? { id: learnerId, displayName, phoneDigits: null, learnerThemes: [] },
+    );
   };
 
   const learnersInProgress = useMemo(() => {
@@ -406,12 +440,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     onContactPress={() => handleClearHelpAlert(item.learnerId)}
                     onPress={() => {
                       handleClearHelpAlert(item.learnerId);
-                      navigation.navigate('EducatorLiveMirror', {
-                        fullName: educatorName,
-                        educatorId,
-                        learnerName: item.displayName,
-                        learnerId: item.learnerId,
-                      });
+                      openLearnerById(item.learnerId, item.displayName);
                     }}
                   />
                 ))}
@@ -428,14 +457,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     phoneDigits={item.phoneDigits}
                     onContactPress={() => dismissLockedSession(item.id)}
                     onUnlockPress={() => { void handleUnlockSession(item.id); }}
-                    onPress={() => {
-                      navigation.navigate('EducatorLiveMirror', {
-                        fullName: educatorName,
-                        educatorId,
-                        learnerName: item.displayName,
-                        learnerId: item.id,
-                      });
-                    }}
+                    onPress={() => openLearnerById(item.id, item.displayName)}
                   />
                 ))}
 
@@ -528,6 +550,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                         onlineLearnerIds.has(item.id) ? styles.presenceDotOnline : styles.presenceDotOffline,
                       ]} />
                       <Text style={styles.inProgressLearnerName}>{item.name}</Text>
+                      <MirrorGateChip mirrorUnlocked={item.learner.mirrorUnlocked} />
                       <Text style={styles.inProgressChevron}>›</Text>
                     </Pressable>
                   ))}
@@ -567,6 +590,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
                     <Text style={styles.learnerName}>
                       {item.displayName} ({normalizeStageLabel(item.etapa)})
                     </Text>
+                    <MirrorGateChip mirrorUnlocked={item.mirrorUnlocked} />
                   </Pressable>
                 ))}
               </View>
@@ -1003,6 +1027,31 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#111111',
+  },
+  gateChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  gateChipDone: {
+    borderColor: '#2e7d32',
+    backgroundColor: '#eaf5eb',
+  },
+  gateChipLocked: {
+    borderColor: '#c98a1e',
+    backgroundColor: '#fdf3e2',
+  },
+  gateChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  gateChipTextDone: {
+    color: '#2e7d32',
+  },
+  gateChipTextLocked: {
+    color: '#a5670f',
   },
   presenceDot: {
     width: 8,

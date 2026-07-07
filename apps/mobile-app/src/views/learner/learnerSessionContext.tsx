@@ -5,8 +5,16 @@ type LearnerSessionContextValue = ReturnType<typeof useLearnerHomeViewModel>;
 
 const LearnerSessionContext = createContext<LearnerSessionContextValue | null>(null);
 
-export function LearnerSessionProvider({ children }: PropsWithChildren) {
-  const viewModel = useLearnerHomeViewModel();
+interface LearnerSessionProviderProps {
+  // Runner da Etapa 1 no educador: opera sob o perfil do alfabetizando.
+  overrideLearnerProfileId?: string;
+}
+
+export function LearnerSessionProvider({
+  children,
+  overrideLearnerProfileId,
+}: PropsWithChildren<LearnerSessionProviderProps>) {
+  const viewModel = useLearnerHomeViewModel({ overrideLearnerProfileId });
   const { initialize, cleanup } = viewModel;
 
   useEffect(() => {

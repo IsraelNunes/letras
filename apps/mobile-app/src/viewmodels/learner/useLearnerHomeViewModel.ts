@@ -41,12 +41,21 @@ function resolveCanonicalActivityId(activityId: string): string | null {
   return null;
 }
 
-export function useLearnerHomeViewModel() {
+interface LearnerHomeViewModelOptions {
+  // Quando presente, o view-model opera "por cima" do perfil de um alfabetizando
+  // específico (runner da Etapa 1 no modo educador): pula bootstrap de sessão,
+  // realtime e lock-polling; recordProgress posta com este UUID. O guard de
+  // perfil local (learner-local-profile-*) segue valendo.
+  overrideLearnerProfileId?: string;
+}
+
+export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {}) {
+  const { overrideLearnerProfileId } = options;
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
   const { connect, disconnect, sendStateUpdate, requestHelp: emitHelp } = realtime;
 
-  const [learnerProfileId, setLearnerProfileId] = useState<string | null>(null);
+  const [learnerProfileId, setLearnerProfileId] = useState<string | null>(overrideLearnerProfileId ?? null);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [themeNames, setThemeNames] = useState<string[]>([]);
   const [learnerName, setLearnerName] = useState<string | null>(null);
@@ -59,6 +68,15 @@ export function useLearnerHomeViewModel() {
   });
 
   const initialize = useCallback(async () => {
+    // Modo override (runner da Etapa 1 no educador): o perfil já vem por prop.
+    // Não fazemos bootstrap de sessão, realtime nem busca de temas — o educador
+    // apenas conduz as aulas e grava progresso sob o id do alfabetizando.
+    if (overrideLearnerProfileId) {
+      setLearnerProfileId(overrideLearnerProfileId);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setErrorMessage(null);
@@ -111,7 +129,7 @@ export function useLearnerHomeViewModel() {
     } finally {
       setLoading(false);
     }
-  }, [connect, repository]);
+  }, [connect, repository, overrideLearnerProfileId]);
 
   const syncCurrentState = useCallback(
     async ({
@@ -254,6 +272,11 @@ export function useLearnerHomeViewModel() {
   }, [disconnect]);
 
   useEffect(() => {
+    // Runner do educador não tem lock de sessão do aluno para vigiar.
+    if (overrideLearnerProfileId) {
+      setPolledIsLocked(false);
+      return;
+    }
     if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) {
       setPolledIsLocked(false);
       return;
@@ -275,7 +298,7 @@ export function useLearnerHomeViewModel() {
       active = false;
       clearInterval(timer);
     };
-  }, [learnerProfileId, repository]);
+  }, [learnerProfileId, repository, overrideLearnerProfileId]);
 
   useEffect(() => {
     // O snapshot HTTP e a fonte canonica do lock. O realtime so antecipa a

@@ -63,6 +63,37 @@ export function EducatorLiveMirrorView({ navigation, route }: Props) {
   const guidance = resolveMirrorGuidance(snapshot);
   const showSpinner = vm.loading && !snapshot;
 
+  // Defesa em profundidade: se a Etapa 1 ainda não foi concluída, o espelhamento
+  // não abre — CTA leva o alfabetizador ao runner da Etapa 1. (Fail-open em erro
+  // de rede: mirrorBlocked fica false e o gate primário é o da EducatorHome.)
+  if (vm.mirrorBlocked && learnerId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.blockedWrap}>
+          <Text style={styles.blockedTitle}>Espelhamento bloqueado</Text>
+          <Text style={styles.blockedText}>
+            Conclua a Etapa 1 com {learnerName} para liberar o espelhamento e a Etapa 2.
+          </Text>
+          <Pressable
+            style={styles.blockedCta}
+            onPress={() =>
+              navigation.navigate('EducatorEtapa1Lessons', {
+                learnerId,
+                learnerName: route.params?.learnerName,
+                educatorId,
+              })
+            }
+          >
+            <Text style={styles.blockedCtaText}>IR PARA A ETAPA 1</Text>
+          </Pressable>
+          <Pressable style={styles.blockedBack} onPress={goHome}>
+            <Text style={styles.blockedBackText}>Voltar ao início</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -183,6 +214,44 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#ededed',
+  },
+  blockedWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 28,
+    gap: 16,
+  },
+  blockedTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#a5670f',
+    textAlign: 'center',
+  },
+  blockedText: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  blockedCta: {
+    marginTop: 8,
+    backgroundColor: '#1e3a5f',
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  blockedCtaText: {
+    color: '#fff',
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  blockedBack: {
+    paddingVertical: 8,
+  },
+  blockedBackText: {
+    color: '#666',
+    fontWeight: '600',
   },
   container: {
     flexGrow: 1,

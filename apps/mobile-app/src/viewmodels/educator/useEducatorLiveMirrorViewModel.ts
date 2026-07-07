@@ -26,6 +26,12 @@ export interface EducatorLiveMirrorViewModel {
   lastUpdatedAt: string | null;
   loading: boolean;
   errorMessage: string | null;
+  /**
+   * Defesa em profundidade do gate: true quando a Etapa 1 do alfabetizando não
+   * está concluída (espelhamento indisponível). Fail-open em erro de rede — o
+   * gate primário é o da EducatorHome.
+   */
+  mirrorBlocked: boolean;
   /** Conecta ao realtime e carrega o cold start. Chamar ao focar a tela. */
   start: () => void;
   /** Desconecta o socket. Chamar ao sair/blur/unmount. */
@@ -50,6 +56,22 @@ export function useEducatorLiveMirrorViewModel(params: {
   const [coldUpdatedAt, setColdUpdatedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [mirrorBlocked, setMirrorBlocked] = useState(false);
+
+  // Confirma o gate do espelhamento pelo detalhe do alfabetizando (que expõe
+  // mirrorUnlocked sem exigir themeId). Só bloqueia com sinal explícito de
+  // Etapa 1 incompleta; fail-open em erro de rede.
+  const checkMirrorGate = useCallback(async () => {
+    if (!learnerProfileId) return;
+    try {
+      const detail = await httpClient.get<{ mirrorUnlocked?: boolean }>(
+        `/cadastros/alfabetizandos/${learnerProfileId}`,
+      );
+      setMirrorBlocked(detail?.mirrorUnlocked === false);
+    } catch {
+      setMirrorBlocked(false);
+    }
+  }, [learnerProfileId]);
 
   const refreshColdStart = useCallback(async () => {
     if (!learnerProfileId) {
@@ -78,13 +100,14 @@ export function useEducatorLiveMirrorViewModel(params: {
     if (!learnerProfileId) {
       return;
     }
+    void checkMirrorGate();
     void refreshColdStart();
     connect({
       learnerProfileId,
       participantId: educatorId ?? learnerProfileId,
       role: 'educator',
     });
-  }, [connect, educatorId, learnerProfileId, refreshColdStart]);
+  }, [checkMirrorGate, connect, educatorId, learnerProfileId, refreshColdStart]);
 
   const stop = useCallback(() => {
     disconnect();
@@ -108,6 +131,7 @@ export function useEducatorLiveMirrorViewModel(params: {
       lastUpdatedAt,
       loading,
       errorMessage,
+      mirrorBlocked,
       start,
       stop,
       refreshColdStart,
@@ -119,6 +143,7 @@ export function useEducatorLiveMirrorViewModel(params: {
       lastUpdatedAt,
       loading,
       errorMessage,
+      mirrorBlocked,
       start,
       stop,
       refreshColdStart,
