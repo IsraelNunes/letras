@@ -61,25 +61,6 @@ export type EducatorRootStackParamList = {
     learnerName?: string;
     phoneDigits?: string | null;
   };
-  EducatorLinkConfirm: {
-    educatorId: string;
-    fullName: string;
-  };
-  EducatorLinkSuccess: {
-    learnerName: string;
-    educatorId: string;
-    fullName: string;
-  };
-  // Tela de espera no celular do alfabetizando enquanto o vínculo PENDING aguarda
-  // o aceite do alfabetizador no próprio celular. Faz polling de /cadastros/vinculos/:id.
-  EducatorLinkPending: {
-    linkId: string;
-    educatorId: string;
-    educatorName: string;
-    educatorPhone?: string | null;
-    learnerId: string;
-    learnerName: string;
-  };
   LearnerThemeSelect: {
     learnerId: string;
     learnerName: string;

@@ -504,16 +504,6 @@ export function EducatorHomeView({ navigation, route }: Props) {
                 ))}
               </>
             )}
-
-            <Pressable
-              style={styles.linkInvitesButton}
-              onPress={() => navigation.navigate('EducatorLinkConfirm', {
-                educatorId: educatorId ?? '',
-                fullName: educatorName,
-              })}
-            >
-              <Text style={styles.linkInvitesText}>VER VINCULOS E CONVITES</Text>
-            </Pressable>
           </View>
         )}
 
@@ -878,19 +868,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8fafc',
-  },
-  linkInvitesButton: {
-    marginTop: 14,
-    borderRadius: 7,
-    backgroundColor: '#0f172a',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  linkInvitesText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
   },
   sessionRequestRow: {
     flexDirection: 'row',
