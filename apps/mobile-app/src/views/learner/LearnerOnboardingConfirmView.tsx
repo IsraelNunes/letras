@@ -16,6 +16,7 @@ import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SvgUri } from 'react-native-svg';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
+import { httpClient } from '../../infra/api/http-client';
 import { SessionStorage } from '../../infra/storage/session-storage';
 import { LearnerRootStackParamList } from '../../types';
 import { useOptionalLearnerSession } from './learnerSessionContext';
@@ -69,12 +70,20 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
       }
 
       let educatorId: string | undefined;
+      let educatorName: string | undefined;
+      let educatorPhone: string | null | undefined;
       if (isEducatorFlow) {
         const { EducatorStorage } = await import('../../infra/storage/educator-storage');
         const profile = await EducatorStorage.getAuthProfile();
         educatorId = profile?.id ?? undefined;
+        educatorName = profile?.fullName ?? undefined;
+        educatorPhone = profile?.phoneDigits ?? undefined;
       }
 
+      // No fluxo do educador o vínculo NÃO é criado automaticamente: registramos o
+      // aluno sem educatorId (senão a API cria o tutor_student_link já "confirmado")
+      // e abrimos um pedido PENDENTE que o alfabetizador precisa aceitar no próprio
+      // celular. O vínculo só vira "confirmado" no aceite (EducatorSessionConfirmView).
       const profileId = await repository.registerLearner(
         {
           cpfOrPassport: data.cpfOrPassport,
@@ -84,16 +93,30 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
           uf: data.uf,
           city: data.city,
           photoUri: photoUri ?? null,
-          educatorId,
         },
         deviceId,
       );
 
       if (isEducatorFlow) {
+        if (!educatorId) throw new Error('Sessão do alfabetizador não encontrada. Faça login novamente.');
+        // Abre o pedido de vínculo PENDENTE (mesmo endpoint que o educador aceita em
+        // EducatorSessionConfirmView / EducatorHome). A API de produção grava um
+        // tutor_student_link "pendente"; o educatorId só vira vínculo efetivo no aceite.
+        const link = await httpClient.post<{ id: string }>('/cadastros/sessoes-confirmacao', {
+          learnerProfileId: profileId,
+          educatorId,
+        });
         navigation.dispatch(
           CommonActions.navigate({
-            name: 'LearnerThemeSelect',
-            params: { learnerId: profileId, learnerName: data.fullName, educatorId },
+            name: 'EducatorLinkPending',
+            params: {
+              linkId: link.id,
+              educatorId,
+              educatorName: educatorName ?? '',
+              educatorPhone: educatorPhone ?? null,
+              learnerId: profileId,
+              learnerName: data.fullName,
+            },
           }),
         );
       } else {

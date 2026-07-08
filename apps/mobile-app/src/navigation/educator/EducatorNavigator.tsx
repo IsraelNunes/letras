@@ -13,6 +13,7 @@ import { EducatorComparativoView } from '../../views/educator/EducatorComparativ
 import { EducatorHomeView } from '../../views/educator/EducatorHomeView';
 import { EducatorLinkConfirmView } from '../../views/educator/EducatorLinkConfirmView';
 import { EducatorLinkSuccessView } from '../../views/educator/EducatorLinkSuccessView';
+import { EducatorLinkPendingView } from '../../views/educator/EducatorLinkPendingView';
 import { EducatorScoreView } from '../../views/educator/EducatorScoreView';
 import { EducatorScoreRulesView } from '../../views/educator/EducatorScoreRulesView';
 import { EducatorTutoriaisView } from '../../views/educator/EducatorTutoriaisView';
@@ -144,6 +145,11 @@ export function EducatorNavigator() {
         name="EducatorLinkSuccess"
         component={EducatorLinkSuccessView}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EducatorLinkPending"
+        component={EducatorLinkPendingView}
+        options={{ headerShown: false, gestureEnabled: false }}
       />
       <Stack.Screen
         name="LearnerThemeSelect"
