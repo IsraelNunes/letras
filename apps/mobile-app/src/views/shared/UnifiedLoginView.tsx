@@ -121,6 +121,19 @@ export function UnifiedLoginView({ navigation }: Props) {
           learnerProfileId: learner.id,
           educatorId: learner.educator.id,
         });
+
+        // Se o vínculo JÁ está confirmado (aluno voltando a entrar), não repetimos a
+        // tela "Notificação enviada… / Vinculação realizada com sucesso". Entra direto.
+        const isConfirmed = ['confirmado', 'confirmed'].includes(
+          String(request.status ?? '').toLowerCase(),
+        );
+        if (isConfirmed) {
+          await SessionStorage.setLearnerProfileId(learner.id);
+          navigation.reset({ index: 0, routes: [{ name: 'LearnerFlow' }] });
+          return;
+        }
+
+        // Vínculo pendente (primeiro acesso): mostra a tela de espera com polling.
         navigation.navigate('LearnerFlow', {
           screen: 'LearnerSessionPending',
           params: {

@@ -75,10 +75,10 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
         educatorId = profile?.id ?? undefined;
       }
 
-      // O vínculo NÃO é criado no cadastro (nem aqui, nem no backend): registramos o
-      // aluno sem educatorId. O pedido de vínculo com aceite do alfabetizador só existe
-      // na Etapa 2, quando o alfabetizando loga por CPF/telefone (UnifiedLoginView →
-      // LearnerSessionPendingView → EducatorSessionConfirmView).
+      // Enviamos o educatorId para o backend GRAVAR a associação (metadata.educatorId),
+      // mas ele NÃO cria vínculo (tutor_student_link) — isso é uma associação pendente.
+      // Serve para o app do alfabetizando (Etapa 2, UnifiedLoginView) saber a quem pedir
+      // o vínculo. O aceite/confirmação só acontece na Etapa 2 (EducatorSessionConfirmView).
       const profileId = await repository.registerLearner(
         {
           cpfOrPassport: data.cpfOrPassport,
@@ -88,6 +88,7 @@ export function LearnerOnboardingConfirmView({ navigation, route }: Props) {
           uf: data.uf,
           city: data.city,
           photoUri: photoUri ?? null,
+          educatorId,
         },
         deviceId,
       );
