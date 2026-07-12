@@ -6,8 +6,9 @@ import { SvgXml } from 'react-native-svg';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
-import { isLessonUnlocked, useLearnerFlowData } from './learnerFlowData';
+import { useLearnerFlowData } from './learnerFlowData';
 import { useLearnerSession } from './learnerSessionContext';
+import { canOpenLesson, getLessonActionLabel } from './learnerAccessPolicy.js';
 
 const LOCK_ICON = `
 <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -18,7 +19,7 @@ const LOCK_ICON = `
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>;
 
 export function LearnerHomeView({ navigation }: Props) {
-  const { modules, loading, error, completedLessonIds, refresh, unlockedStages, firstStage } =
+  const { modules, loading, error, refresh, unlockedStages, firstStage } =
     useLearnerFlowData();
   const learnerSession = useLearnerSession();
 
@@ -112,8 +113,8 @@ export function LearnerHomeView({ navigation }: Props) {
               <Text style={styles.moduleTitle}>{moduleItem.title}</Text>
               <Text style={styles.moduleSubtitle}>{moduleItem.subtitle}</Text>
 
-              {moduleItem.lessons.map((lesson, lessonIndex) => {
-                const unlocked = isLessonUnlocked(moduleItem.lessons, lessonIndex, completedLessonIds);
+              {moduleItem.lessons.map((lesson) => {
+                const unlocked = canOpenLesson(lesson);
 
                 if (!unlocked) {
                   return (
@@ -121,7 +122,7 @@ export function LearnerHomeView({ navigation }: Props) {
                       <View style={styles.lessonBody}>
                         <Text style={styles.lessonTitleLocked}>{lesson.title}</Text>
                         <Text style={styles.lessonLockedHint}>
-                          Complete a aula anterior para desbloquear
+                          Esta aula ainda não foi liberada pelo alfabetizador
                         </Text>
                       </View>
                       <View style={styles.lockIcon}>
@@ -149,9 +150,12 @@ export function LearnerHomeView({ navigation }: Props) {
                       <Text style={styles.lessonTitle}>{lesson.title}</Text>
                       <Text style={styles.lessonSubtitle}>{lesson.objective}</Text>
                       <Text style={styles.lessonCount}>{lesson.screens.length} telas</Text>
+                      {lesson.progressStatus === 'completed' ? (
+                        <Text style={styles.lessonCompleted}>Aula concluída · disponível para repetir</Text>
+                      ) : null}
                     </View>
                     <View style={styles.lessonAction}>
-                      <Text style={styles.lessonActionText}>Abrir</Text>
+                      <Text style={styles.lessonActionText}>{getLessonActionLabel(lesson)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -265,6 +269,11 @@ const styles = StyleSheet.create({
     color: learnerTheme.textMuted,
     fontSize: 12,
     fontWeight: '600',
+  },
+  lessonCompleted: {
+    color: learnerTheme.successText,
+    fontSize: 12,
+    fontWeight: '700',
   },
   lessonAction: {
     marginLeft: 10,

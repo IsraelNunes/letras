@@ -6,11 +6,16 @@ const API_BASE_URL = resolveApiBaseUrl();
 
 class HttpClient {
   private authToken: string | null = null;
+  private learnerProfileId: string | null = null;
 
   constructor(private readonly baseUrl: string) {}
 
   setAuthToken(token: string | null) {
     this.authToken = token;
+  }
+
+  setLearnerIdentity(learnerProfileId: string | null) {
+    this.learnerProfileId = learnerProfileId;
   }
 
   async get<T>(path: string): Promise<T> {
@@ -103,6 +108,9 @@ class HttpClient {
 
     if (this.authToken) {
       headers.set('Authorization', `Bearer ${this.authToken}`);
+    }
+    if (!this.authToken && this.learnerProfileId) {
+      headers.set('X-Learner-Profile-Id', this.learnerProfileId);
     }
 
     const baseUrls = this.getRequestBaseUrls(path);

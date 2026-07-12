@@ -86,6 +86,10 @@ export interface LearnerFlowLesson {
   screens: LearnerFlowScreen[];
   conclusionTitle: string;
   conclusionMessage: string;
+  accessStatus: 'locked' | 'available';
+  progressStatus: 'not_started' | 'in_progress' | 'completed';
+  attemptCount: number;
+  pointsAwarded: number;
 }
 
 export interface LearnerFlowModule {
@@ -1178,6 +1182,10 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
             'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
+          accessStatus: 'available',
+          progressStatus: 'not_started',
+          attemptCount: 0,
+          pointsAwarded: 0,
         };
       }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 
@@ -1393,6 +1401,10 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
           conclusionTitle: 'Aula Concluída!',
           conclusionMessage:
             'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
+          accessStatus: 'available',
+          progressStatus: 'not_started',
+          attemptCount: 0,
+          pointsAwarded: 0,
         };
       }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 

@@ -4,6 +4,7 @@ import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-se
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 import { httpClient } from '../../infra/api/http-client';
 import { SessionStorage } from '../../infra/storage/session-storage';
+import type { LessonCompletionResult } from '../../views/learner/learnerAccessPolicy.js';
 
 const LOCAL_PROFILE_PREFIX = 'learner-local-profile';
 
@@ -99,6 +100,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
 
       const session = await repository.bootstrapPersistentSession();
       setLearnerProfileId(session.learnerProfileId);
+      httpClient.setLearnerIdentity(session.learnerProfileId);
       setDeviceId(session.deviceId);
 
       const identity: SocketIdentity = {
@@ -220,15 +222,15 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
   );
 
   const recordProgress = useCallback(
-    async ({ activityId, status, score, elapsedSeconds, attempts, errorsCount, maxAttempts, lockReason }: RecordProgressInput) => {
+    async ({ activityId, status, score, elapsedSeconds, attempts, errorsCount, maxAttempts, lockReason }: RecordProgressInput): Promise<LessonCompletionResult | null> => {
       if (!learnerProfileId || !activityId) {
-        return;
+        return null;
       }
 
       // Perfis locais (modo offline/fallback) nao tem registro no backend,
       // entao nao adianta tentar gravar progresso.
       if (learnerProfileId.startsWith('learner-local-profile-')) {
-        return;
+        return null;
       }
 
       try {
@@ -237,7 +239,22 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
         // espelhando o contrato do POST /progress do backend NestJS.
         const canonicalActivityId = resolveCanonicalActivityId(activityId);
         if (!canonicalActivityId) {
-          return;
+          return null;
+        }
+
+        if (status === 'COMPLETED') {
+          const idempotencyKey = `lesson:${learnerProfileId}:${canonicalActivityId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+          return await httpClient.post<LessonCompletionResult>(
+            `/learner-activities/${canonicalActivityId}/complete`,
+            {
+              studentId: learnerProfileId,
+              idempotencyKey,
+              score,
+              elapsedSeconds,
+              metadata: { attempts: attempts ?? 1 },
+              sourcePlatform: 'mobile',
+            },
+          );
         }
 
         // O backend só aceita IN_PROGRESS e COMPLETED — LOCKED é estado local
@@ -253,6 +270,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
           ...(typeof maxAttempts === 'number' ? { maxAttempts } : {}),
           ...(typeof lockReason === 'string' && lockReason.trim() ? { lockReason } : {}),
         });
+        return null;
       } catch (error) {
         // Falha de progresso nao deve quebrar a UI da aula. O proximo
         // sync ou a proxima conclusao tentam de novo; o erro fica visivel
@@ -261,6 +279,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
           // eslint-disable-next-line no-console
           console.warn('[learner] failed to record progress', error);
         }
+        return null;
       }
     },
     [learnerProfileId],
@@ -276,6 +295,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
 
   const cleanup = useCallback(() => {
     disconnect();
+    httpClient.setLearnerIdentity(null);
   }, [disconnect]);
 
   useEffect(() => {
