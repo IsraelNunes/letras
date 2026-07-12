@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -13,7 +13,16 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 import { EducatorRootStackParamList, LearnerRootStackParamList } from '../../types';
-import { LearnerChromeContext, LearnerSessionProvider } from '../learner/learnerSessionContext';
+import {
+  EducatorChromeMenu,
+  LearnerChromeContext,
+  LearnerSessionProvider,
+} from '../learner/learnerSessionContext';
+import {
+  clearEtapa1Position,
+  getEtapa1Position,
+  saveEtapa1Position,
+} from '../../infra/storage/etapa1-position-storage';
 import { isLessonUnlocked, useLearnerFlowData } from '../learner/learnerFlowData';
 import { LearnerLessonIntroView } from '../learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../learner/LearnerLessonScreenView';
@@ -50,6 +59,44 @@ function Etapa1LessonListScreen({
 }: NativeStackScreenProps<LearnerRootStackParamList, 'LearnerHome'>) {
   const runner = useRunner();
   const { modules, loading, error, completedLessonIds, refresh, firstStage } = useLearnerFlowData();
+
+  // Retomada (one-shot): ao montar o runner, se houver posição salva para este
+  // alfabetizando, reconstrói o histórico lista → aula → tela para o VOLTAR
+  // funcionar e retomar exatamente de onde parou. Roda só uma vez por montagem.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current) return;
+    resumedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      const pos = await getEtapa1Position(runner.learnerId);
+      if (cancelled || !pos) return;
+      const p = pos.params as {
+        moduleId?: string;
+        lessonId?: string;
+        moduleLabel?: string;
+        moduleTitle?: string;
+        screenIndex?: number;
+      };
+      if (!p.moduleId || !p.lessonId) return;
+      const introParams = {
+        moduleId: p.moduleId,
+        lessonId: p.lessonId,
+        moduleLabel: p.moduleLabel ?? '',
+        moduleTitle: p.moduleTitle ?? '',
+      };
+      navigation.navigate('LearnerLessonIntro', introParams);
+      if (pos.routeName !== 'LearnerLessonIntro') {
+        navigation.push(pos.routeName as 'LearnerLessonScreen', {
+          ...introParams,
+          screenIndex: typeof p.screenIndex === 'number' ? p.screenIndex : 0,
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, runner.learnerId]);
 
   // A "Etapa 1" conduzida pelo educador = menor etapa-ENTIDADE do tema (mesma
   // fonte da verdade do painel), não a menor etapa com conteúdo. Assim, se a
@@ -181,15 +228,76 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
     [learnerId, learnerName, themeId, exitToHome],
   );
 
+  // Barra de 5 abas do educador exibida nas telas da Etapa 1 (Figma). Cada aba
+  // sai do runner de volta à área do educador; a posição já foi salva pelos
+  // listeners abaixo, então ao reabrir a Etapa 1 o app retoma de onde parou.
+  // Alvos replicados de EducatorHomeView (menu inferior).
+  const educatorMenu = useMemo<EducatorChromeMenu>(
+    () => ({
+      active: 'inicio',
+      onInicio: () => navigation.navigate('EducatorHome', { educatorId }),
+      onTutorial: () => navigation.navigate('EducatorTutorials', { educatorId }),
+      onAcompanhar: () => navigation.navigate('EducatorHome', { educatorId }),
+      onPontuacao: () =>
+        educatorId
+          ? navigation.navigate('EducatorScore', { educatorId, fullName: learnerName })
+          : undefined,
+      onPerfil: () => navigation.navigate('EducatorProfile'),
+    }),
+    [navigation, educatorId, learnerName],
+  );
+
+  const chromeValue = useMemo(
+    () => ({ hideBottomMenu: true, educatorMenu }),
+    [educatorMenu],
+  );
+
+  // Distingue o foco inicial em LearnerHome (montagem — a retomada ainda vai ler
+  // a posição salva) de um retorno deliberado à lista depois de entrar numa
+  // aula. Só o segundo caso limpa a posição; assim o foco inicial não apaga o
+  // ponto salvo antes de a retomada conseguir lê-lo.
+  const visitedLessonRef = useRef(false);
+
   return (
     <LearnerSessionProvider
       overrideLearnerProfileId={learnerId}
       overrideLearnerName={learnerName}
       overrideThemeId={themeId}
     >
-      <LearnerChromeContext.Provider value={{ hideBottomMenu: true }}>
+      <LearnerChromeContext.Provider value={chromeValue}>
         <RunnerContext.Provider value={runnerValue}>
-          <RunnerStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="LearnerHome">
+          <RunnerStack.Navigator
+            screenOptions={{ headerShown: false }}
+            initialRouteName="LearnerHome"
+            // Persistência local da posição: ao focar uma tela de aula, grava
+            // rota + params; ao voltar à lista ou concluir, limpa. Sem editar
+            // nenhuma tela reaproveitada do aluno.
+            screenListeners={({ route }) => ({
+              focus: () => {
+                const name = route.name as keyof LearnerRootStackParamList;
+                if (
+                  name === 'LearnerLessonIntro' ||
+                  name === 'LearnerLessonScreen' ||
+                  name === 'LearnerLessonActivity'
+                ) {
+                  visitedLessonRef.current = true;
+                  void saveEtapa1Position(learnerId, {
+                    routeName: name,
+                    params: (route.params ?? {}) as Record<string, unknown>,
+                  });
+                } else if (
+                  name === 'LearnerLessonConclusion' ||
+                  name === 'LearnerStageConclusion'
+                ) {
+                  // Aula concluída: não há ponto intermediário para retomar.
+                  void clearEtapa1Position(learnerId);
+                } else if (name === 'LearnerHome' && visitedLessonRef.current) {
+                  // Retorno deliberado à lista após entrar numa aula.
+                  void clearEtapa1Position(learnerId);
+                }
+              },
+            })}
+          >
           <RunnerStack.Screen name="LearnerHome" component={Etapa1LessonListScreen} />
           <RunnerStack.Screen name="LearnerLessonIntro" component={LearnerLessonIntroView} />
           <RunnerStack.Screen name="LearnerLessonScreen" component={LearnerLessonScreenView} />

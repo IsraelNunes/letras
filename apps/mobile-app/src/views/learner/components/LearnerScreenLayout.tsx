@@ -2,6 +2,7 @@ import { PropsWithChildren, useContext, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { LearnerChromeContext } from '../learnerSessionContext';
+import { EducatorBottomMenu } from '../../educator/components/EducatorBottomMenu';
 import { LearnerBottomMenu, LearnerMenuKey } from './LearnerBottomMenu';
 import { LearnerHeaderBar } from './LearnerHeaderBar';
 import { LearnerHintVideoOverlay } from './LearnerHintVideoOverlay';
@@ -139,11 +140,14 @@ export function LearnerScreenLayout({
   minimalChrome = false,
 }: LearnerScreenLayoutProps) {
   const [hintOpen, setHintOpen] = useState(false);
-  const { hideBottomMenu } = useContext(LearnerChromeContext);
+  const { hideBottomMenu, educatorMenu } = useContext(LearnerChromeContext);
   const hasHint = Boolean(hintVideoUrl);
-  // No runner da Etapa 1 (educador) o menu do aluno é escondido.
+  // No runner da Etapa 1 (educador) o menu do aluno é escondido, mas a barra de
+  // 5 abas do EDUCADOR é exibida em todas as telas — inclusive nas de exercício
+  // (Figma "Modelo letra"), onde `minimalChrome` normalmente esconderia o menu.
   const showBottomMenu = !minimalChrome && !hideBottomMenu;
-  const bottomPadding = hasHint ? 210 : showBottomMenu ? 130 : 90;
+  const showEducatorMenu = Boolean(educatorMenu);
+  const bottomPadding = hasHint ? 210 : showBottomMenu || showEducatorMenu ? 130 : 90;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -220,7 +224,16 @@ export function LearnerScreenLayout({
         </View>
       </ScrollView>
 
-      {showBottomMenu ? (
+      {showEducatorMenu && educatorMenu ? (
+        <EducatorBottomMenu
+          active={educatorMenu.active}
+          onInicioPress={educatorMenu.onInicio}
+          onTutorialPress={educatorMenu.onTutorial}
+          onAcompanharPress={educatorMenu.onAcompanhar}
+          onPontuacaoPress={educatorMenu.onPontuacao}
+          onPerfilPress={educatorMenu.onPerfil}
+        />
+      ) : showBottomMenu ? (
         <LearnerBottomMenu
           active={activeMenu}
           onInicioPress={onMenuHome}

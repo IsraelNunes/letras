@@ -5,10 +5,26 @@ type LearnerSessionContextValue = ReturnType<typeof useLearnerHomeViewModel>;
 
 const LearnerSessionContext = createContext<LearnerSessionContextValue | null>(null);
 
+// Menu inferior do EDUCADOR exibido nas telas reaproveitadas da Etapa 1 (Figma:
+// "Etapa 1 - Tela de Abertura / Tela de Aula"). O runner é quem monta os handlers
+// (tem a navigation do stack do educador) e injeta esta config via contexto.
+export interface EducatorChromeMenu {
+  active: 'inicio' | 'tutorial' | 'acompanhar' | 'pontuacao' | 'perfil';
+  onInicio: () => void;
+  onTutorial: () => void;
+  onAcompanhar: () => void;
+  onPontuacao: () => void;
+  onPerfil: () => void;
+}
+
 // Sinaliza às telas reaproveitadas (via LearnerScreenLayout) que o menu inferior
 // do alfabetizando deve ser escondido — usado pelo runner da Etapa 1 no modo
-// educador, onde Tutoriais/Pontuação/Perfil do aluno não fazem sentido.
-export const LearnerChromeContext = createContext<{ hideBottomMenu: boolean }>({
+// educador, onde Tutoriais/Pontuação/Perfil do aluno não fazem sentido. Quando
+// `educatorMenu` está presente, a layout renderiza a barra de 5 abas do educador.
+export const LearnerChromeContext = createContext<{
+  hideBottomMenu: boolean;
+  educatorMenu?: EducatorChromeMenu;
+}>({
   hideBottomMenu: false,
 });
 

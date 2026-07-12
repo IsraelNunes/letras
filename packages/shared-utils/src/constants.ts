@@ -9,4 +9,8 @@ export const STORAGE_KEYS = {
   EDUCATOR_AUTH_TOKEN: '@letras/educatorAuthToken',
   EDUCATOR_AUTH_EXPIRES_AT: '@letras/educatorAuthExpiresAt',
   EDUCATOR_AUTH_PROFILE: '@letras/educatorAuthProfile',
+  // Prefixo (por alfabetizando) da última posição no runner da Etapa 1 do
+  // educador — permite retomar a aula/tela onde parou. Isolado por vínculo:
+  // o progresso de um alfabetizando nunca vaza para outro.
+  ETAPA1_POSITION_PREFIX: '@letras/etapa1Position_',
 } as const;
