@@ -1,45 +1,77 @@
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Audio, ResizeMode, Video } from 'expo-av';
-import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
-import { LearnerScreenSnapshot } from '@letras/shared-types';
-import { LearnerRootStackParamList } from '../../types';
-import { LearnerActionButtons } from './components/LearnerActionButtons';
-import { LearnerScreenLayout } from './components/LearnerScreenLayout';
-import { learnerTheme } from './learnerTheme';
-import { useLearnerFlowData } from './learnerFlowData';
-import { LearnerExerciseConfig } from './learnerFlowMapper';
-import { useLearnerSession } from './learnerSessionContext';
-import { playErrorBeep, playSuccessBeep } from './exerciseSounds';
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Audio, ResizeMode, Video } from "expo-av";
+import {
+  Image,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Svg, { Circle, Path } from "react-native-svg";
+import { LearnerScreenSnapshot } from "@letras/shared-types";
+import { LearnerRootStackParamList } from "../../types";
+import { LearnerActionButtons } from "./components/LearnerActionButtons";
+import { LearnerScreenLayout } from "./components/LearnerScreenLayout";
+import { learnerTheme } from "./learnerTheme";
+import { useLearnerFlowData } from "./learnerFlowData";
+import { LearnerExerciseConfig } from "./learnerFlowMapper";
+import { useLearnerSession } from "./learnerSessionContext";
+import {
+  loadLearnerLessonCheckpoint,
+  saveLearnerLessonCheckpoint,
+} from "../../infra/storage/learner-lesson-checkpoint-storage";
+import { playErrorBeep, playSuccessBeep } from "./exerciseSounds";
 
-type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonScreen'>;
+type Props = NativeStackScreenProps<
+  LearnerRootStackParamList,
+  "LearnerLessonScreen"
+>;
 
 interface ExerciseFeedback {
-  type: 'ok' | 'error';
+  type: "ok" | "error";
   message: string;
 }
 
-function resolveLockMessage(reason: string | null, lockMessage?: string | null) {
-  const explicitMessage = String(lockMessage || '').trim();
+function resolveLockMessage(
+  reason: string | null,
+  lockMessage?: string | null,
+) {
+  const explicitMessage = String(lockMessage || "").trim();
   if (explicitMessage) {
     return explicitMessage;
   }
-  const normalizedReason = String(reason || '').trim().toLowerCase();
+  const normalizedReason = String(reason || "")
+    .trim()
+    .toLowerCase();
   if (!normalizedReason) {
-    return 'A tela foi bloqueada. Aguarde apoio do alfabetizador para continuar.';
+    return "A tela foi bloqueada. Aguarde apoio do alfabetizador para continuar.";
   }
-  if (normalizedReason.includes('ajuda')) {
-    return 'A tela foi bloqueada porque houve pedido de ajuda. O alfabetizador entrará em contato.';
+  if (normalizedReason.includes("ajuda")) {
+    return "A tela foi bloqueada porque houve pedido de ajuda. O alfabetizador entrará em contato.";
   }
-  if (normalizedReason.includes('tentativa') || normalizedReason.includes('erro')) {
-    return 'A tela foi bloqueada após tentativas sem acerto. Aguarde orientação do alfabetizador.';
+  if (
+    normalizedReason.includes("tentativa") ||
+    normalizedReason.includes("erro")
+  ) {
+    return "A tela foi bloqueada após tentativas sem acerto. Aguarde orientação do alfabetizador.";
   }
-  return reason ?? 'A tela foi bloqueada temporariamente.';
+  return reason ?? "A tela foi bloqueada temporariamente.";
 }
 
-function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null) {
+function isInstructionAudioButtonVisible(
+  exercise: LearnerExerciseConfig | null,
+) {
   return Boolean(exercise);
 }
 
@@ -47,21 +79,56 @@ function isInstructionAudioButtonVisible(exercise: LearnerExerciseConfig | null)
 function ExpandIcon() {
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 4H4V9" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M15 4H20V9" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M9 20H4V15" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M15 20H20V15" stroke="#111111" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path
+        d="M9 4H4V9"
+        stroke="#111111"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15 4H20V9"
+        stroke="#111111"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M9 20H4V15"
+        stroke="#111111"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M15 20H20V15"
+        stroke="#111111"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
 
-function SoundWaveIcon({ large = false, active = false }: { large?: boolean; active?: boolean }) {
+function SoundWaveIcon({
+  large = false,
+  active = false,
+}: {
+  large?: boolean;
+  active?: boolean;
+}) {
   // Verde escuro quando o audio esta tocando (ou e o audio principal,
   // sempre destacado). Verde claro indica "tocavel mas inativo".
-  const color = large || active ? '#2fa536' : '#9be39f';
+  const color = large || active ? "#2fa536" : "#9be39f";
   const strokeWidth = large ? 4.5 : 4;
   return (
-    <Svg width={large ? 66 : 38} height={large ? 54 : 32} viewBox="0 0 66 54" fill="none">
+    <Svg
+      width={large ? 66 : 38}
+      height={large ? 54 : 32}
+      viewBox="0 0 66 54"
+      fill="none"
+    >
       <Path d="M8 22H19L33 10V44L19 32H8V22Z" fill={color} />
       <Path
         d="M42 20C45 23.5 45 30.5 42 34"
@@ -127,17 +194,17 @@ function clampAspectRatio(width: number, height: number) {
 }
 
 function buildSpellingNarration(label: string): string {
-  const normalized = String(label || '').trim();
-  if (!normalized) return '';
+  const normalized = String(label || "").trim();
+  if (!normalized) return "";
   return normalized
     .split(/\s+/g)
-    .map((chunk) => chunk.split('').join(' '))
-    .join(', ');
+    .map((chunk) => chunk.split("").join(" "))
+    .join(", ");
 }
 
 function speakWithBrowserVoice(text: string, onEnd?: () => void): boolean {
-  const normalized = String(text || '').trim();
-  if (!normalized || Platform.OS !== 'web') {
+  const normalized = String(text || "").trim();
+  if (!normalized || Platform.OS !== "web") {
     return false;
   }
 
@@ -155,17 +222,28 @@ function speakWithBrowserVoice(text: string, onEnd?: () => void): boolean {
     };
   };
 
-  if (!runtime.speechSynthesis || typeof runtime.SpeechSynthesisUtterance !== 'function') {
+  if (
+    !runtime.speechSynthesis ||
+    typeof runtime.SpeechSynthesisUtterance !== "function"
+  ) {
     return false;
   }
 
   const utterance = new runtime.SpeechSynthesisUtterance(normalized);
   const voices = runtime.speechSynthesis.getVoices?.() ?? [];
   const preferredVoice =
-    voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('pt-br')) ??
-    voices.find((voice) => String(voice.lang || '').toLowerCase().startsWith('pt'));
+    voices.find((voice) =>
+      String(voice.lang || "")
+        .toLowerCase()
+        .startsWith("pt-br"),
+    ) ??
+    voices.find((voice) =>
+      String(voice.lang || "")
+        .toLowerCase()
+        .startsWith("pt"),
+    );
 
-  utterance.lang = 'pt-BR';
+  utterance.lang = "pt-BR";
   utterance.rate = 0.92;
   utterance.pitch = 1;
   if (preferredVoice) {
@@ -182,18 +260,23 @@ function speakWithBrowserVoice(text: string, onEnd?: () => void): boolean {
 }
 
 function cancelBrowserVoice() {
-  if (Platform.OS !== 'web') return;
+  if (Platform.OS !== "web") return;
   const runtime = globalThis as { speechSynthesis?: { cancel: () => void } };
   runtime.speechSynthesis?.cancel();
 }
 
 export function LearnerLessonScreenView({ navigation, route }: Props) {
-  const { moduleId, lessonId, screenIndex, moduleLabel, moduleTitle } = route.params;
+  const { moduleId, lessonId, screenIndex, moduleLabel, moduleTitle } =
+    route.params;
   const { getLesson } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
   const lesson = getLesson(moduleId, lessonId);
-  const wrongSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reinforcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrongSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const reinforcementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const activeAudioRef = useRef<Audio.Sound | null>(null);
   const audioRequestIdRef = useRef(0);
 
@@ -203,31 +286,103 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   // RN043: imagem da aula expandida em tela cheia (toque abre/fecha).
   const [isImageExpanded, setIsImageExpanded] = useState(false);
 
-  const [matchSelectedOptions, setMatchSelectedOptions] = useState<Record<string, string>>({});
+  const [matchSelectedOptions, setMatchSelectedOptions] = useState<
+    Record<string, string>
+  >({});
   const [matchCompletedIds, setMatchCompletedIds] = useState<string[]>([]);
   const [matchUnlockedIndex, setMatchUnlockedIndex] = useState(0);
   const [matchWrongIds, setMatchWrongIds] = useState<string[]>([]);
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   // Veredito visual do Marcar Caixas após o AVANÇAR (Figma: borda verde +
   // badge ✓ no card correto, borda vermelha + badge ✗ no errado).
-  const [markVerdicts, setMarkVerdicts] = useState<Record<string, 'ok' | 'err'>>({});
-  const markVerdictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [markVerdicts, setMarkVerdicts] = useState<
+    Record<string, "ok" | "err">
+  >({});
+  const markVerdictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [exerciseAttempts, setExerciseAttempts] = useState(0);
   const [exerciseLocked, setExerciseLocked] = useState(false);
   const [remoteLockWasObserved, setRemoteLockWasObserved] = useState(false);
-  const [exerciseFeedback, setExerciseFeedback] = useState<ExerciseFeedback | null>(null);
+  const [exerciseFeedback, setExerciseFeedback] =
+    useState<ExerciseFeedback | null>(null);
   const [showReinforcement, setShowReinforcement] = useState(false);
-  const [reinforcementMessage, setReinforcementMessage] = useState<string | null>(null);
+  const [reinforcementMessage, setReinforcementMessage] = useState<
+    string | null
+  >(null);
   const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
   // Trava didatica: no exercicio "match-letter" os audios das palavras
   // individuais so liberam depois que o audio principal de instrucao
   // (chave `instruction-<screen.id>`) terminou de tocar pelo menos uma
   // vez. Garante a sequencia pedagogica pedida pelo alfabetizador.
   const [instructionAudioPlayed, setInstructionAudioPlayed] = useState(false);
+  const restoredCheckpointRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const learnerId = learnerSession.learnerProfileId;
+    if (!learnerId) return;
+    const checkpointKey = `${learnerId}/${lessonId}`;
+    restoredCheckpointRef.current = null;
+    void loadLearnerLessonCheckpoint(learnerId, lessonId).then((checkpoint) => {
+      if (
+        checkpoint?.moduleId !== moduleId ||
+        checkpoint.screenIndex !== screenIndex
+      ) {
+        restoredCheckpointRef.current = checkpointKey;
+        return;
+      }
+      setMatchSelectedOptions(checkpoint.matchSelectedOptions ?? {});
+      setMatchCompletedIds(checkpoint.matchCompletedIds ?? []);
+      setMatchUnlockedIndex(checkpoint.matchUnlockedIndex ?? 0);
+      setSelectedImageIds(checkpoint.selectedImageIds ?? []);
+      setExerciseAttempts(checkpoint.exerciseAttempts ?? 0);
+      setExerciseLocked(Boolean(checkpoint.exerciseLocked));
+      setInstructionAudioPlayed(Boolean(checkpoint.instructionAudioPlayed));
+      restoredCheckpointRef.current = checkpointKey;
+    });
+  }, [learnerSession.learnerProfileId, lessonId, moduleId, screenIndex]);
+
+  useEffect(() => {
+    const learnerId = learnerSession.learnerProfileId;
+    const checkpointKey = learnerId ? `${learnerId}/${lessonId}` : null;
+    if (!learnerId || restoredCheckpointRef.current !== checkpointKey) return;
+    const timer = setTimeout(() => {
+      void saveLearnerLessonCheckpoint({
+        learnerId,
+        moduleId,
+        lessonId,
+        screenIndex,
+        matchSelectedOptions,
+        matchCompletedIds,
+        matchUnlockedIndex,
+        selectedImageIds,
+        exerciseAttempts,
+        exerciseLocked,
+        instructionAudioPlayed,
+        updatedAt: new Date().toISOString(),
+      });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [
+    exerciseAttempts,
+    exerciseLocked,
+    instructionAudioPlayed,
+    learnerSession.learnerProfileId,
+    lessonId,
+    matchCompletedIds,
+    matchSelectedOptions,
+    matchUnlockedIndex,
+    moduleId,
+    screenIndex,
+    selectedImageIds,
+  ]);
 
   if (!lesson) {
     return (
-      <LearnerScreenLayout activeMenu="inicio" onMenuHome={() => navigation.navigate('LearnerHome')}>
+      <LearnerScreenLayout
+        activeMenu="inicio"
+        onMenuHome={() => navigation.navigate("LearnerHome")}
+      >
         <Text style={styles.error}>Conteúdo não encontrado.</Text>
       </LearnerScreenLayout>
     );
@@ -237,9 +392,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const safeIndex = Math.min(Math.max(screenIndex, 0), totalScreens - 1);
   const screen = lesson.screens[safeIndex];
   const progressPercent = ((safeIndex + 1) / totalScreens) * 100;
-  const completedMatchSet = useMemo(() => new Set(matchCompletedIds), [matchCompletedIds]);
-  const isLockedByTemplate = screen.screenTemplate === 'locked';
-  const isLocked = isLockedByTemplate || exerciseLocked || learnerSession.isLocked;
+  const completedMatchSet = useMemo(
+    () => new Set(matchCompletedIds),
+    [matchCompletedIds],
+  );
+  const isLockedByTemplate = screen.screenTemplate === "locked";
+  const isLocked =
+    isLockedByTemplate || exerciseLocked || learnerSession.isLocked;
   const isInteractionLocked = isLocked || showReinforcement;
   // Quando expectedSelections não está definido no payload do exercício (schema
   // letras-stage2-v1 sem o campo), infere pela contagem de itens corretos antes
@@ -247,12 +406,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   // concluídos com apenas 1 seleção.
   const expectedSelections = Math.max(
     1,
-    screen.exercise?.expectedSelections
-      ?? screen.exercise?.items?.filter((item) => item.isCorrectTarget).length
-      ?? 1,
+    screen.exercise?.expectedSelections ??
+      screen.exercise?.items?.filter((item) => item.isCorrectTarget).length ??
+      1,
   );
   const selectedImageCount = selectedImageIds.length;
-  const shouldRenderDefaultMedia = screen.screenTemplate === 'default' && !screen.exercise;
+  const shouldRenderDefaultMedia =
+    screen.screenTemplate === "default" && !screen.exercise;
 
   const pauseOtherHtmlMedia = useCallback((exceptElement: unknown = null) => {
     // No web temos tres fontes de audio concorrentes: <audio>/<video> nativos
@@ -260,10 +420,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     // speechSynthesis (fallback TTS). Para evitar sobreposicao, ao iniciar
     // qualquer audio paramos todos os elementos de midia da pagina, exceto o
     // que disparou o evento.
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== "web") return;
     const runtimeDocument = (globalThis as { document?: Document }).document;
     if (!runtimeDocument) return;
-    runtimeDocument.querySelectorAll('audio, video').forEach((element) => {
+    runtimeDocument.querySelectorAll("audio, video").forEach((element) => {
       if (element === exceptElement) return;
       const mediaElement = element as HTMLMediaElement;
       if (mediaElement.paused) return;
@@ -299,9 +459,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   );
 
   const playAudioUrl = useCallback(
-    async (url: string | null | undefined, fallbackText?: string | null, key?: string) => {
-      const normalizedUrl = String(url || '').trim();
-      const normalizedFallback = String(fallbackText || '').trim();
+    async (
+      url: string | null | undefined,
+      fallbackText?: string | null,
+      key?: string,
+    ) => {
+      const normalizedUrl = String(url || "").trim();
+      const normalizedFallback = String(fallbackText || "").trim();
       const audioKey = key || normalizedUrl;
 
       // Toggle: clicar de novo no audio que esta tocando para o audio
@@ -320,7 +484,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           // Registra a chave também para a voz do navegador: sem isso o
           // segundo toque não vira toggle e a fala reinicia em vez de parar.
           const spoke = speakWithBrowserVoice(normalizedFallback, () => {
-            setPlayingAudioKey((current) => (current === audioKey ? null : current));
+            setPlayingAudioKey((current) =>
+              current === audioKey ? null : current,
+            );
           });
           if (spoke && audioKey) {
             setPlayingAudioKey(audioKey);
@@ -360,7 +526,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           }
           // Marca a instrucao como "ja ouvida" para liberar os audios
           // individuais das palavras (gate didatico do match-letter).
-          if (audioKey.startsWith('instruction-')) {
+          if (audioKey.startsWith("instruction-")) {
             setInstructionAudioPlayed(true);
           }
         });
@@ -385,7 +551,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     selectedImageIds: string[];
     isLocked: boolean;
     feedback: ExerciseFeedback | null;
-  }>({ selectedLetters: {}, completedItemIds: [], selectedImageIds: [], isLocked: false, feedback: null });
+  }>({
+    selectedLetters: {},
+    completedItemIds: [],
+    selectedImageIds: [],
+    isLocked: false,
+    feedback: null,
+  });
   interactionRef.current = {
     selectedLetters: matchSelectedOptions,
     completedItemIds: matchCompletedIds,
@@ -405,7 +577,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       lessonTitle: lesson.title,
       screenIndex: safeIndex,
       totalScreens,
-      stage: String(lesson.stageNumber ?? 2) as LearnerScreenSnapshot['stage'],
+      stage: String(lesson.stageNumber ?? 2) as LearnerScreenSnapshot["stage"],
       screenId: screen.id,
       screenTitle: screen.title,
       screenTemplate: screen.screenTemplate,
@@ -445,7 +617,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => {
       void learnerSession.syncCurrentState({
-        currentView: 'LearnerLessonScreen',
+        currentView: "LearnerLessonScreen",
         currentActivityId: screen.id,
         statePayload: {
           // Campos "magros" mantidos por compatibilidade com o card de dados
@@ -459,7 +631,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       });
       void learnerSession.recordProgress({
         activityId: screen.id,
-        status: 'IN_PROGRESS',
+        status: "IN_PROGRESS",
       });
       // Quando esta tela perde o foco (navegacao para Conclusion,
       // Home, ou menu inferior) o stack do React Navigation mantem
@@ -470,7 +642,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return () => {
         void stopCurrentAudio();
       };
-    }, [buildScreenSnapshot, learnerSession, lessonId, moduleId, safeIndex, screen.id, screen.screenTemplate, stopCurrentAudio]),
+    }, [
+      buildScreenSnapshot,
+      learnerSession,
+      lessonId,
+      moduleId,
+      safeIndex,
+      screen.id,
+      screen.screenTemplate,
+      stopCurrentAudio,
+    ]),
   );
 
   // Reemite o estado quando a interação do exercício muda (letra marcada,
@@ -479,7 +660,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   // useFocusEffect para não reprocessar áudio/progresso a cada toque.
   useEffect(() => {
     void learnerSession.syncCurrentState({
-      currentView: 'LearnerLessonScreen',
+      currentView: "LearnerLessonScreen",
       currentActivityId: screen.id,
       statePayload: {
         moduleId,
@@ -490,7 +671,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchSelectedOptions, matchCompletedIds, selectedImageIds, markVerdicts, exerciseLocked, exerciseFeedback]);
+  }, [
+    matchSelectedOptions,
+    matchCompletedIds,
+    selectedImageIds,
+    markVerdicts,
+    exerciseLocked,
+    exerciseFeedback,
+  ]);
 
   useEffect(() => {
     void stopCurrentAudio();
@@ -523,7 +711,13 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       clearTimeout(reinforcementTimeoutRef.current);
       reinforcementTimeoutRef.current = null;
     }
-  }, [screen.id, screen.mediaKind, screen.mediaUrl, screen.screenTemplate, stopCurrentAudio]);
+  }, [
+    screen.id,
+    screen.mediaKind,
+    screen.mediaUrl,
+    screen.screenTemplate,
+    stopCurrentAudio,
+  ]);
 
   // Autoplay narração quando tela muda (texto vira áudio para o alfabetizando)
   useEffect(() => {
@@ -536,11 +730,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       if (audioUrl) {
         void playAudioUrl(audioUrl, text, key);
       } else {
-        speakWithBrowserVoice(text ?? '');
+        speakWithBrowserVoice(text ?? "");
       }
     }, 500);
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen.id, screen.narrationAudioUrl, screen.learnerSpeech]);
 
   useEffect(() => {
@@ -556,8 +750,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setExerciseLocked(false);
     setExerciseAttempts(0);
     setExerciseFeedback({
-      type: 'ok',
-      message: 'Atividade liberada pelo alfabetizador. Você já pode continuar.',
+      type: "ok",
+      message: "Atividade liberada pelo alfabetizador. Você já pode continuar.",
     });
   }, [exerciseLocked, learnerSession.isLocked, remoteLockWasObserved]);
 
@@ -578,7 +772,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   }, []);
 
   const handleMediaReady = (event: unknown) => {
-    const naturalSize = (event as { naturalSize?: { width?: number; height?: number } })?.naturalSize;
+    const naturalSize = (
+      event as { naturalSize?: { width?: number; height?: number } }
+    )?.naturalSize;
     const width = Number(naturalSize?.width ?? 0);
     const height = Number(naturalSize?.height ?? 0);
     const clampedRatio = clampAspectRatio(width, height);
@@ -587,18 +783,18 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const renderVideoPlayer = (mediaUrl: string) => {
-    if (Platform.OS === 'web') {
-      return createElement('video', {
+    if (Platform.OS === "web") {
+      return createElement("video", {
         src: mediaUrl,
         controls: true,
         playsInline: true,
-        preload: 'metadata',
+        preload: "metadata",
         style: {
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          backgroundColor: '#000000',
-          objectFit: 'contain',
+          width: "100%",
+          height: "100%",
+          display: "block",
+          backgroundColor: "#000000",
+          objectFit: "contain",
         },
         onLoadedMetadata: (event: {
           currentTarget?: {
@@ -637,14 +833,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     // No web a tag <video> nao expoe controles utilizaveis para arquivos de
     // audio (renderiza apenas um retangulo cinza). Usamos a tag <audio> nativa
     // para ter o player com play/pausa/scrubber.
-    if (Platform.OS === 'web') {
-      return createElement('audio', {
+    if (Platform.OS === "web") {
+      return createElement("audio", {
         src: mediaUrl,
         controls: true,
-        preload: 'metadata',
+        preload: "metadata",
         style: {
-          width: '100%',
-          display: 'block',
+          width: "100%",
+          display: "block",
         },
         onPlay: (event: { currentTarget?: unknown }) => {
           void stopCurrentAudio(event.currentTarget ?? null);
@@ -673,7 +869,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     }
 
     if (safeIndex > 0) {
-      navigation.replace('LearnerLessonScreen', {
+      navigation.replace("LearnerLessonScreen", {
         moduleId,
         lessonId,
         screenIndex: safeIndex - 1,
@@ -683,7 +879,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    navigation.navigate('LearnerLessonIntro', {
+    navigation.navigate("LearnerLessonIntro", {
       moduleId,
       lessonId,
       moduleLabel,
@@ -694,11 +890,11 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const goNextDefault = () => {
     void learnerSession.recordProgress({
       activityId: screen.id,
-      status: 'COMPLETED',
+      status: "COMPLETED",
     });
 
     if (screen.followUpActivity) {
-      navigation.push('LearnerLessonActivity', {
+      navigation.push("LearnerLessonActivity", {
         moduleId,
         lessonId,
         screenIndex: safeIndex,
@@ -709,7 +905,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     }
 
     if (safeIndex + 1 < totalScreens) {
-      navigation.push('LearnerLessonScreen', {
+      navigation.push("LearnerLessonScreen", {
         moduleId,
         lessonId,
         screenIndex: safeIndex + 1,
@@ -719,21 +915,29 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    navigation.push('LearnerLessonConclusion', { moduleId, lessonId, moduleLabel, moduleTitle });
+    navigation.push("LearnerLessonConclusion", {
+      moduleId,
+      lessonId,
+      moduleLabel,
+      moduleTitle,
+    });
   };
 
   const lockCurrentExercise = (message: string) => {
     // RN111: bip de erro também no bloqueio por tentativas.
     playErrorBeep();
-    const nextAttempts = Math.max(exerciseAttempts, screen.exercise?.maxAttemptsBeforeLock ?? 1);
+    const nextAttempts = Math.max(
+      exerciseAttempts,
+      screen.exercise?.maxAttemptsBeforeLock ?? 1,
+    );
     setExerciseLocked(true);
     setExerciseFeedback({
-      type: 'error',
+      type: "error",
       message,
     });
     void learnerSession.recordProgress({
       activityId: screen.id,
-      status: 'LOCKED',
+      status: "LOCKED",
       attempts: nextAttempts,
       errorsCount: nextAttempts,
       maxAttempts: screen.exercise?.maxAttemptsBeforeLock,
@@ -748,14 +952,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   };
 
   const canAdvanceMatchExercise =
-    screen.screenTemplate === 'exercise-match-letter' &&
+    screen.screenTemplate === "exercise-match-letter" &&
     screen.exercise &&
     screen.exercise.items.length > 0 &&
     screen.exercise.items.every((item) => completedMatchSet.has(item.id)) &&
     !isInteractionLocked;
 
   const canAdvanceMarkImagesExercise =
-    screen.screenTemplate === 'exercise-mark-images' &&
+    screen.screenTemplate === "exercise-mark-images" &&
     screen.exercise &&
     selectedImageCount === expectedSelections &&
     !isInteractionLocked;
@@ -781,18 +985,33 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     setShowReinforcement(true);
 
     if (config.instructionAudioUrl) {
-      void playAudioUrl(config.instructionAudioUrl, reinforcementText, 'reinforcement');
+      void playAudioUrl(
+        config.instructionAudioUrl,
+        reinforcementText,
+        "reinforcement",
+      );
     }
 
-    reinforcementTimeoutRef.current = setTimeout(() => {
-      setShowReinforcement(false);
-    }, Math.max(500, config.autoReturnMs));
+    reinforcementTimeoutRef.current = setTimeout(
+      () => {
+        setShowReinforcement(false);
+      },
+      Math.max(500, config.autoReturnMs),
+    );
 
     return true;
   };
 
-  const handleMatchOptionPress = (itemIndex: number, itemId: string, option: string) => {
-    if (screen.screenTemplate !== 'exercise-match-letter' || !screen.exercise || isInteractionLocked) {
+  const handleMatchOptionPress = (
+    itemIndex: number,
+    itemId: string,
+    option: string,
+  ) => {
+    if (
+      screen.screenTemplate !== "exercise-match-letter" ||
+      !screen.exercise ||
+      isInteractionLocked
+    ) {
       return;
     }
     if (screen.exercise.progressiveUnlock && itemIndex > matchUnlockedIndex) {
@@ -811,20 +1030,25 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     if (isCorrect) {
       // RN112: bip de acerto.
       playSuccessBeep();
-      setMatchCompletedIds((previous) => (previous.includes(itemId) ? previous : [...previous, itemId]));
+      setMatchCompletedIds((previous) =>
+        previous.includes(itemId) ? previous : [...previous, itemId],
+      );
       if (screen.exercise.progressiveUnlock) {
         setMatchUnlockedIndex((previous) => Math.max(previous, itemIndex + 1));
       }
       setExerciseFeedback({
-        type: 'ok',
-        message: screen.exercise.successFeedback || 'Correto!',
+        type: "ok",
+        message: screen.exercise.successFeedback || "Correto!",
       });
       return;
     }
 
     // RN111: bip de erro.
     playErrorBeep();
-    setMatchWrongIds((previous) => [...previous.filter((id) => id !== itemId), itemId]);
+    setMatchWrongIds((previous) => [
+      ...previous.filter((id) => id !== itemId),
+      itemId,
+    ]);
 
     if (wrongSelectionTimeoutRef.current) {
       clearTimeout(wrongSelectionTimeoutRef.current);
@@ -841,20 +1065,29 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     const nextAttempts = exerciseAttempts + 1;
     setExerciseAttempts(nextAttempts);
     if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
-      lockCurrentExercise(resolveLockMessage(screen.lockReason, screen.lockMessage));
+      lockCurrentExercise(
+        resolveLockMessage(screen.lockReason, screen.lockMessage),
+      );
       return;
     }
 
-    const fallbackMessage = screen.exercise.errorFeedback || 'Tente outra posição.';
+    const fallbackMessage =
+      screen.exercise.errorFeedback || "Tente outra posição.";
     const hasReinforcement = triggerErrorReinforcement(fallbackMessage);
     setExerciseFeedback({
-      type: 'error',
-      message: hasReinforcement ? 'Revendo orientação. Aguarde para tentar novamente.' : fallbackMessage,
+      type: "error",
+      message: hasReinforcement
+        ? "Revendo orientação. Aguarde para tentar novamente."
+        : fallbackMessage,
     });
   };
 
   const handleToggleMarkImageItem = (itemId: string) => {
-    if (screen.screenTemplate !== 'exercise-mark-images' || !screen.exercise || isInteractionLocked) {
+    if (
+      screen.screenTemplate !== "exercise-mark-images" ||
+      !screen.exercise ||
+      isInteractionLocked
+    ) {
       return;
     }
     // Enquanto o veredito (✓/✗) está na tela, os toques ficam suspensos —
@@ -877,43 +1110,48 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const handleInstructionAudioPress = () => {
     const instructionUrl = screen.exercise?.instructionAudioUrl;
     const fallbackInstruction =
-      screen.exercise?.instructionText || 'Escute o audio e marque a letra correta.';
-    void playAudioUrl(instructionUrl, fallbackInstruction, `instruction-${screen.id}`);
+      screen.exercise?.instructionText ||
+      "Escute o audio e marque a letra correta.";
+    void playAudioUrl(
+      instructionUrl,
+      fallbackInstruction,
+      `instruction-${screen.id}`,
+    );
   };
 
   const onNext = () => {
     if (showReinforcement) {
       setExerciseFeedback({
-        type: 'error',
-        message: 'Aguarde o término da tela de reforço para continuar.',
+        type: "error",
+        message: "Aguarde o término da tela de reforço para continuar.",
       });
       return;
     }
 
     if (learnerSession.isLocked) {
       setExerciseFeedback({
-        type: 'error',
-        message: 'Sessão bloqueada pelo alfabetizador. Aguarde orientação para continuar.',
+        type: "error",
+        message:
+          "Sessão bloqueada pelo alfabetizador. Aguarde orientação para continuar.",
       });
       return;
     }
 
     if (isLockedByTemplate) {
       setExerciseFeedback({
-        type: 'error',
+        type: "error",
         message: resolveLockMessage(screen.lockReason, screen.lockMessage),
       });
       return;
     }
 
-    if (screen.screenTemplate === 'exercise-match-letter') {
+    if (screen.screenTemplate === "exercise-match-letter") {
       if (!canAdvanceMatchExercise) {
         setExerciseFeedback({
-          type: 'error',
-          message:
-            isInteractionLocked
-              ? resolveLockMessage(screen.lockReason, screen.lockMessage)
-              : 'Conclua todas as respostas para avançar.',
+          type: "error",
+          message: isInteractionLocked
+            ? resolveLockMessage(screen.lockReason, screen.lockMessage)
+            : "Conclua todas as respostas para avançar.",
         });
         return;
       }
@@ -921,10 +1159,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    if (screen.screenTemplate === 'exercise-mark-images' && screen.exercise) {
+    if (screen.screenTemplate === "exercise-mark-images" && screen.exercise) {
       if (!canAdvanceMarkImagesExercise) {
         setExerciseFeedback({
-          type: 'error',
+          type: "error",
           message: `Selecione exatamente ${expectedSelections} caixa(s) para liberar o avançar.`,
         });
         return;
@@ -932,16 +1170,21 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
       const selectedSet = new Set(selectedImageIds);
       const correctSet = new Set(
-        screen.exercise.items.filter((item) => item.isCorrectTarget).map((item) => item.id),
+        screen.exercise.items
+          .filter((item) => item.isCorrectTarget)
+          .map((item) => item.id),
       );
-      const hasOnlyCorrectSelections = [...selectedSet].every((itemId) => correctSet.has(itemId));
-      const isCorrect = hasOnlyCorrectSelections && selectedSet.size === expectedSelections;
+      const hasOnlyCorrectSelections = [...selectedSet].every((itemId) =>
+        correctSet.has(itemId),
+      );
+      const isCorrect =
+        hasOnlyCorrectSelections && selectedSet.size === expectedSelections;
 
       // Veredito visual por card (Figma): verde+✓ nos corretos selecionados,
       // vermelho+✗ nos errados selecionados.
-      const verdicts: Record<string, 'ok' | 'err'> = {};
+      const verdicts: Record<string, "ok" | "err"> = {};
       for (const itemId of selectedSet) {
-        verdicts[itemId] = correctSet.has(itemId) ? 'ok' : 'err';
+        verdicts[itemId] = correctSet.has(itemId) ? "ok" : "err";
       }
       setMarkVerdicts(verdicts);
 
@@ -949,8 +1192,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         // RN112: bip de acerto.
         playSuccessBeep();
         setExerciseFeedback({
-          type: 'ok',
-          message: screen.exercise.successFeedback || 'Muito bem! Avançando para a próxima tela.',
+          type: "ok",
+          message:
+            screen.exercise.successFeedback ||
+            "Muito bem! Avançando para a próxima tela.",
         });
         // Deixa o aluno VER os ✓ antes de trocar de tela.
         if (markVerdictTimeoutRef.current) {
@@ -968,7 +1213,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       const nextAttempts = exerciseAttempts + 1;
       setExerciseAttempts(nextAttempts);
       if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
-        lockCurrentExercise(resolveLockMessage(screen.lockReason, screen.lockMessage));
+        lockCurrentExercise(
+          resolveLockMessage(screen.lockReason, screen.lockMessage),
+        );
         return;
       }
 
@@ -979,12 +1226,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       }
       markVerdictTimeoutRef.current = setTimeout(() => {
         setMarkVerdicts({});
-        setSelectedImageIds((previous) => previous.filter((id) => correctSet.has(id)));
+        setSelectedImageIds((previous) =>
+          previous.filter((id) => correctSet.has(id)),
+        );
       }, 1400);
 
       setExerciseFeedback({
-        type: 'error',
-        message: screen.exercise.errorFeedback || 'Ainda não foi desta vez. Tente novamente.',
+        type: "error",
+        message:
+          screen.exercise.errorFeedback ||
+          "Ainda não foi desta vez. Tente novamente.",
       });
       return;
     }
@@ -995,7 +1246,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   const renderExerciseContent = () => {
     if (!screen.exercise) return null;
 
-    if (screen.screenTemplate === 'exercise-match-letter') {
+    if (screen.screenTemplate === "exercise-match-letter") {
       return (
         <View style={styles.exerciseCard}>
           {/* Botão de áudio de instrução — ícone grande centralizado */}
@@ -1011,8 +1262,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             const isCompleted = completedMatchSet.has(item.id);
             const isWrongFlash = matchWrongIds.includes(item.id);
             const selectedLetter = matchSelectedOptions[item.id];
-            const word = String(item.label || '').toUpperCase();
-            const wordLetters = word.split('').filter(Boolean);
+            const word = String(item.label || "").toUpperCase();
+            const wordLetters = word.split("").filter(Boolean);
             const audioUrl = item.wordAudioUrl || item.audioUrl;
             // Áudios individuais sempre disponíveis (salvo tela travada).
             // O gate que exigia ouvir a instrução antes deixava os desenhos
@@ -1032,22 +1283,38 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       />
                     ) : (
                       <View style={styles.matchItemImageFallback}>
-                        <Text style={styles.matchItemImageFallbackText}>{word.slice(0, 1)}</Text>
+                        <Text style={styles.matchItemImageFallbackText}>
+                          {word.slice(0, 1)}
+                        </Text>
                       </View>
                     )}
                     {isCompleted ? (
-                      <View style={[styles.itemStatusBadge, styles.itemStatusBadgeOk]}>
+                      <View
+                        style={[
+                          styles.itemStatusBadge,
+                          styles.itemStatusBadgeOk,
+                        ]}
+                      >
                         <Text style={styles.itemStatusBadgeText}>✓</Text>
                       </View>
                     ) : isWrongFlash ? (
-                      <View style={[styles.itemStatusBadge, styles.itemStatusBadgeErr]}>
+                      <View
+                        style={[
+                          styles.itemStatusBadge,
+                          styles.itemStatusBadgeErr,
+                        ]}
+                      >
                         <Text style={styles.itemStatusBadgeText}>✗</Text>
                       </View>
                     ) : null}
                   </View>
                   <SpeakerButton
                     onPress={() => {
-                      void playAudioUrl(audioUrl, item.label, `word-${item.id}`);
+                      void playAudioUrl(
+                        audioUrl,
+                        item.label,
+                        `word-${item.id}`,
+                      );
                     }}
                     disabled={!isWordAudioEnabled}
                     active={playingAudioKey === `word-${item.id}`}
@@ -1063,13 +1330,18 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                       wordLetters.indexOf(selectedLetter) === squareIndex;
                     // Figma: ao acertar, a palavra inteira é revelada mas só a
                     // célula da letra-alvo ganha o destaque verde.
-                    const targetLetter = (item.correctOptions[0] ?? '').toUpperCase();
-                    const isTargetSquare = squareIndex === wordLetters.indexOf(targetLetter);
+                    const targetLetter = (
+                      item.correctOptions[0] ?? ""
+                    ).toUpperCase();
+                    const isTargetSquare =
+                      squareIndex === wordLetters.indexOf(targetLetter);
 
                     return (
                       <Pressable
                         key={`${item.id}-sq-${squareIndex}`}
-                        onPress={() => handleMatchOptionPress(itemIndex, item.id, letter)}
+                        onPress={() =>
+                          handleMatchOptionPress(itemIndex, item.id, letter)
+                        }
                         disabled={isInteractionLocked || isCompleted}
                         hitSlop={4}
                         style={[
@@ -1092,7 +1364,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                               : null,
                           ]}
                         >
-                          {isCompleted ? letter : ''}
+                          {isCompleted ? letter : ""}
                         </Text>
                       </Pressable>
                     );
@@ -1105,7 +1377,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       );
     }
 
-    if (screen.screenTemplate === 'exercise-mark-images') {
+    if (screen.screenTemplate === "exercise-mark-images") {
       return (
         <View style={styles.exerciseCard}>
           {/* Apenas o icone de audio grande centralizado (sem texto de
@@ -1136,12 +1408,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                     isSelected && !verdict ? styles.markItemSelected : null,
                     // Após o AVANÇAR o veredito substitui a seleção amarela:
                     // verde+✓ no correto, vermelho+✗ no errado (Figma).
-                    verdict === 'ok' ? styles.markItemOk : null,
-                    verdict === 'err' ? styles.markItemErr : null,
+                    verdict === "ok" ? styles.markItemOk : null,
+                    verdict === "err" ? styles.markItemErr : null,
                   ]}
                 >
                   {item.imageUrl ? (
-                    <Image source={{ uri: item.imageUrl }} style={styles.markItemImage} resizeMode="contain" />
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.markItemImage}
+                      resizeMode="contain"
+                    />
                   ) : (
                     <View style={styles.markItemFallback}>
                       <Text style={styles.markItemFallbackText}>?</Text>
@@ -1156,10 +1432,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                     <View
                       style={[
                         styles.markVerdictBadge,
-                        verdict === 'ok' ? styles.markVerdictBadgeOk : styles.markVerdictBadgeErr,
+                        verdict === "ok"
+                          ? styles.markVerdictBadgeOk
+                          : styles.markVerdictBadgeErr,
                       ]}
                     >
-                      <Text style={styles.markVerdictBadgeText}>{verdict === 'ok' ? '✓' : '✗'}</Text>
+                      <Text style={styles.markVerdictBadgeText}>
+                        {verdict === "ok" ? "✓" : "✗"}
+                      </Text>
                     </View>
                   ) : null}
                 </Pressable>
@@ -1179,8 +1459,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   // fundo branco só com o logo, sem header de texto, sem menu inferior, sem
   // barra de progresso/título — o áudio carrega a instrução.
   const isExerciseScreen =
-    screen.screenTemplate === 'exercise-match-letter' ||
-    screen.screenTemplate === 'exercise-mark-images';
+    screen.screenTemplate === "exercise-match-letter" ||
+    screen.screenTemplate === "exercise-mark-images";
 
   // Etapas 2 e 3: o ALUNO navega sozinho (Figma "Modelo de Ensino ao
   // Alfabetizando"): só logo, alto-falante verde grande, card de conteúdo,
@@ -1192,14 +1472,19 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
   return (
     <LearnerScreenLayout
       activeMenu="inicio"
-      onMenuHome={() => navigation.navigate('LearnerHome')}
-      onMenuTutorial={() => navigation.navigate('LearnerTutorials')}
-      onMenuScore={() => navigation.navigate('LearnerScore')}
-      onMenuProfile={() => navigation.navigate('LearnerProfile')}
+      onMenuHome={() => navigation.navigate("LearnerHome")}
+      onMenuTutorial={() => navigation.navigate("LearnerTutorials")}
+      onMenuScore={() => navigation.navigate("LearnerScore")}
+      onMenuProfile={() => navigation.navigate("LearnerProfile")}
       // Figma (Tela de Aula): header traz apenas logo + sino; o nome do
       // alfabetizando e a posição na etapa ficam no corpo (RN040).
       isSessionLocked={learnerSession.isLocked}
-      onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildScreenSnapshot())}
+      onRequestHelp={() =>
+        learnerSession.requestHelp(
+          "Preciso de ajuda para continuar nesta tela.",
+          buildScreenSnapshot(),
+        )
+      }
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
       canRequestHelp={exerciseLocked}
@@ -1208,32 +1493,32 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       minimalChrome={usesMinimalChrome}
     >
       <View style={styles.wrapper}>
-        {isExerciseScreen || isLearnerDriven ? null : (
-          <>
-            {/* RN040: identificação em duas linhas no corpo (Figma: Tela de
+        <>
+          {/* RN040: identificação em duas linhas no corpo (Figma: Tela de
                 Aula) — nome do alfabetizando + posição na etapa. */}
-            <View style={styles.lessonHeaderBlock}>
-              <Text style={styles.lessonLearnerLine}>
-                Alfabetizando {learnerSession.learnerName?.trim() || ''}
-              </Text>
-              <Text style={styles.lessonCountLine}>
-                Tela {safeIndex + 1} de {totalScreens} da Etapa {lesson.stageNumber ?? 1} de Alfabetização
-              </Text>
-            </View>
+          <View style={styles.lessonHeaderBlock}>
+            <Text style={styles.lessonLearnerLine}>
+              Alfabetizando {learnerSession.learnerName?.trim() || ""}
+            </Text>
+            <Text style={styles.lessonCountLine}>
+              Tela {safeIndex + 1} de {totalScreens} da Etapa{" "}
+              {lesson.stageNumber ?? 1} de Alfabetização
+            </Text>
+          </View>
 
-            {/* RN041: box cinza de orientação ao alfabetizador — presente em
+          {/* RN041: box cinza de orientação ao alfabetizador — presente em
                 todos os modelos de tela de aula do Figma. */}
-            {screen.educatorGuidance ? (
-              <View style={styles.tutorCard}>
-                <Text style={styles.cardTitle}>Orientação para o(a) alfabetizador(a):</Text>
-                <Text style={styles.cardText}>{screen.educatorGuidance}</Text>
-              </View>
-            ) : null}
+          {!isLearnerDriven && screen.educatorGuidance ? (
+            <View style={styles.tutorCard}>
+              <Text style={styles.cardTitle}>
+                Orientação para o(a) alfabetizador(a):
+              </Text>
+              <Text style={styles.cardText}>{screen.educatorGuidance}</Text>
+            </View>
+          ) : null}
+        </>
 
-          </>
-        )}
-
-        {isLearnerDriven && !screen.exercise && screen.mediaKind !== 'video' ? (
+        {isLearnerDriven && !screen.exercise && screen.mediaKind !== "video" ? (
           // Figma (Modelo de Ensino ao Alfabetizando): alto-falante verde
           // grande centralizado — único controle de áudio da tela. Toca a
           // narração/instrução (ou o áudio da tela, quando for o conteúdo).
@@ -1243,7 +1528,7 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
               onPress={() =>
                 void playAudioUrl(
                   screen.narrationAudioUrl ||
-                    (screen.mediaKind === 'audio' ? screen.mediaUrl : null),
+                    (screen.mediaKind === "audio" ? screen.mediaUrl : null),
                   screen.learnerSpeech,
                   `aluno-audio-${screen.id}`,
                 )
@@ -1253,7 +1538,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'image' && !didFailImageLoad ? (
+        {shouldRenderDefaultMedia &&
+        screen.mediaUrl &&
+        screen.mediaKind === "image" &&
+        !didFailImageLoad ? (
           // RN043 + Figma (Modelo imagem): card branco com a imagem inteira
           // (contain) e ícone de expandir no canto — toque abre em tela cheia.
           <Pressable
@@ -1274,10 +1562,17 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </Pressable>
         ) : null}
 
-        {isImageExpanded && screen.mediaUrl && screen.mediaKind === 'image' ? (
+        {isImageExpanded && screen.mediaUrl && screen.mediaKind === "image" ? (
           // RN043: imagem ocupa a tela toda; novo toque retorna.
-          <Modal transparent={false} animationType="fade" onRequestClose={() => setIsImageExpanded(false)}>
-            <Pressable style={styles.fullscreenImageWrap} onPress={() => setIsImageExpanded(false)}>
+          <Modal
+            transparent={false}
+            animationType="fade"
+            onRequestClose={() => setIsImageExpanded(false)}
+          >
+            <Pressable
+              style={styles.fullscreenImageWrap}
+              onPress={() => setIsImageExpanded(false)}
+            >
               <Image
                 source={{ uri: screen.mediaUrl }}
                 style={styles.fullscreenImage}
@@ -1287,38 +1582,57 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </Modal>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaKind === 'image' && didFailImageLoad ? (
+        {shouldRenderDefaultMedia &&
+        screen.mediaKind === "image" &&
+        didFailImageLoad ? (
           <View style={styles.mediaCard}>
             <Text style={styles.mediaLabel}>Imagem da aula</Text>
-            <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia. Verifique o link em Aulas e Mídias.</Text>
+            <Text style={styles.mediaErrorText}>
+              Não foi possível carregar esta mídia. Verifique o link em Aulas e
+              Mídias.
+            </Text>
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'video' ? (
+        {shouldRenderDefaultMedia &&
+        screen.mediaUrl &&
+        screen.mediaKind === "video" ? (
           // Figma (Modelo vídeo): player direto, sem card com rótulo.
           <View style={[styles.videoFrame, { aspectRatio: mediaAspectRatio }]}>
             {renderVideoPlayer(screen.mediaUrl)}
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && screen.mediaUrl && screen.mediaKind === 'audio' && !isLearnerDriven ? (
+        {shouldRenderDefaultMedia &&
+        screen.mediaUrl &&
+        screen.mediaKind === "audio" &&
+        !isLearnerDriven ? (
           // RN045 + Figma (Modelo áudio, Etapa 1): apenas o grande
           // alto-falante centralizado — sem barra de player. Nas Etapas 2/3
           // o alto-falante único do topo já cobre o áudio da tela.
           <View style={styles.audioSpeakerRow}>
             <SpeakerButton
               large
-              onPress={() => void playAudioUrl(screen.mediaUrl, null, `media-${screen.id}`)}
+              onPress={() =>
+                void playAudioUrl(screen.mediaUrl, null, `media-${screen.id}`)
+              }
               active={playingAudioKey === `media-${screen.id}`}
             />
           </View>
         ) : null}
 
-        {shouldRenderDefaultMedia && didFailMediaLoad && (screen.mediaKind === 'video' || screen.mediaKind === 'audio') ? (
-          <Text style={styles.mediaErrorText}>Não foi possível carregar esta mídia automaticamente.</Text>
+        {shouldRenderDefaultMedia &&
+        didFailMediaLoad &&
+        (screen.mediaKind === "video" || screen.mediaKind === "audio") ? (
+          <Text style={styles.mediaErrorText}>
+            Não foi possível carregar esta mídia automaticamente.
+          </Text>
         ) : null}
 
-        {screen.learnerSpeech && !screen.exercise && !screen.mediaUrl && !isLearnerDriven ? (
+        {screen.learnerSpeech &&
+        !screen.exercise &&
+        !screen.mediaUrl &&
+        !isLearnerDriven ? (
           // Modelo "só texto" do Figma: conteúdo em card branco com borda.
           // Restrito a telas de texto puro — telas de áudio/imagem/vídeo NÃO
           // exibem transcrição (o alfabetizando escuta, não lê).
@@ -1350,10 +1664,18 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
         {isLocked ? (
           <View style={styles.lockCard}>
             <Text style={styles.lockTitle}>Tela bloqueada</Text>
-            <Text style={styles.lockText}>{resolveLockMessage(screen.lockReason, screen.lockMessage)}</Text>
+            <Text style={styles.lockText}>
+              {resolveLockMessage(screen.lockReason, screen.lockMessage)}
+            </Text>
             {screen.lockAudioUrl ? (
               <Pressable
-                onPress={() => void playAudioUrl(screen.lockAudioUrl, resolveLockMessage(screen.lockReason, screen.lockMessage), 'lock')}
+                onPress={() =>
+                  void playAudioUrl(
+                    screen.lockAudioUrl,
+                    resolveLockMessage(screen.lockReason, screen.lockMessage),
+                    "lock",
+                  )
+                }
                 style={styles.lockAudioButton}
               >
                 <Text style={styles.lockAudioButtonText}>Ouvir orientação</Text>
@@ -1366,20 +1688,24 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <View style={styles.reinforcementCard}>
             <Text style={styles.reinforcementTitle}>Reforço de orientação</Text>
             <Text style={styles.reinforcementText}>
-              {reinforcementMessage || 'Revendo instruções. Aguarde para tentar novamente.'}
+              {reinforcementMessage ||
+                "Revendo instruções. Aguarde para tentar novamente."}
             </Text>
             {screen.exercise?.errorReinforcement?.instructionAudioUrl ? (
               <Pressable
                 onPress={() =>
                   void playAudioUrl(
                     screen.exercise?.errorReinforcement?.instructionAudioUrl,
-                    reinforcementMessage || screen.exercise?.errorReinforcement?.instructionText,
-                    'reinforcement',
+                    reinforcementMessage ||
+                      screen.exercise?.errorReinforcement?.instructionText,
+                    "reinforcement",
                   )
                 }
                 style={styles.reinforcementAudioButton}
               >
-                <Text style={styles.reinforcementAudioButtonText}>Reproduzir audio</Text>
+                <Text style={styles.reinforcementAudioButtonText}>
+                  Reproduzir audio
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -1389,14 +1715,19 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           <View
             style={[
               styles.feedbackCard,
-              exerciseFeedback.type === 'ok' ? styles.feedbackCardSuccess : styles.feedbackCardError,
+              exerciseFeedback.type === "ok"
+                ? styles.feedbackCardSuccess
+                : styles.feedbackCardError,
             ]}
           >
             <Text style={styles.feedbackText}>{exerciseFeedback.message}</Text>
           </View>
         ) : null}
 
-        {isLearnerDriven && !screen.exercise && screen.mediaKind === 'image' && screen.mediaUrl ? (
+        {isLearnerDriven &&
+        !screen.exercise &&
+        screen.mediaKind === "image" &&
+        screen.mediaUrl ? (
           // Fase 2 (RN113/RN114 + Figma Modelo de Ensino 1/2): FOTOGRAFAR
           // ATIVIDADE — o aluno fotografa o exercício feito no papel.
           // Centralizado, como pedido.
@@ -1407,10 +1738,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
               accessibilityLabel="Fotografar atividade"
               onPress={() => {
                 void (async () => {
-                  const { captureActivityPhoto } = await import('./LearnerPhotoReviewView');
+                  const { captureActivityPhoto } = await import(
+                    "./LearnerPhotoReviewView"
+                  );
                   const captured = await captureActivityPhoto();
                   if (captured) {
-                    navigation.navigate('LearnerPhotoReview', {
+                    navigation.navigate("LearnerPhotoReview", {
                       photoUri: captured.uri,
                       photoBase64: captured.base64,
                       mimeType: captured.mimeType,
@@ -1422,11 +1755,16 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             >
               <Svg width={46} height={36} viewBox="0 0 52 38" fill="none">
                 <Path d="M13 8 L16 2 H28 L31 8" fill="#2fa536" />
-                <Path d="M2 12 a4 4 0 0 1 4 -4 H46 a4 4 0 0 1 4 4 V34 a4 4 0 0 1 -4 4 H6 a4 4 0 0 1 -4 -4 Z" fill="#2fa536" />
+                <Path
+                  d="M2 12 a4 4 0 0 1 4 -4 H46 a4 4 0 0 1 4 4 V34 a4 4 0 0 1 -4 4 H6 a4 4 0 0 1 -4 -4 Z"
+                  fill="#2fa536"
+                />
                 <Circle cx={26} cy={23} r={9} fill="#ffffff" />
                 <Circle cx={26} cy={23} r={5} fill="#2fa536" />
               </Svg>
-              <Text style={styles.photoBtnLabel}>FOTOGRAFAR{'\n'}ATIVIDADE</Text>
+              <Text style={styles.photoBtnLabel}>
+                FOTOGRAFAR{"\n"}ATIVIDADE
+              </Text>
             </Pressable>
           </View>
         ) : null}
@@ -1440,17 +1778,23 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
             hideBack
             nextLabel="AVANÇAR"
             onNext={onNext}
-            nextVisualDisabled={!(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)}
+            nextVisualDisabled={
+              !(canAdvanceMatchExercise || canAdvanceMarkImagesExercise)
+            }
           />
         ) : isLearnerDriven ? (
           // Figma (Modelo de Ensino): seta única AVANÇAR verde preenchida —
           // o aluno "folheia" para frente; sem VOLTAR.
-          <LearnerActionButtons variant="filled" hideBack nextLabel="AVANÇAR" onNext={onNext} />
+          <LearnerActionButtons
+            variant="filled"
+            hideBack
+            nextLabel="AVANÇAR"
+            onNext={onNext}
+          />
         ) : (
           // Etapa 1 (educador conduz): setas verdes VOLTAR/AVANÇAR.
           <LearnerActionButtons onBack={goBack} onNext={onNext} />
         )}
-
       </View>
     </LearnerScreenLayout>
   );
@@ -1472,18 +1816,18 @@ const styles = StyleSheet.create({
   lessonLearnerLine: {
     fontSize: 15,
     lineHeight: 21,
-    color: '#111111',
+    color: "#111111",
   },
   lessonCountLine: {
     fontSize: 15,
     lineHeight: 21,
-    color: '#111111',
+    color: "#111111",
   },
   textContentCard: {
     borderWidth: 1.5,
-    borderColor: '#111111',
+    borderColor: "#111111",
     borderRadius: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 10,
@@ -1491,81 +1835,81 @@ const styles = StyleSheet.create({
   textContentBody: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#111111',
+    color: "#111111",
   },
   narrationRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   imageCard: {
     borderWidth: 1.5,
-    borderColor: '#111111',
+    borderColor: "#111111",
     borderRadius: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     padding: 12,
     minHeight: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   imageMediaContain: {
-    width: '100%',
+    width: "100%",
     height: 220,
   },
   expandIconWrap: {
-    position: 'absolute',
+    position: "absolute",
     top: 10,
     right: 10,
     padding: 4,
   },
   fullscreenImageWrap: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   fullscreenImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   audioSpeakerRow: {
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 22,
   },
   photoBtnRow: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 14,
   },
   photoBtn: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 6,
   },
   photoBtnLabel: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#2fa536',
-    textAlign: 'center',
+    fontWeight: "800",
+    color: "#2fa536",
+    textAlign: "center",
     lineHeight: 16,
   },
   progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   path: {
     color: learnerTheme.textMuted,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   count: {
     color: learnerTheme.text,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   progressTrack: {
     height: 10,
     borderRadius: 8,
     backgroundColor: learnerTheme.border,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   progressFill: {
     height: 10,
@@ -1575,10 +1919,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 18,
     color: learnerTheme.textStrong,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   imageMedia: {
-    width: '100%',
+    width: "100%",
     height: 200,
     borderRadius: 12,
     borderWidth: 1,
@@ -1593,19 +1937,19 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   videoFrame: {
-    width: '100%',
+    width: "100%",
     borderRadius: 10,
-    overflow: 'hidden',
-    backgroundColor: '#000000',
+    overflow: "hidden",
+    backgroundColor: "#000000",
     minHeight: 180,
   },
   videoMedia: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#000000',
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000000",
   },
   audioMedia: {
-    width: '100%',
+    width: "100%",
     height: 52,
     borderRadius: 8,
     backgroundColor: learnerTheme.surfaceMuted,
@@ -1613,7 +1957,7 @@ const styles = StyleSheet.create({
   mediaLabel: {
     color: learnerTheme.primary,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   mediaErrorText: {
     color: learnerTheme.textMuted,
@@ -1630,7 +1974,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     color: learnerTheme.primary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   cardText: {
     color: learnerTheme.text,
@@ -1648,7 +1992,7 @@ const styles = StyleSheet.create({
   studentTitle: {
     color: learnerTheme.primary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   studentText: {
     color: learnerTheme.textStrong,
@@ -1656,14 +2000,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   narrationCard: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 24,
     gap: 10,
   },
   narrationHint: {
     fontSize: 13,
-    color: '#2fa536',
-    fontWeight: '500',
+    color: "#2fa536",
+    fontWeight: "500",
   },
   highlightCard: {
     borderRadius: 12,
@@ -1674,51 +2018,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   highlightText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: learnerTheme.selectedText,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 14,
   },
   exerciseCard: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     paddingHorizontal: 0,
     paddingVertical: 4,
     gap: 14,
   },
   exerciseTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
   },
   exerciseTitle: {
     flex: 1,
     color: learnerTheme.text,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   audioButton: {
     width: 38,
     height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   audioButtonText: {
     color: learnerTheme.primary,
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   // exercise-match-letter: botão de instrução grande centralizado
   instructionAudioRow: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 4,
     paddingBottom: 12,
   },
   largeAudioBtn: {
     width: 86,
     height: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   audioBtnActive: {
     opacity: 0.78,
@@ -1734,9 +2078,9 @@ const styles = StyleSheet.create({
   soundIcon: {
     minWidth: 30,
     height: 26,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   soundIconLarge: {
     minWidth: 56,
@@ -1746,24 +2090,24 @@ const styles = StyleSheet.create({
     width: 9,
     height: 16,
     borderRadius: 2,
-    backgroundColor: '#92d78b',
+    backgroundColor: "#92d78b",
     marginRight: 2,
   },
   soundCoreLarge: {
     width: 15,
     height: 26,
     marginRight: 4,
-    backgroundColor: '#35a632',
+    backgroundColor: "#35a632",
   },
   soundBars: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 2,
   },
   soundBar: {
     width: 3,
     borderRadius: 2,
-    backgroundColor: '#b8e4b3',
+    backgroundColor: "#b8e4b3",
   },
   soundBarOne: {
     height: 10,
@@ -1777,36 +2121,36 @@ const styles = StyleSheet.create({
   soundBarLargeOne: {
     width: 4,
     height: 18,
-    backgroundColor: '#52bb4d',
+    backgroundColor: "#52bb4d",
   },
   soundBarLargeTwo: {
     width: 4,
     height: 28,
-    backgroundColor: '#35a632',
+    backgroundColor: "#35a632",
   },
   soundBarLargeThree: {
     width: 4,
     height: 38,
-    backgroundColor: '#258b22',
+    backgroundColor: "#258b22",
   },
   // exercise-match-letter: item (imagem + quadrados)
   matchItem: {
     paddingHorizontal: 44,
     paddingVertical: 4,
     gap: 5,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   matchItemTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 22,
   },
   matchImageWrap: {
     width: 54,
     height: 46,
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
   },
   matchItemImage: {
     width: 54,
@@ -1819,23 +2163,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: learnerTheme.border,
     backgroundColor: learnerTheme.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   matchItemImageFallbackText: {
     fontSize: 22,
     color: learnerTheme.primary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   itemStatusBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -5,
     right: -5,
     width: 22,
     height: 22,
     borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: learnerTheme.surface,
   },
@@ -1843,24 +2187,24 @@ const styles = StyleSheet.create({
     backgroundColor: learnerTheme.successBorder,
   },
   itemStatusBadgeErr: {
-    backgroundColor: '#ef4444',
+    backgroundColor: "#ef4444",
   },
   itemStatusBadgeText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
     lineHeight: 13,
   },
   itemSpeakerBtn: {
     width: 48,
     height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   // Quadrados posicionais
   squaresRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 4,
     marginLeft: 52,
   },
@@ -1870,21 +2214,21 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: learnerTheme.border,
     borderRadius: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: learnerTheme.surface,
   },
   letterSquareWrong: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fee2e2',
+    borderColor: "#ef4444",
+    backgroundColor: "#fee2e2",
   },
   letterSquareFilled: {
     borderColor: learnerTheme.successBorder,
     backgroundColor: learnerTheme.successBg,
   },
   letterSquareTarget: {
-    borderColor: '#f59e0b',
-    backgroundColor: '#fef3c7',
+    borderColor: "#f59e0b",
+    backgroundColor: "#fef3c7",
   },
   // Célula revelada (não-alvo) após o acerto: letra visível em cinza-escuro,
   // borda neutra — só a célula-alvo fica verde (Figma Quadrado da Letra 5).
@@ -1894,83 +2238,83 @@ const styles = StyleSheet.create({
   },
   letterSquareText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: 'transparent',
+    fontWeight: "700",
+    color: "transparent",
   },
   letterSquareTextFilled: {
     color: learnerTheme.successText,
   },
   letterSquareTextTarget: {
-    color: '#92400e',
+    color: "#92400e",
   },
   letterSquareTextRevealed: {
-    color: '#374151',
+    color: "#374151",
   },
   selectionHint: {
     color: learnerTheme.textMuted,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   markGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
   },
   markItem: {
-    width: '48%',
+    width: "48%",
     borderWidth: 1,
     borderColor: learnerTheme.border,
     borderRadius: 10,
     backgroundColor: learnerTheme.surface,
     padding: 8,
     gap: 6,
-    alignItems: 'center',
+    alignItems: "center",
   },
   markItemSelected: {
     // Amarelo = "selecionei esta imagem" no Figma. Quando o aluno
     // toca em uma imagem ela ganha borda amarela mais grossa e um
     // fundo amarelo bem suave; nenhum outro feedback escrito.
-    borderColor: '#f59e0b',
+    borderColor: "#f59e0b",
     borderWidth: 3,
-    backgroundColor: '#fef3c7',
+    backgroundColor: "#fef3c7",
   },
   // Veredito pós-AVANÇAR (Figma Marcar Caixas 3/6): verde no correto,
   // vermelho no errado, com badge circular sobreposto no canto.
   markItemOk: {
-    borderColor: '#2fa536',
+    borderColor: "#2fa536",
     borderWidth: 3,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   markItemErr: {
-    borderColor: '#e11d2c',
+    borderColor: "#e11d2c",
     borderWidth: 3,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
   },
   markVerdictBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: -14,
     right: -12,
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     elevation: 3,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOpacity: 0.15,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 1 },
   },
   markVerdictBadgeOk: {
-    backgroundColor: '#2fa536',
+    backgroundColor: "#2fa536",
   },
   markVerdictBadgeErr: {
-    backgroundColor: '#e11d2c',
+    backgroundColor: "#e11d2c",
   },
   markVerdictBadgeText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 19,
-    fontWeight: '900',
+    fontWeight: "900",
     lineHeight: 22,
   },
   markItemImage: {
@@ -1984,19 +2328,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: learnerTheme.border,
     backgroundColor: learnerTheme.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   markItemFallbackText: {
     fontSize: 24,
     color: learnerTheme.primary,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   markItemLabel: {
     color: learnerTheme.text,
     fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   markIndicator: {
     width: 16,
@@ -2013,34 +2357,34 @@ const styles = StyleSheet.create({
   lockCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f5b0b0',
-    backgroundColor: '#fff2f2',
+    borderColor: "#f5b0b0",
+    backgroundColor: "#fff2f2",
     padding: 12,
     gap: 4,
   },
   lockTitle: {
-    color: '#b91c1c',
+    color: "#b91c1c",
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   lockText: {
-    color: '#7f1d1d',
+    color: "#7f1d1d",
     fontSize: 13,
     lineHeight: 20,
   },
   lockAudioButton: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderWidth: 1,
-    borderColor: '#f2b2b2',
+    borderColor: "#f2b2b2",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#fff8f8',
+    backgroundColor: "#fff8f8",
   },
   lockAudioButtonText: {
-    color: '#9f1239',
+    color: "#9f1239",
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   reinforcementCard: {
     borderRadius: 12,
@@ -2054,7 +2398,7 @@ const styles = StyleSheet.create({
   reinforcementTitle: {
     color: learnerTheme.selectedText,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   reinforcementText: {
     color: learnerTheme.text,
@@ -2062,7 +2406,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   reinforcementAudioButton: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: learnerTheme.selectedBorder,
     borderRadius: 8,
@@ -2073,7 +2417,7 @@ const styles = StyleSheet.create({
   reinforcementAudioButtonText: {
     color: learnerTheme.selectedText,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   feedbackCard: {
     borderRadius: 12,
@@ -2082,16 +2426,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   feedbackCardSuccess: {
-    borderColor: '#9bc844',
-    backgroundColor: '#f2f9df',
+    borderColor: "#9bc844",
+    backgroundColor: "#f2f9df",
   },
   feedbackCardError: {
-    borderColor: '#f5b0b0',
-    backgroundColor: '#fff2f2',
+    borderColor: "#f5b0b0",
+    backgroundColor: "#fff2f2",
   },
   feedbackText: {
-    color: '#1f2937',
+    color: "#1f2937",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

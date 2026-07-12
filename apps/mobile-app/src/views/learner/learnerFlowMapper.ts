@@ -1,11 +1,11 @@
-import { getHintSlugForTemplate } from './hintVideos';
+import { getHintSlugForTemplate } from "./hintVideos";
 
-export type LearnerMediaKind = 'video' | 'audio' | 'image' | null;
+export type LearnerMediaKind = "video" | "audio" | "image" | null;
 export type LearnerScreenTemplate =
-  | 'default'
-  | 'exercise-match-letter'
-  | 'exercise-mark-images'
-  | 'locked';
+  | "default"
+  | "exercise-match-letter"
+  | "exercise-mark-images"
+  | "locked";
 
 export interface LearnerExerciseItem {
   id: string;
@@ -27,7 +27,7 @@ export interface LearnerErrorReinforcementConfig {
 }
 
 export interface LearnerExerciseConfig {
-  template: Exclude<LearnerScreenTemplate, 'default' | 'locked'>;
+  template: Exclude<LearnerScreenTemplate, "default" | "locked">;
   targetLetter: string | null;
   instructionText: string | null;
   instructionAudioUrl: string | null;
@@ -86,8 +86,8 @@ export interface LearnerFlowLesson {
   screens: LearnerFlowScreen[];
   conclusionTitle: string;
   conclusionMessage: string;
-  accessStatus: 'locked' | 'available';
-  progressStatus: 'not_started' | 'in_progress' | 'completed';
+  accessStatus: "locked" | "available";
+  progressStatus: "not_started" | "in_progress" | "completed";
   attemptCount: number;
   pointsAwarded: number;
 }
@@ -208,23 +208,36 @@ const DEMO_CONTENT_PATTERN =
   /\b(demo|e2e)\b|demo mvp|aula padrao|marcar letra \d{8}|marcar imagens \d{8}|\d{8}-\d{6}/i;
 
 function normalizeSearchText(value: unknown): string {
-  return String(value ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
 
 function containsDemoContent(...values: unknown[]): boolean {
-  return values.some((value) => DEMO_CONTENT_PATTERN.test(normalizeSearchText(value)));
+  return values.some((value) =>
+    DEMO_CONTENT_PATTERN.test(normalizeSearchText(value)),
+  );
 }
 
 function isDemoTheme(theme: PainelTheme): boolean {
-  return containsDemoContent(theme.id, theme.slug, theme.title, theme.name, theme.description);
+  return containsDemoContent(
+    theme.id,
+    theme.slug,
+    theme.title,
+    theme.name,
+    theme.description,
+  );
 }
 
 function isDemoModule(moduleItem: PainelLearningUnit): boolean {
-  return containsDemoContent(moduleItem.id, moduleItem.slug, moduleItem.title, moduleItem.description);
+  return containsDemoContent(
+    moduleItem.id,
+    moduleItem.slug,
+    moduleItem.title,
+    moduleItem.description,
+  );
 }
 
 function isDemoActivity(activity: PainelActivity): boolean {
@@ -238,7 +251,10 @@ function isDemoActivity(activity: PainelActivity): boolean {
   );
 }
 
-export function getLearnerVisibleExerciseLabel(label: string, itemIndex: number): string | null {
+export function getLearnerVisibleExerciseLabel(
+  label: string,
+  itemIndex: number,
+): string | null {
   const normalized = normalizeSearchText(label);
   const leaksAnswer =
     /^imagem\s+(correta|distratora|errada)$/.test(normalized) ||
@@ -260,28 +276,36 @@ function compareWithIdTieBreaker(
 ): number {
   const primaryDiff = Number(firstValue) - Number(secondValue);
   if (primaryDiff !== 0) return primaryDiff;
-  return String(firstId || '').localeCompare(String(secondId || ''));
+  return String(firstId || "").localeCompare(String(secondId || ""));
 }
 
 function mapAssetKind(kind: string | null | undefined): LearnerMediaKind {
-  const normalized = String(kind || '').trim().toLowerCase();
-  if (['video', 'mp4'].includes(normalized)) return 'video';
-  if (['audio', 'mp3'].includes(normalized)) return 'audio';
-  if (['image', 'svg', 'png', 'jpg', 'jpeg'].includes(normalized)) return 'image';
+  const normalized = String(kind || "")
+    .trim()
+    .toLowerCase();
+  if (["video", "mp4"].includes(normalized)) return "video";
+  if (["audio", "mp3"].includes(normalized)) return "audio";
+  if (["image", "gif", "svg", "png", "jpg", "jpeg"].includes(normalized))
+    return "image";
   return null;
 }
 
 function mapAssetKindByUrl(url: string | null | undefined): LearnerMediaKind {
-  const normalized = String(url || '').trim().toLowerCase();
+  const normalized = String(url || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) return null;
-  const cleanPath = normalized.split('?')[0].split('#')[0];
-  if (/\.(mp4|mov|m4v|webm|ogv)$/i.test(cleanPath)) return 'video';
-  if (/\.(mp3|wav|m4a|aac|ogg|oga)$/i.test(cleanPath)) return 'audio';
-  if (/\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(cleanPath)) return 'image';
+  const cleanPath = normalized.split("?")[0].split("#")[0];
+  if (/\.(mp4|mov|m4v|webm|ogv)$/i.test(cleanPath)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|oga)$/i.test(cleanPath)) return "audio";
+  if (/\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(cleanPath)) return "image";
   return null;
 }
 
-function resolveAssetKind(kind: string | null | undefined, url: string | null | undefined): LearnerMediaKind {
+function resolveAssetKind(
+  kind: string | null | undefined,
+  url: string | null | undefined,
+): LearnerMediaKind {
   const kindFromField = mapAssetKind(kind);
   const kindFromUrl = mapAssetKindByUrl(url);
   if (!kindFromField) return kindFromUrl;
@@ -290,14 +314,14 @@ function resolveAssetKind(kind: string | null | undefined, url: string | null | 
 }
 
 function toOptionalText(value: unknown): string | null {
-  const text = sanitizeText(String(value ?? '').trim());
+  const text = sanitizeText(String(value ?? "").trim());
   return text.length > 0 ? text : null;
 }
 
 function normalizeLetterToken(value: unknown): string | null {
   const asText = toOptionalText(value);
   if (!asText) return null;
-  return asText.replace(/\s+/g, '').toUpperCase();
+  return asText.replace(/\s+/g, "").toUpperCase();
 }
 
 function normalizeStringList(value: unknown): string[] {
@@ -307,68 +331,78 @@ function normalizeStringList(value: unknown): string[] {
     .filter((item): item is string => Boolean(item));
 }
 
-function normalizeExerciseTemplate(value: unknown): LearnerExerciseConfig['template'] | null {
-  const normalized = String(value ?? '')
+function normalizeExerciseTemplate(
+  value: unknown,
+): LearnerExerciseConfig["template"] | null {
+  const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
   if (!normalized) return null;
 
   if (
     [
-      'exercise-match-letter',
-      'match-letter',
-      'mark-letter-box',
-      'marcar-quadrado-letra',
-      'modelo-ensino-1',
-      'rn121',
+      "exercise-match-letter",
+      "match-letter",
+      "mark-letter-box",
+      "marcar-quadrado-letra",
+      "modelo-ensino-1",
+      "rn121",
     ].includes(normalized)
   ) {
-    return 'exercise-match-letter';
+    return "exercise-match-letter";
   }
 
   if (
     [
-      'exercise-mark-images',
-      'mark-images',
-      'marcar-caixas',
-      'marcar-caixas-imagens',
-      'modelo-exercicio-marcar-caixas',
-      'rn123',
+      "exercise-mark-images",
+      "mark-images",
+      "marcar-caixas",
+      "marcar-caixas-imagens",
+      "modelo-exercicio-marcar-caixas",
+      "rn123",
     ].includes(normalized)
   ) {
-    return 'exercise-mark-images';
+    return "exercise-mark-images";
   }
 
   return null;
 }
 
 function normalizeScreenTemplate(value: unknown): LearnerScreenTemplate {
-  const normalized = String(value ?? '')
+  const normalized = String(value ?? "")
     .trim()
     .toLowerCase();
-  if (!normalized) return 'default';
+  if (!normalized) return "default";
 
-  if (['locked', 'locked-screen', 'tela-bloqueada', 'rn119', 'rn120'].includes(normalized)) {
-    return 'locked';
+  if (
+    ["locked", "locked-screen", "tela-bloqueada", "rn119", "rn120"].includes(
+      normalized,
+    )
+  ) {
+    return "locked";
   }
 
   const exerciseTemplate = normalizeExerciseTemplate(value);
-  if (exerciseTemplate === 'exercise-match-letter') return 'exercise-match-letter';
-  if (exerciseTemplate === 'exercise-mark-images') return 'exercise-mark-images';
+  if (exerciseTemplate === "exercise-match-letter")
+    return "exercise-match-letter";
+  if (exerciseTemplate === "exercise-mark-images")
+    return "exercise-mark-images";
 
-  return 'default';
+  return "default";
 }
 
 function looksLikeStructuredJson(text: string): boolean {
-  const normalized = String(text || '').trim();
-  if (!normalized.startsWith('{') || !normalized.endsWith('}')) {
+  const normalized = String(text || "").trim();
+  if (!normalized.startsWith("{") || !normalized.endsWith("}")) {
     return false;
   }
-  return normalized.includes(':') && normalized.includes('"');
+  return normalized.includes(":") && normalized.includes('"');
 }
 
-function tryParseInstructionJsonObject(rawValue: string): Record<string, unknown> | null {
-  const normalized = String(rawValue || '').trim();
+function tryParseInstructionJsonObject(
+  rawValue: string,
+): Record<string, unknown> | null {
+  const normalized = String(rawValue || "").trim();
   if (!looksLikeStructuredJson(normalized)) {
     return null;
   }
@@ -376,7 +410,7 @@ function tryParseInstructionJsonObject(rawValue: string): Record<string, unknown
   const parseCandidate = (candidate: string) => {
     try {
       const parsed = JSON.parse(candidate);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         return parsed as Record<string, unknown>;
       }
       return null;
@@ -391,18 +425,20 @@ function tryParseInstructionJsonObject(rawValue: string): Record<string, unknown
   }
 
   const withoutFence = normalized
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/, '')
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
     .trim();
   const normalizedQuotes = withoutFence
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2018\u2019]/g, "'");
-  const withoutTrailingCommas = normalizedQuotes.replace(/,\s*([}\]])/g, '$1');
+  const withoutTrailingCommas = normalizedQuotes.replace(/,\s*([}\]])/g, "$1");
   return parseCandidate(withoutTrailingCommas);
 }
 
-function buildLegacyGuidance(instructions: string): Pick<ParsedInstructionBundle, 'educatorGuidance' | 'learnerSpeech'> {
-  const normalized = String(instructions || '').trim();
+function buildLegacyGuidance(
+  instructions: string,
+): Pick<ParsedInstructionBundle, "educatorGuidance" | "learnerSpeech"> {
+  const normalized = String(instructions || "").trim();
   if (!normalized) {
     return {
       educatorGuidance: null,
@@ -431,10 +467,10 @@ function buildLegacyGuidance(instructions: string): Pick<ParsedInstructionBundle
 function normalizeExerciseItem(
   rawItem: unknown,
   itemIndex: number,
-  template: LearnerExerciseConfig['template'],
+  template: LearnerExerciseConfig["template"],
   targetLetter: string | null,
 ): LearnerExerciseItem | null {
-  if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) {
+  if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) {
     return null;
   }
 
@@ -446,7 +482,9 @@ function normalizeExerciseItem(
     toOptionalText(item.title) ||
     `Item ${itemIndex + 1}`;
   const imageUrl =
-    toOptionalText(item.imageUrl) || toOptionalText(item.image) || toOptionalText(item.storagePath);
+    toOptionalText(item.imageUrl) ||
+    toOptionalText(item.image) ||
+    toOptionalText(item.storagePath);
   const wordAudioUrl =
     toOptionalText(item.wordAudioUrl) ||
     toOptionalText(item.audioUrl) ||
@@ -471,15 +509,30 @@ function normalizeExerciseItem(
     normalizeLetterToken(item.correctOption) ||
     normalizeLetterToken(item.correctLetter);
   const correctFromArray = normalizeStringList(item.correctOptions);
-  const correctOptions = [...new Set([...(answerCandidate ? [answerCandidate] : []), ...correctFromArray])];
+  const correctOptions = [
+    ...new Set([
+      ...(answerCandidate ? [answerCandidate] : []),
+      ...correctFromArray,
+    ]),
+  ];
 
   const startsWithTarget =
-    targetLetter && label.length > 0 ? label.toUpperCase().startsWith(targetLetter) : false;
-  const explicitTarget = typeof item.isCorrectTarget === 'boolean' ? item.isCorrectTarget : startsWithTarget;
+    targetLetter && label.length > 0
+      ? label.toUpperCase().startsWith(targetLetter)
+      : false;
+  const explicitTarget =
+    typeof item.isCorrectTarget === "boolean"
+      ? item.isCorrectTarget
+      : startsWithTarget;
 
   const fallbackOptions =
-    template === 'exercise-match-letter'
-      ? [...new Set([...(options.length > 0 ? options : []), ...(targetLetter ? [targetLetter] : [])])]
+    template === "exercise-match-letter"
+      ? [
+          ...new Set([
+            ...(options.length > 0 ? options : []),
+            ...(targetLetter ? [targetLetter] : []),
+          ]),
+        ]
       : options;
 
   return {
@@ -490,39 +543,61 @@ function normalizeExerciseItem(
     wordAudioUrl,
     spellingAudioUrl,
     options: fallbackOptions,
-    correctOptions: correctOptions.length > 0 ? correctOptions : targetLetter ? [targetLetter] : [],
+    correctOptions:
+      correctOptions.length > 0
+        ? correctOptions
+        : targetLetter
+          ? [targetLetter]
+          : [],
     isCorrectTarget: explicitTarget,
   };
 }
 
-function normalizeErrorReinforcementConfig(value: unknown): LearnerErrorReinforcementConfig | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function normalizeErrorReinforcementConfig(
+  value: unknown,
+): LearnerErrorReinforcementConfig | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
 
   const payload = value as Record<string, unknown>;
-  const mode = String(payload.mode ?? '').trim().toLowerCase();
-  if (mode && mode !== 'reinforcement-screen') {
+  const mode = String(payload.mode ?? "")
+    .trim()
+    .toLowerCase();
+  if (mode && mode !== "reinforcement-screen") {
     return null;
   }
 
-  const autoReturnRaw = Number(payload.autoReturnMs ?? payload.durationMs ?? payload.returnMs ?? 2500);
-  const autoReturnMs = Number.isFinite(autoReturnRaw) && autoReturnRaw >= 500
-    ? Math.floor(autoReturnRaw)
-    : 2500;
+  const autoReturnRaw = Number(
+    payload.autoReturnMs ?? payload.durationMs ?? payload.returnMs ?? 2500,
+  );
+  const autoReturnMs =
+    Number.isFinite(autoReturnRaw) && autoReturnRaw >= 500
+      ? Math.floor(autoReturnRaw)
+      : 2500;
 
   return {
     instructionText:
-      toOptionalText(payload.instructionText) || toOptionalText(payload.message) || null,
+      toOptionalText(payload.instructionText) ||
+      toOptionalText(payload.message) ||
+      null,
     instructionAudioUrl:
-      toOptionalText(payload.instructionAudioUrl) || toOptionalText(payload.audioUrl) || null,
+      toOptionalText(payload.instructionAudioUrl) ||
+      toOptionalText(payload.audioUrl) ||
+      null,
     autoReturnMs,
     preserveProgress: payload.preserveProgress !== false,
   };
 }
 
-function normalizeExerciseConfig(rawExercise: unknown): LearnerExerciseConfig | null {
-  if (!rawExercise || typeof rawExercise !== 'object' || Array.isArray(rawExercise)) {
+function normalizeExerciseConfig(
+  rawExercise: unknown,
+): LearnerExerciseConfig | null {
+  if (
+    !rawExercise ||
+    typeof rawExercise !== "object" ||
+    Array.isArray(rawExercise)
+  ) {
     return null;
   }
 
@@ -533,19 +608,33 @@ function normalizeExerciseConfig(rawExercise: unknown): LearnerExerciseConfig | 
   }
 
   const targetLetter =
-    normalizeLetterToken(exercise.targetLetter) || normalizeLetterToken(exercise.letter) || null;
-  const expectedSelectionsRaw = Number(exercise.expectedSelections ?? exercise.requiredSelections ?? null);
-  const expectedSelections = Number.isFinite(expectedSelectionsRaw) && expectedSelectionsRaw > 0
-    ? Math.floor(expectedSelectionsRaw)
-    : null;
-  const attemptsRaw = Number(exercise.maxAttemptsBeforeLock ?? exercise.maxAttempts ?? 3);
-  const maxAttemptsBeforeLock = Number.isFinite(attemptsRaw) && attemptsRaw > 0 ? Math.floor(attemptsRaw) : 3;
+    normalizeLetterToken(exercise.targetLetter) ||
+    normalizeLetterToken(exercise.letter) ||
+    null;
+  const expectedSelectionsRaw = Number(
+    exercise.expectedSelections ?? exercise.requiredSelections ?? null,
+  );
+  const expectedSelections =
+    Number.isFinite(expectedSelectionsRaw) && expectedSelectionsRaw > 0
+      ? Math.floor(expectedSelectionsRaw)
+      : null;
+  const attemptsRaw = Number(
+    exercise.maxAttemptsBeforeLock ?? exercise.maxAttempts ?? 3,
+  );
+  const maxAttemptsBeforeLock =
+    Number.isFinite(attemptsRaw) && attemptsRaw > 0
+      ? Math.floor(attemptsRaw)
+      : 3;
   const progressiveUnlock =
-    typeof exercise.progressiveUnlock === 'boolean' ? exercise.progressiveUnlock : false;
+    typeof exercise.progressiveUnlock === "boolean"
+      ? exercise.progressiveUnlock
+      : false;
 
   const rawItems = Array.isArray(exercise.items) ? exercise.items : [];
   const items = rawItems
-    .map((rawItem, itemIndex) => normalizeExerciseItem(rawItem, itemIndex, template, targetLetter))
+    .map((rawItem, itemIndex) =>
+      normalizeExerciseItem(rawItem, itemIndex, template, targetLetter),
+    )
     .filter((item): item is LearnerExerciseItem => Boolean(item));
 
   if (items.length === 0) {
@@ -553,23 +642,34 @@ function normalizeExerciseConfig(rawExercise: unknown): LearnerExerciseConfig | 
   }
 
   const inferredExpectedSelections =
-    template === 'exercise-mark-images'
-      ? items.filter((item) => item.isCorrectTarget).length || expectedSelections || 1
+    template === "exercise-mark-images"
+      ? items.filter((item) => item.isCorrectTarget).length ||
+        expectedSelections ||
+        1
       : expectedSelections || 1;
 
-  const feedbackFlow = exercise.feedbackFlow && typeof exercise.feedbackFlow === 'object' && !Array.isArray(exercise.feedbackFlow)
-    ? (exercise.feedbackFlow as Record<string, unknown>)
-    : null;
+  const feedbackFlow =
+    exercise.feedbackFlow &&
+    typeof exercise.feedbackFlow === "object" &&
+    !Array.isArray(exercise.feedbackFlow)
+      ? (exercise.feedbackFlow as Record<string, unknown>)
+      : null;
   const errorReinforcement = normalizeErrorReinforcementConfig(
-    feedbackFlow?.onError ?? exercise.errorReinforcement ?? exercise.reinforcement,
+    feedbackFlow?.onError ??
+      exercise.errorReinforcement ??
+      exercise.reinforcement,
   );
 
   return {
     template,
     targetLetter,
-    instructionText: toOptionalText(exercise.instructionText) || toOptionalText(exercise.instruction),
+    instructionText:
+      toOptionalText(exercise.instructionText) ||
+      toOptionalText(exercise.instruction),
     instructionAudioUrl:
-      toOptionalText(exercise.instructionAudioUrl) || toOptionalText(exercise.audioUrl) || null,
+      toOptionalText(exercise.instructionAudioUrl) ||
+      toOptionalText(exercise.audioUrl) ||
+      null,
     expectedSelections: inferredExpectedSelections,
     maxAttemptsBeforeLock,
     progressiveUnlock,
@@ -586,8 +686,12 @@ function hydrateExerciseWithAssets(
 ): LearnerExerciseConfig | null {
   if (!exercise) return null;
 
-  const audioUrls = assetReferences.filter((asset) => asset.kind === 'audio').map((asset) => asset.url);
-  const imageUrls = assetReferences.filter((asset) => asset.kind === 'image').map((asset) => asset.url);
+  const audioUrls = assetReferences
+    .filter((asset) => asset.kind === "audio")
+    .map((asset) => asset.url);
+  const imageUrls = assetReferences
+    .filter((asset) => asset.kind === "image")
+    .map((asset) => asset.url);
 
   let imageCursor = 0;
   let audioCursor = 0;
@@ -597,7 +701,8 @@ function hydrateExerciseWithAssets(
       imageCursor += 1;
     }
 
-    const nextWordAudio = item.wordAudioUrl || item.audioUrl || audioUrls[audioCursor] || null;
+    const nextWordAudio =
+      item.wordAudioUrl || item.audioUrl || audioUrls[audioCursor] || null;
     if (!item.wordAudioUrl && !item.audioUrl && nextWordAudio) {
       audioCursor += 1;
     }
@@ -614,7 +719,8 @@ function hydrateExerciseWithAssets(
 
   return {
     ...exercise,
-    instructionAudioUrl: exercise.instructionAudioUrl || audioUrls[audioCursor] || null,
+    instructionAudioUrl:
+      exercise.instructionAudioUrl || audioUrls[audioCursor] || null,
     items: nextItems,
   };
 }
@@ -623,13 +729,13 @@ function parseGuidance(
   instructions: string | null | undefined,
   assetReferences: ActivityAssetReference[] = [],
 ): ParsedInstructionBundle {
-  const normalized = String(instructions || '').trim();
+  const normalized = String(instructions || "").trim();
   if (!normalized) {
     return {
       educatorGuidance: null,
       learnerSpeech: null,
       narrationAudioUrl: null,
-      screenTemplate: 'default',
+      screenTemplate: "default",
       lockReason: null,
       lockMessage: null,
       lockAudioUrl: null,
@@ -639,38 +745,56 @@ function parseGuidance(
 
   const parsed = tryParseInstructionJsonObject(normalized);
   if (parsed) {
-    const screenTemplate = normalizeScreenTemplate(parsed.screenTemplate ?? parsed.template);
+    const screenTemplate = normalizeScreenTemplate(
+      parsed.screenTemplate ?? parsed.template,
+    );
     const legacyGuidance = buildLegacyGuidance(
       [
-        toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador) || '',
-        toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando) || '',
+        toOptionalText(parsed.educatorGuidance) ||
+          toOptionalText(parsed.orientacaoAlfabetizador) ||
+          "",
+        toOptionalText(parsed.learnerSpeech) ||
+          toOptionalText(parsed.orientacaoAlfabetizando) ||
+          "",
       ]
         .filter(Boolean)
-        .join('\n\n'),
+        .join("\n\n"),
     );
     const explicitEducator =
-      toOptionalText(parsed.educatorGuidance) || toOptionalText(parsed.orientacaoAlfabetizador);
+      toOptionalText(parsed.educatorGuidance) ||
+      toOptionalText(parsed.orientacaoAlfabetizador);
     const explicitLearner =
-      toOptionalText(parsed.learnerSpeech) || toOptionalText(parsed.orientacaoAlfabetizando);
+      toOptionalText(parsed.learnerSpeech) ||
+      toOptionalText(parsed.orientacaoAlfabetizando);
     const narrationAudioUrl =
-      toOptionalText(parsed.narrationAudioUrl) || toOptionalText(parsed.audioNarrationUrl) || null;
+      toOptionalText(parsed.narrationAudioUrl) ||
+      toOptionalText(parsed.audioNarrationUrl) ||
+      null;
     const lockReason =
-      toOptionalText(parsed.lockReason) || toOptionalText(parsed.blockReason) || null;
+      toOptionalText(parsed.lockReason) ||
+      toOptionalText(parsed.blockReason) ||
+      null;
     const lockMessage =
-      toOptionalText(parsed.lockMessage) || toOptionalText(parsed.blockMessage) || null;
+      toOptionalText(parsed.lockMessage) ||
+      toOptionalText(parsed.blockMessage) ||
+      null;
     const lockAudioUrl =
-      toOptionalText(parsed.lockAudioUrl) || toOptionalText(parsed.blockAudioUrl) || null;
-    const parsedExercise = normalizeExerciseConfig(parsed.exercise ?? parsed.interaction);
+      toOptionalText(parsed.lockAudioUrl) ||
+      toOptionalText(parsed.blockAudioUrl) ||
+      null;
+    const parsedExercise = normalizeExerciseConfig(
+      parsed.exercise ?? parsed.interaction,
+    );
 
     return {
       educatorGuidance: explicitEducator ?? legacyGuidance.educatorGuidance,
       learnerSpeech: explicitLearner ?? legacyGuidance.learnerSpeech,
       narrationAudioUrl,
       screenTemplate:
-        parsedExercise?.template === 'exercise-match-letter'
-          ? 'exercise-match-letter'
-          : parsedExercise?.template === 'exercise-mark-images'
-            ? 'exercise-mark-images'
+        parsedExercise?.template === "exercise-match-letter"
+          ? "exercise-match-letter"
+          : parsedExercise?.template === "exercise-mark-images"
+            ? "exercise-mark-images"
             : screenTemplate,
       lockReason,
       lockMessage,
@@ -684,7 +808,7 @@ function parseGuidance(
       educatorGuidance: null,
       learnerSpeech: null,
       narrationAudioUrl: null,
-      screenTemplate: 'default',
+      screenTemplate: "default",
       lockReason: null,
       lockMessage: null,
       lockAudioUrl: null,
@@ -697,7 +821,7 @@ function parseGuidance(
     educatorGuidance: legacy.educatorGuidance,
     learnerSpeech: legacy.learnerSpeech,
     narrationAudioUrl: null,
-    screenTemplate: 'default',
+    screenTemplate: "default",
     lockReason: null,
     lockMessage: null,
     lockAudioUrl: null,
@@ -710,7 +834,7 @@ function getActivityInstructions(activity: PainelActivity): string | null {
   if (directInstructions) return directInstructions;
 
   const content = activity.content;
-  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+  if (!content || typeof content !== "object" || Array.isArray(content)) {
     return null;
   }
 
@@ -727,9 +851,11 @@ function mergeAudioIntoFollowingExercise(
   const result: Record<string, unknown>[] = [];
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];
-    const blockType = String(block.type ?? '').trim().toLowerCase();
+    const blockType = String(block.type ?? "")
+      .trim()
+      .toLowerCase();
 
-    if (blockType !== 'audio') {
+    if (blockType !== "audio") {
       result.push(block);
       continue;
     }
@@ -739,8 +865,12 @@ function mergeAudioIntoFollowingExercise(
       toOptionalText(block.sourceUrl) ||
       toOptionalText(block.mediaUrl);
     const next = blocks[i + 1];
-    const nextType = next ? String(next.type ?? '').trim().toLowerCase() : '';
-    const isNextExercise = nextType.startsWith('exercise-');
+    const nextType = next
+      ? String(next.type ?? "")
+          .trim()
+          .toLowerCase()
+      : "";
+    const isNextExercise = nextType.startsWith("exercise-");
 
     if (!audioUrl) {
       // Bloco de audio sem URL — preserva o bloco sem audioUrl para manter
@@ -754,12 +884,17 @@ function mergeAudioIntoFollowingExercise(
     }
 
     const existingExercise =
-      next.exercise && typeof next.exercise === 'object' && !Array.isArray(next.exercise)
+      next.exercise &&
+      typeof next.exercise === "object" &&
+      !Array.isArray(next.exercise)
         ? (next.exercise as Record<string, unknown>)
         : {};
-    const existingExerciseAudio = toOptionalText(existingExercise.instructionAudioUrl);
+    const existingExerciseAudio = toOptionalText(
+      existingExercise.instructionAudioUrl,
+    );
     const existingBlockAudio =
-      toOptionalText(next.instructionAudioUrl) || toOptionalText(next.instrAudioUrl);
+      toOptionalText(next.instructionAudioUrl) ||
+      toOptionalText(next.instrAudioUrl);
 
     result.push({
       ...next,
@@ -773,35 +908,48 @@ function mergeAudioIntoFollowingExercise(
   return result;
 }
 
-function getCompositeBlocks(instructions: string | null | undefined): Record<string, unknown>[] | null {
-  const parsed = tryParseInstructionJsonObject(String(instructions || '').trim());
+function getCompositeBlocks(
+  instructions: string | null | undefined,
+): Record<string, unknown>[] | null {
+  const parsed = tryParseInstructionJsonObject(
+    String(instructions || "").trim(),
+  );
   if (!parsed) return null;
 
-  const template = String(parsed.screenTemplate ?? parsed.template ?? '').trim().toLowerCase();
+  const template = String(parsed.screenTemplate ?? parsed.template ?? "")
+    .trim()
+    .toLowerCase();
   const blocks = Array.isArray(parsed.blocks) ? parsed.blocks : [];
-  if (template !== 'composite' || blocks.length === 0) {
+  if (template !== "composite" || blocks.length === 0) {
     return null;
   }
 
   // Blocos marcados como audience=educator sao orientacoes para o alfabetizador
   // e nao devem virar telas do fluxo do alfabetizando.
-  const filtered = blocks.filter(
-    (block): block is Record<string, unknown> => {
-      if (!block || typeof block !== 'object' || Array.isArray(block)) return false;
-      const audience = String((block as Record<string, unknown>).audience ?? '')
-        .trim()
-        .toLowerCase();
-      return audience !== 'educator' && audience !== 'tutor' && audience !== 'alfabetizador';
-    },
-  );
+  const filtered = blocks.filter((block): block is Record<string, unknown> => {
+    if (!block || typeof block !== "object" || Array.isArray(block))
+      return false;
+    const audience = String((block as Record<string, unknown>).audience ?? "")
+      .trim()
+      .toLowerCase();
+    return (
+      audience !== "educator" &&
+      audience !== "tutor" &&
+      audience !== "alfabetizador"
+    );
+  });
 
   return mergeAudioIntoFollowingExercise(filtered);
 }
 
-function buildBlockExercisePayload(block: Record<string, unknown>): Record<string, unknown> | null {
+function buildBlockExercisePayload(
+  block: Record<string, unknown>,
+): Record<string, unknown> | null {
   const blockType = toOptionalText(block.type);
   const rawExercise =
-    block.exercise && typeof block.exercise === 'object' && !Array.isArray(block.exercise)
+    block.exercise &&
+    typeof block.exercise === "object" &&
+    !Array.isArray(block.exercise)
       ? { ...(block.exercise as Record<string, unknown>) }
       : {};
   const template = normalizeExerciseTemplate(rawExercise.template ?? blockType);
@@ -812,9 +960,11 @@ function buildBlockExercisePayload(block: Record<string, unknown>): Record<strin
   const instructionText =
     toOptionalText(block.instructionText) || toOptionalText(block.instrText);
   const instructionAudioUrl =
-    toOptionalText(block.instructionAudioUrl) || toOptionalText(block.instrAudioUrl);
+    toOptionalText(block.instructionAudioUrl) ||
+    toOptionalText(block.instrAudioUrl);
   const targetLetter =
-    normalizeLetterToken(block.targetLetter) || normalizeLetterToken(block.letraAlvo);
+    normalizeLetterToken(block.targetLetter) ||
+    normalizeLetterToken(block.letraAlvo);
 
   return {
     ...rawExercise,
@@ -822,7 +972,8 @@ function buildBlockExercisePayload(block: Record<string, unknown>): Record<strin
     targetLetter: rawExercise.targetLetter ?? targetLetter,
     instructionText: rawExercise.instructionText ?? instructionText,
     instructionAudioUrl: rawExercise.instructionAudioUrl ?? instructionAudioUrl,
-    expectedSelections: rawExercise.expectedSelections ?? block.expectedSelections,
+    expectedSelections:
+      rawExercise.expectedSelections ?? block.expectedSelections,
     progressiveUnlock: rawExercise.progressiveUnlock ?? block.progressiveUnlock,
   };
 }
@@ -833,46 +984,57 @@ function mapCompositeBlockToScreen(
   blockIndex: number,
   assetReferences: ActivityAssetReference[],
 ): LearnerFlowScreen {
-  const blockType = toOptionalText(block.type) || 'default';
-  const audience = String(block.audience ?? '').trim().toLowerCase();
+  const blockType = toOptionalText(block.type) || "default";
+  const audience = String(block.audience ?? "")
+    .trim()
+    .toLowerCase();
   const content = toOptionalText(block.content);
   const caption = toOptionalText(block.caption);
   const label = toOptionalText(block.label);
   const instructionText =
     toOptionalText(block.instructionText) ||
     toOptionalText(block.instrText) ||
-    (blockType === 'text' && audience !== 'educator' ? content : null) ||
-    (blockType === 'image' ? caption : null) ||
-    (blockType === 'audio' ? label : null);
+    (blockType === "text" && audience !== "educator" ? content : null) ||
+    (blockType === "image" || blockType === "gif" ? caption : null) ||
+    (blockType === "audio" ? label : null);
   const notes = toOptionalText(block.notes);
   const exercisePayload = buildBlockExercisePayload(block);
   const guidancePayload = {
     screenTemplate: blockType,
     educatorGuidance:
       notes ||
-      (blockType === 'text' && audience === 'educator' ? content : null) ||
+      (blockType === "text" && audience === "educator" ? content : null) ||
       instructionText ||
-      normalizeText(activity.prompt, ''),
+      normalizeText(activity.prompt, ""),
     learnerSpeech: instructionText || null,
     exercise: exercisePayload,
   };
-  const guidance = parseGuidance(JSON.stringify(guidancePayload), assetReferences);
+  const guidance = parseGuidance(
+    JSON.stringify(guidancePayload),
+    assetReferences,
+  );
   const mediaUrl =
     toOptionalText(block.videoUrl) ||
     toOptionalText(block.imageUrl) ||
     toOptionalText(block.audioUrl) ||
+    toOptionalText(block.url) ||
     toOptionalText(block.sourceUrl) ||
     toOptionalText(block.mediaUrl);
-  const normalizedBlockType = String(blockType || '').trim().toLowerCase();
+  const normalizedBlockType = String(blockType || "")
+    .trim()
+    .toLowerCase();
   const fallbackTitleByType = (() => {
-    if (exercisePayload?.template === 'exercise-match-letter') return 'Encontre a letra';
-    if (exercisePayload?.template === 'exercise-mark-images') return 'Marque as imagens';
-    if (normalizedBlockType === 'video') {
-      return blockIndex === 0 ? 'Vídeo de abertura' : 'Vídeo da aula';
+    if (exercisePayload?.template === "exercise-match-letter")
+      return "Encontre a letra";
+    if (exercisePayload?.template === "exercise-mark-images")
+      return "Marque as imagens";
+    if (normalizedBlockType === "video") {
+      return blockIndex === 0 ? "Vídeo de abertura" : "Vídeo da aula";
     }
-    if (normalizedBlockType === 'image') return 'Observe a imagem';
-    if (normalizedBlockType === 'audio') return 'Ouça o áudio';
-    if (normalizedBlockType === 'text') return 'Leia com atenção';
+    if (normalizedBlockType === "image" || normalizedBlockType === "gif")
+      return "Observe a imagem";
+    if (normalizedBlockType === "audio") return "Ouça o áudio";
+    if (normalizedBlockType === "text") return "Leia com atenção";
     return null;
   })();
 
@@ -882,8 +1044,10 @@ function mapCompositeBlockToScreen(
     `Tela ${blockIndex + 1}`;
 
   const blockNarrationAudioUrl =
-    normalizedBlockType === 'text'
-      ? toOptionalText(block.narrationAudioUrl) || toOptionalText(block.audioNarrationUrl) || null
+    normalizedBlockType === "text"
+      ? toOptionalText(block.narrationAudioUrl) ||
+        toOptionalText(block.audioNarrationUrl) ||
+        null
       : null;
 
   return {
@@ -909,11 +1073,17 @@ function sanitizeText(text: string): string {
   // Remove U+FFFD (replacement character) que aparece quando o banco tem
   // bytes UTF-8 corrompidos. Substitui por string vazia para não exibir
   // caixinhas no app mobile.
-  return text.replace(/�/g, '').replace(/\s{2,}/g, ' ').trim();
+  return text
+    .replace(/�/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-function normalizeText(value: string | null | undefined, fallback: string): string {
-  const text = sanitizeText(String(value || '').trim());
+function normalizeText(
+  value: string | null | undefined,
+  fallback: string,
+): string {
+  const text = sanitizeText(String(value || "").trim());
   return text.length > 0 ? text : fallback;
 }
 
@@ -934,10 +1104,12 @@ function buildLessonObjective(
     return candidate;
   }
 
-  return 'Objetivo da aula em configuração.';
+  return "Objetivo da aula em configuração.";
 }
 
-function withSequentialModuleLabels(modules: LearnerFlowModule[]): LearnerFlowModule[] {
+function withSequentialModuleLabels(
+  modules: LearnerFlowModule[],
+): LearnerFlowModule[] {
   return modules.map((moduleItem, moduleIndex) => {
     const moduleLabel = `MÓDULO ${moduleIndex + 1}`;
     return {
@@ -954,11 +1126,15 @@ function buildFallbackModules(): LearnerFlowModule[] {
   return [];
 }
 
-function isActiveContent(value: { is_active?: boolean } | null | undefined): boolean {
+function isActiveContent(
+  value: { is_active?: boolean } | null | undefined,
+): boolean {
   return value?.is_active !== false;
 }
 
-function isPublishedActivity(value: { is_published?: boolean } | null | undefined): boolean {
+function isPublishedActivity(
+  value: { is_published?: boolean } | null | undefined,
+): boolean {
   return value?.is_published !== false;
 }
 
@@ -987,10 +1163,12 @@ function resolveHintVideoUrl(
 // learning_stages (via payload.stages) e cai para stage_number (legado). Sem
 // resolução retorna null — a aula é então excluída do fluxo do alfabetizando
 // (nunca mais o antigo default silencioso "2").
-function buildStageNumberByStageId(payload: PainelConteudoResponse): Map<string, number> {
+function buildStageNumberByStageId(
+  payload: PainelConteudoResponse,
+): Map<string, number> {
   const map = new Map<string, number>();
   for (const stage of payload.stages || []) {
-    if (stage.id && typeof stage.stage_number === 'number') {
+    if (stage.id && typeof stage.stage_number === "number") {
       map.set(stage.id, stage.stage_number);
     }
   }
@@ -1004,11 +1182,13 @@ function resolveUnitStageNumber(
   if (unit.stage_id && stageNumberByStageId.has(unit.stage_id)) {
     return stageNumberByStageId.get(unit.stage_id) ?? null;
   }
-  if (typeof unit.stage_number === 'number') return unit.stage_number;
+  if (typeof unit.stage_number === "number") return unit.stage_number;
   return null;
 }
 
-export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlowModule[] {
+export function mapPainelToModules(
+  payload: PainelConteudoResponse,
+): LearnerFlowModule[] {
   const stageNumberByStageId = buildStageNumberByStageId(payload);
   const mediaById = new Map<string, PainelMediaLibraryItem>();
   for (const item of payload.mediaLibrary || []) {
@@ -1029,175 +1209,248 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
     return [];
   }
 
-  const hasNestedShape = themes.some((theme) => Array.isArray(theme.learningUnits) && theme.learningUnits.length > 0);
+  const hasNestedShape = themes.some(
+    (theme) =>
+      Array.isArray(theme.learningUnits) && theme.learningUnits.length > 0,
+  );
 
   if (hasNestedShape) {
     const mappedNested = themes.map((theme, themeIndex) => {
-      const learningUnits = [...(theme.learningUnits || [])].sort((a, b) =>
-        compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
-      ).filter(
-        (unit) =>
-          isActiveContent(unit) &&
-          !isDemoModule(unit) &&
-          (unit.activities || []).some((activity) => isPublishedActivity(activity) && !isDemoActivity(activity)),
-      );
+      const learningUnits = [...(theme.learningUnits || [])]
+        .sort((a, b) =>
+          compareWithIdTieBreaker(
+            a.order ?? a.sort_order ?? 0,
+            b.order ?? b.sort_order ?? 0,
+            a.id,
+            b.id,
+          ),
+        )
+        .filter(
+          (unit) =>
+            isActiveContent(unit) &&
+            !isDemoModule(unit) &&
+            (unit.activities || []).some(
+              (activity) =>
+                isPublishedActivity(activity) && !isDemoActivity(activity),
+            ),
+        );
 
-      const lessons: LearnerFlowLesson[] = learningUnits.map((unit): LearnerFlowLesson | null => {
-        const stageNumber = resolveUnitStageNumber(unit, stageNumberByStageId);
-        if (stageNumber === null) {
-          if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn(`[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`);
+      const lessons: LearnerFlowLesson[] = learningUnits
+        .map((unit): LearnerFlowLesson | null => {
+          const stageNumber = resolveUnitStageNumber(
+            unit,
+            stageNumberByStageId,
+          );
+          if (stageNumber === null) {
+            if (__DEV__) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`,
+              );
+            }
+            return null;
           }
-          return null;
-        }
 
-        const activities = [...(unit.activities || [])]
-          .filter((activity) => isPublishedActivity(activity) && !isDemoActivity(activity))
-          .sort((a, b) =>
-            compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
+          const activities = [...(unit.activities || [])]
+            .filter(
+              (activity) =>
+                isPublishedActivity(activity) && !isDemoActivity(activity),
+            )
+            .sort((a, b) =>
+              compareWithIdTieBreaker(
+                a.order ?? a.sort_order ?? 0,
+                b.order ?? b.sort_order ?? 0,
+                a.id,
+                b.id,
+              ),
+            );
+
+          const screens: LearnerFlowScreen[] = activities.flatMap(
+            (activity, activityIndex): LearnerFlowScreen[] => {
+              const normalizedAssets = (activity.assets || [])
+                .map((item) => item.asset)
+                .filter((item): item is PainelAsset =>
+                  Boolean(item && (item.sourceUrl || item.storage_path)),
+                );
+              const assetReferences: ActivityAssetReference[] = normalizedAssets
+                .map((asset) => {
+                  const url = asset.sourceUrl || asset.storage_path || null;
+                  if (!url) return null;
+                  return {
+                    url,
+                    kind: resolveAssetKind(asset.kind, url),
+                  };
+                })
+                .filter((item): item is ActivityAssetReference =>
+                  Boolean(item),
+                );
+
+              const mainAsset = normalizedAssets[0] ?? null;
+              const followUpAsset = normalizedAssets[1] ?? null;
+              const instructions = getActivityInstructions(activity);
+              const compositeBlocks = getCompositeBlocks(instructions);
+              if (compositeBlocks) {
+                return compositeBlocks.map((block, blockIndex) => {
+                  const mappedScreen = mapCompositeBlockToScreen(
+                    activity,
+                    block,
+                    blockIndex,
+                    assetReferences,
+                  );
+                  return {
+                    ...mappedScreen,
+                    hintVideoUrl: resolveHintVideoUrl(
+                      activity.hint_video_id,
+                      mediaById,
+                      mediaBySlug,
+                      mappedScreen.screenTemplate,
+                    ),
+                  };
+                });
+              }
+
+              const guidanceFromInstruction = parseGuidance(
+                instructions,
+                assetReferences,
+              );
+
+              return [
+                {
+                  id: activity.id,
+                  title: normalizeText(
+                    activity.title,
+                    normalizeText(activity.prompt, `Tela ${activityIndex + 1}`),
+                  ),
+                  educatorGuidance:
+                    normalizeText(
+                      activity.instructorGuidance,
+                      guidanceFromInstruction.educatorGuidance ||
+                        normalizeText(activity.prompt, ""),
+                    ).trim() || null,
+                  learnerSpeech:
+                    normalizeText(
+                      activity.learnerGuidance,
+                      guidanceFromInstruction.learnerSpeech || "",
+                    ).trim() || null,
+                  narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
+                  mediaUrl:
+                    mainAsset?.sourceUrl || mainAsset?.storage_path || null,
+                  mediaKind: resolveAssetKind(
+                    mainAsset?.kind,
+                    mainAsset?.sourceUrl || mainAsset?.storage_path || null,
+                  ),
+                  highlightMessage:
+                    activityIndex === Math.floor((activities.length - 1) / 2) &&
+                    activities.length > 2
+                      ? "Metade da aula! Continue assim!"
+                      : null,
+                  hintVideoUrl: resolveHintVideoUrl(
+                    activity.hint_video_id,
+                    mediaById,
+                    mediaBySlug,
+                    guidanceFromInstruction.screenTemplate,
+                  ),
+                  followUpActivity: followUpAsset
+                    ? ({
+                        id: `${activity.id}-followup`,
+                        title: `Atividade - ${normalizeText(activity.title, `Tela ${activityIndex + 1}`)}`,
+                        educatorGuidance:
+                          normalizeText(
+                            activity.instructorGuidance,
+                            guidanceFromInstruction.educatorGuidance || "",
+                          ).trim() || null,
+                        learnerSpeech:
+                          normalizeText(
+                            activity.learnerGuidance,
+                            guidanceFromInstruction.learnerSpeech || "",
+                          ).trim() || null,
+                        narrationAudioUrl: null,
+                        mediaUrl:
+                          followUpAsset.sourceUrl ||
+                          followUpAsset.storage_path ||
+                          null,
+                        mediaKind: resolveAssetKind(
+                          followUpAsset.kind,
+                          followUpAsset.sourceUrl ||
+                            followUpAsset.storage_path ||
+                            null,
+                        ),
+                        completionMessage:
+                          "Muito bem! Continue para a próxima etapa da aula.",
+                        screenTemplate: "default",
+                        lockReason: null,
+                        lockMessage: null,
+                        lockAudioUrl: null,
+                        exercise: null,
+                      } as LearnerFlowActivity)
+                    : null,
+                  screenTemplate: guidanceFromInstruction.screenTemplate,
+                  lockReason: guidanceFromInstruction.lockReason,
+                  lockMessage: guidanceFromInstruction.lockMessage,
+                  lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
+                  exercise: guidanceFromInstruction.exercise,
+                },
+              ];
+            },
           );
 
-        const screens: LearnerFlowScreen[] = activities.flatMap((activity, activityIndex): LearnerFlowScreen[] => {
-          const normalizedAssets = (activity.assets || [])
-            .map((item) => item.asset)
-            .filter((item): item is PainelAsset => Boolean(item && (item.sourceUrl || item.storage_path)));
-          const assetReferences: ActivityAssetReference[] = normalizedAssets
-            .map((asset) => {
-              const url = asset.sourceUrl || asset.storage_path || null;
-              if (!url) return null;
-              return {
-                url,
-                kind: resolveAssetKind(asset.kind, url),
-              };
-            })
-            .filter((item): item is ActivityAssetReference => Boolean(item));
+          const fallbackScreen: LearnerFlowScreen = {
+            id: `${unit.id}-screen-1`,
+            title: normalizeText(unit.title, "Aula"),
+            educatorGuidance: normalizeText(
+              unit.description,
+              "Siga a orientação desta aula.",
+            ).trim(),
+            learnerSpeech: null,
+            narrationAudioUrl: null,
+            mediaUrl: null,
+            mediaKind: null,
+            highlightMessage: null,
+            followUpActivity: null,
+            screenTemplate: "default",
+            lockReason: null,
+            lockMessage: null,
+            lockAudioUrl: null,
+            exercise: null,
+            hintVideoUrl: null,
+          };
 
-          const mainAsset = normalizedAssets[0] ?? null;
-          const followUpAsset = normalizedAssets[1] ?? null;
-          const instructions = getActivityInstructions(activity);
-          const compositeBlocks = getCompositeBlocks(instructions);
-          if (compositeBlocks) {
-            return compositeBlocks.map((block, blockIndex) => {
-              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
-              return {
-                ...mappedScreen,
-                hintVideoUrl: resolveHintVideoUrl(
-                  activity.hint_video_id,
-                  mediaById,
-                  mediaBySlug,
-                  mappedScreen.screenTemplate,
-                ),
-              };
-            });
-          }
+          const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
 
-          const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
-
-          return [{
-            id: activity.id,
-            title: normalizeText(activity.title, normalizeText(activity.prompt, `Tela ${activityIndex + 1}`)),
-            educatorGuidance:
-              normalizeText(
-                activity.instructorGuidance,
-                guidanceFromInstruction.educatorGuidance || normalizeText(activity.prompt, ''),
-              ).trim() || null,
-            learnerSpeech:
-              normalizeText(activity.learnerGuidance, guidanceFromInstruction.learnerSpeech || '').trim() || null,
-            narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
-            mediaUrl: mainAsset?.sourceUrl || mainAsset?.storage_path || null,
-            mediaKind: resolveAssetKind(
-              mainAsset?.kind,
-              mainAsset?.sourceUrl || mainAsset?.storage_path || null,
-            ),
-            highlightMessage:
-              activityIndex === Math.floor((activities.length - 1) / 2) && activities.length > 2
-                ? 'Metade da aula! Continue assim!'
-                : null,
-            hintVideoUrl: resolveHintVideoUrl(
-              activity.hint_video_id,
-              mediaById,
-              mediaBySlug,
-              guidanceFromInstruction.screenTemplate,
-            ),
-            followUpActivity: followUpAsset
-              ? ({
-                  id: `${activity.id}-followup`,
-                  title: `Atividade - ${normalizeText(activity.title, `Tela ${activityIndex + 1}`)}`,
-                  educatorGuidance:
-                    normalizeText(activity.instructorGuidance, guidanceFromInstruction.educatorGuidance || '').trim() || null,
-                  learnerSpeech:
-                    normalizeText(activity.learnerGuidance, guidanceFromInstruction.learnerSpeech || '').trim() || null,
-                  narrationAudioUrl: null,
-                  mediaUrl: followUpAsset.sourceUrl || followUpAsset.storage_path || null,
-                  mediaKind: resolveAssetKind(
-                    followUpAsset.kind,
-                    followUpAsset.sourceUrl || followUpAsset.storage_path || null,
-                  ),
-                  completionMessage: 'Muito bem! Continue para a próxima etapa da aula.',
-                  screenTemplate: 'default',
-                  lockReason: null,
-                  lockMessage: null,
-                  lockAudioUrl: null,
-                  exercise: null,
-                } as LearnerFlowActivity)
-              : null,
-            screenTemplate: guidanceFromInstruction.screenTemplate,
-            lockReason: guidanceFromInstruction.lockReason,
-            lockMessage: guidanceFromInstruction.lockMessage,
-            lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
-            exercise: guidanceFromInstruction.exercise,
-          }];
-        });
-
-        const fallbackScreen: LearnerFlowScreen = {
-          id: `${unit.id}-screen-1`,
-          title: normalizeText(unit.title, 'Aula'),
-          educatorGuidance: normalizeText(unit.description, 'Siga a orientação desta aula.').trim(),
-          learnerSpeech: null,
-          narrationAudioUrl: null,
-          mediaUrl: null,
-          mediaKind: null,
-          highlightMessage: null,
-          followUpActivity: null,
-          screenTemplate: 'default',
-          lockReason: null,
-          lockMessage: null,
-          lockAudioUrl: null,
-          exercise: null,
-          hintVideoUrl: null,
-        };
-
-        const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
-
-        return {
-          id: unit.id,
-          progressId: activities[0]?.id ?? unit.id,
-          title: normalizeText(unit.title, 'Aula'),
-          objective: buildLessonObjective(unit.description, safeScreens[0]),
-          moduleLabel: `MÓDULO ${themeIndex + 1}`,
-          moduleTitle: normalizeText(theme.name || theme.title, 'Módulo'),
-          stageNumber,
-          screens: safeScreens,
-          conclusionTitle: 'Aula Concluída!',
-          conclusionMessage:
-            'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
-          accessStatus: 'available',
-          progressStatus: 'not_started',
-          attemptCount: 0,
-          pointsAwarded: 0,
-        };
-      }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
+          return {
+            id: unit.id,
+            progressId: activities[0]?.id ?? unit.id,
+            title: normalizeText(unit.title, "Aula"),
+            objective: buildLessonObjective(unit.description, safeScreens[0]),
+            moduleLabel: `MÓDULO ${themeIndex + 1}`,
+            moduleTitle: normalizeText(theme.name || theme.title, "Módulo"),
+            stageNumber,
+            screens: safeScreens,
+            conclusionTitle: "Aula Concluída!",
+            conclusionMessage:
+              "Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.",
+            accessStatus: "available",
+            progressStatus: "not_started",
+            attemptCount: 0,
+            pointsAwarded: 0,
+          };
+        })
+        .filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 
       return {
         id: theme.id,
-        title: normalizeText(theme.name || theme.title, `Módulo ${themeIndex + 1}`),
-        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponível' : 'aulas disponíveis'}`,
+        title: normalizeText(
+          theme.name || theme.title,
+          `Módulo ${themeIndex + 1}`,
+        ),
+        subtitle: `${lessons.length} ${lessons.length === 1 ? "aula disponível" : "aulas disponíveis"}`,
         lessons,
       };
     });
 
-    const modulesWithLessons = mappedNested.filter((item) => item.lessons.length > 0);
+    const modulesWithLessons = mappedNested.filter(
+      (item) => item.lessons.length > 0,
+    );
     return modulesWithLessons.length > 0
       ? withSequentialModuleLabels(modulesWithLessons)
       : [];
@@ -1212,7 +1465,7 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
   const activitiesByModule = new Map<string, PainelActivity[]>();
   for (const activity of activities) {
-    const key = String(activity.module_id || '').trim();
+    const key = String(activity.module_id || "").trim();
     if (!key) continue;
     const bucket = activitiesByModule.get(key) ?? [];
     bucket.push(activity);
@@ -1221,14 +1474,19 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
   for (const [moduleId, bucket] of activitiesByModule.entries()) {
     bucket.sort((a, b) =>
-      compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id),
+      compareWithIdTieBreaker(
+        a.order ?? a.sort_order ?? 0,
+        b.order ?? b.sort_order ?? 0,
+        a.id,
+        b.id,
+      ),
     );
     activitiesByModule.set(moduleId, bucket);
   }
 
   const assetsByActivity = new Map<string, PainelAsset[]>();
   for (const asset of assets) {
-    const key = String(asset.activity_id || '').trim();
+    const key = String(asset.activity_id || "").trim();
     if (!key) continue;
     const bucket = assetsByActivity.get(key) ?? [];
     bucket.push(asset);
@@ -1237,9 +1495,11 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
 
   for (const [activityId, bucket] of assetsByActivity.entries()) {
     bucket.sort((a, b) => {
-      const createdAtDiff = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      const createdAtDiff =
+        new Date(a.created_at || 0).getTime() -
+        new Date(b.created_at || 0).getTime();
       if (createdAtDiff !== 0) return createdAtDiff;
-      return String(a.id || '').localeCompare(String(b.id || ''));
+      return String(a.id || "").localeCompare(String(b.id || ""));
     });
     assetsByActivity.set(activityId, bucket);
   }
@@ -1257,7 +1517,12 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
   const mappedFlat = themes
     .map((theme, themeIndex) => {
       const units = modules
-        .filter((unit) => unit.theme_id === theme.id && isActiveContent(unit) && !isDemoModule(unit))
+        .filter(
+          (unit) =>
+            unit.theme_id === theme.id &&
+            isActiveContent(unit) &&
+            !isDemoModule(unit),
+        )
         .filter((unit) => (activitiesByModule.get(unit.id) ?? []).length > 0)
         .sort((a, b) => {
           const stageDiff = compareWithIdTieBreaker(
@@ -1267,151 +1532,199 @@ export function mapPainelToModules(payload: PainelConteudoResponse): LearnerFlow
             b.id,
           );
           if (stageDiff !== 0) return stageDiff;
-          return compareWithIdTieBreaker(a.order ?? a.sort_order ?? 0, b.order ?? b.sort_order ?? 0, a.id, b.id);
+          return compareWithIdTieBreaker(
+            a.order ?? a.sort_order ?? 0,
+            b.order ?? b.sort_order ?? 0,
+            a.id,
+            b.id,
+          );
         });
 
-      const lessons: LearnerFlowLesson[] = units.map((unit, unitIndex): LearnerFlowLesson | null => {
-        const stageNumber = resolveUnitStageNumber(unit, stageNumberByStageId);
-        if (stageNumber === null) {
-          if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn(`[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`);
-          }
-          return null;
-        }
-
-        const unitActivities = activitiesByModule.get(unit.id) ?? [];
-        const linkedBlueprints = blueprintsByModule.get(unit.id) ?? [];
-
-        const screens: LearnerFlowScreen[] = unitActivities.flatMap((activity, activityIndex): LearnerFlowScreen[] => {
-          const activityAssets = assetsByActivity.get(activity.id) ?? [];
-          const assetReferences: ActivityAssetReference[] = activityAssets
-            .map((asset) => {
-              const url = asset.sourceUrl || asset.storage_path || null;
-              if (!url) return null;
-              return {
-                url,
-                kind: resolveAssetKind(asset.kind, url),
-              };
-            })
-            .filter((item): item is ActivityAssetReference => Boolean(item));
-          const mainAsset = activityAssets[0] ?? null;
-          const followUpAsset = activityAssets[1] ?? null;
-          const instructions = getActivityInstructions(activity);
-          const compositeBlocks = getCompositeBlocks(instructions);
-          if (compositeBlocks) {
-            return compositeBlocks.map((block, blockIndex) => {
-              const mappedScreen = mapCompositeBlockToScreen(activity, block, blockIndex, assetReferences);
-              return {
-                ...mappedScreen,
-                hintVideoUrl: resolveHintVideoUrl(
-                  activity.hint_video_id,
-                  mediaById,
-                  mediaBySlug,
-                  mappedScreen.screenTemplate,
-                ),
-              };
-            });
+      const lessons: LearnerFlowLesson[] = units
+        .map((unit, unitIndex): LearnerFlowLesson | null => {
+          const stageNumber = resolveUnitStageNumber(
+            unit,
+            stageNumberByStageId,
+          );
+          if (stageNumber === null) {
+            if (__DEV__) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                `[learnerFlow] módulo ${unit.id} sem etapa resolvível — excluído do fluxo.`,
+              );
+            }
+            return null;
           }
 
-          const guidanceFromInstruction = parseGuidance(instructions, assetReferences);
+          const unitActivities = activitiesByModule.get(unit.id) ?? [];
+          const linkedBlueprints = blueprintsByModule.get(unit.id) ?? [];
 
-          return [{
-            id: activity.id,
-            title: normalizeText(activity.title, `Tela ${activityIndex + 1}`),
-            educatorGuidance: guidanceFromInstruction.educatorGuidance,
-            learnerSpeech: guidanceFromInstruction.learnerSpeech,
-            narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
-            mediaUrl: mainAsset?.sourceUrl || mainAsset?.storage_path || null,
-            mediaKind: resolveAssetKind(
-              mainAsset?.kind,
-              mainAsset?.sourceUrl || mainAsset?.storage_path || null,
-            ),
-            highlightMessage:
-              activityIndex === Math.floor((unitActivities.length - 1) / 2) && unitActivities.length > 2
-                ? 'Metade da aula! Continue assim!'
-                : null,
-            hintVideoUrl: resolveHintVideoUrl(
-              activity.hint_video_id,
-              mediaById,
-              mediaBySlug,
-              guidanceFromInstruction.screenTemplate,
-            ),
-            followUpActivity: followUpAsset
-              ? ({
-                  id: `${activity.id}-followup`,
-                  title: `Atividade - ${normalizeText(activity.title, `Tela ${activityIndex + 1}`)}`,
+          const screens: LearnerFlowScreen[] = unitActivities.flatMap(
+            (activity, activityIndex): LearnerFlowScreen[] => {
+              const activityAssets = assetsByActivity.get(activity.id) ?? [];
+              const assetReferences: ActivityAssetReference[] = activityAssets
+                .map((asset) => {
+                  const url = asset.sourceUrl || asset.storage_path || null;
+                  if (!url) return null;
+                  return {
+                    url,
+                    kind: resolveAssetKind(asset.kind, url),
+                  };
+                })
+                .filter((item): item is ActivityAssetReference =>
+                  Boolean(item),
+                );
+              const mainAsset = activityAssets[0] ?? null;
+              const followUpAsset = activityAssets[1] ?? null;
+              const instructions = getActivityInstructions(activity);
+              const compositeBlocks = getCompositeBlocks(instructions);
+              if (compositeBlocks) {
+                return compositeBlocks.map((block, blockIndex) => {
+                  const mappedScreen = mapCompositeBlockToScreen(
+                    activity,
+                    block,
+                    blockIndex,
+                    assetReferences,
+                  );
+                  return {
+                    ...mappedScreen,
+                    hintVideoUrl: resolveHintVideoUrl(
+                      activity.hint_video_id,
+                      mediaById,
+                      mediaBySlug,
+                      mappedScreen.screenTemplate,
+                    ),
+                  };
+                });
+              }
+
+              const guidanceFromInstruction = parseGuidance(
+                instructions,
+                assetReferences,
+              );
+
+              return [
+                {
+                  id: activity.id,
+                  title: normalizeText(
+                    activity.title,
+                    `Tela ${activityIndex + 1}`,
+                  ),
                   educatorGuidance: guidanceFromInstruction.educatorGuidance,
                   learnerSpeech: guidanceFromInstruction.learnerSpeech,
-                  narrationAudioUrl: null,
-                  mediaUrl: followUpAsset.sourceUrl || followUpAsset.storage_path || null,
+                  narrationAudioUrl: guidanceFromInstruction.narrationAudioUrl,
+                  mediaUrl:
+                    mainAsset?.sourceUrl || mainAsset?.storage_path || null,
                   mediaKind: resolveAssetKind(
-                    followUpAsset.kind,
-                    followUpAsset.sourceUrl || followUpAsset.storage_path || null,
+                    mainAsset?.kind,
+                    mainAsset?.sourceUrl || mainAsset?.storage_path || null,
                   ),
-                  completionMessage: 'Muito bem! Continue para a próxima etapa da aula.',
-                  screenTemplate: 'default',
-                  lockReason: null,
-                  lockMessage: null,
-                  lockAudioUrl: null,
-                  exercise: null,
-                } as LearnerFlowActivity)
-              : null,
-            screenTemplate: guidanceFromInstruction.screenTemplate,
-            lockReason: guidanceFromInstruction.lockReason,
-            lockMessage: guidanceFromInstruction.lockMessage,
-            lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
-            exercise: guidanceFromInstruction.exercise,
-          }];
-        });
+                  highlightMessage:
+                    activityIndex ===
+                      Math.floor((unitActivities.length - 1) / 2) &&
+                    unitActivities.length > 2
+                      ? "Metade da aula! Continue assim!"
+                      : null,
+                  hintVideoUrl: resolveHintVideoUrl(
+                    activity.hint_video_id,
+                    mediaById,
+                    mediaBySlug,
+                    guidanceFromInstruction.screenTemplate,
+                  ),
+                  followUpActivity: followUpAsset
+                    ? ({
+                        id: `${activity.id}-followup`,
+                        title: `Atividade - ${normalizeText(activity.title, `Tela ${activityIndex + 1}`)}`,
+                        educatorGuidance:
+                          guidanceFromInstruction.educatorGuidance,
+                        learnerSpeech: guidanceFromInstruction.learnerSpeech,
+                        narrationAudioUrl: null,
+                        mediaUrl:
+                          followUpAsset.sourceUrl ||
+                          followUpAsset.storage_path ||
+                          null,
+                        mediaKind: resolveAssetKind(
+                          followUpAsset.kind,
+                          followUpAsset.sourceUrl ||
+                            followUpAsset.storage_path ||
+                            null,
+                        ),
+                        completionMessage:
+                          "Muito bem! Continue para a próxima etapa da aula.",
+                        screenTemplate: "default",
+                        lockReason: null,
+                        lockMessage: null,
+                        lockAudioUrl: null,
+                        exercise: null,
+                      } as LearnerFlowActivity)
+                    : null,
+                  screenTemplate: guidanceFromInstruction.screenTemplate,
+                  lockReason: guidanceFromInstruction.lockReason,
+                  lockMessage: guidanceFromInstruction.lockMessage,
+                  lockAudioUrl: guidanceFromInstruction.lockAudioUrl,
+                  exercise: guidanceFromInstruction.exercise,
+                },
+              ];
+            },
+          );
 
-        const fallbackScreen: LearnerFlowScreen = {
-          id: `${unit.id}-screen-1`,
-          title: normalizeText(unit.title, `Aula ${unitIndex + 1}`),
-          educatorGuidance: normalizeText(
-            unit.description,
-            'Adicione atividades nesta aula para montar as telas do fluxo mobile.',
-          ),
-          learnerSpeech: null,
-          narrationAudioUrl: null,
-          mediaUrl: null,
-          mediaKind: null,
-          highlightMessage: linkedBlueprints.length > 0 ? `${linkedBlueprints.length} tela(s) base vinculada(s)` : null,
-          followUpActivity: null,
-          screenTemplate: 'default',
-          lockReason: null,
-          lockMessage: null,
-          lockAudioUrl: null,
-          exercise: null,
-          hintVideoUrl: null,
-        };
+          const fallbackScreen: LearnerFlowScreen = {
+            id: `${unit.id}-screen-1`,
+            title: normalizeText(unit.title, `Aula ${unitIndex + 1}`),
+            educatorGuidance: normalizeText(
+              unit.description,
+              "Adicione atividades nesta aula para montar as telas do fluxo mobile.",
+            ),
+            learnerSpeech: null,
+            narrationAudioUrl: null,
+            mediaUrl: null,
+            mediaKind: null,
+            highlightMessage:
+              linkedBlueprints.length > 0
+                ? `${linkedBlueprints.length} tela(s) base vinculada(s)`
+                : null,
+            followUpActivity: null,
+            screenTemplate: "default",
+            lockReason: null,
+            lockMessage: null,
+            lockAudioUrl: null,
+            exercise: null,
+            hintVideoUrl: null,
+          };
 
-        const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
-        const primaryActivityTitle = unitActivities[0]?.title;
+          const safeScreens = screens.length > 0 ? screens : [fallbackScreen];
+          const primaryActivityTitle = unitActivities[0]?.title;
 
-        return {
-          id: unit.id,
-          progressId: unitActivities[0]?.id ?? unit.id,
-          title: normalizeText(primaryActivityTitle, normalizeText(unit.title, 'Aula')),
-          objective: buildLessonObjective(unit.description, safeScreens[0]),
-          moduleLabel: `MÓDULO ${themeIndex + 1}`,
-          moduleTitle: normalizeText(theme.title || theme.name, 'Módulo'),
-          stageNumber,
-          screens: safeScreens,
-          conclusionTitle: 'Aula Concluída!',
-          conclusionMessage:
-            'Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.',
-          accessStatus: 'available',
-          progressStatus: 'not_started',
-          attemptCount: 0,
-          pointsAwarded: 0,
-        };
-      }).filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
+          return {
+            id: unit.id,
+            progressId: unitActivities[0]?.id ?? unit.id,
+            title: normalizeText(
+              primaryActivityTitle,
+              normalizeText(unit.title, "Aula"),
+            ),
+            objective: buildLessonObjective(unit.description, safeScreens[0]),
+            moduleLabel: `MÓDULO ${themeIndex + 1}`,
+            moduleTitle: normalizeText(theme.title || theme.name, "Módulo"),
+            stageNumber,
+            screens: safeScreens,
+            conclusionTitle: "Aula Concluída!",
+            conclusionMessage:
+              "Parabéns! Você concluiu esta aula. Continue praticando para avançar no módulo.",
+            accessStatus: "available",
+            progressStatus: "not_started",
+            attemptCount: 0,
+            pointsAwarded: 0,
+          };
+        })
+        .filter((lesson): lesson is LearnerFlowLesson => lesson !== null);
 
       return {
         id: theme.id,
-        title: normalizeText(theme.title || theme.name, `Módulo ${themeIndex + 1}`),
-        subtitle: `${lessons.length} ${lessons.length === 1 ? 'aula disponível' : 'aulas disponíveis'}`,
+        title: normalizeText(
+          theme.title || theme.name,
+          `Módulo ${themeIndex + 1}`,
+        ),
+        subtitle: `${lessons.length} ${lessons.length === 1 ? "aula disponível" : "aulas disponíveis"}`,
         lessons,
       };
     })
