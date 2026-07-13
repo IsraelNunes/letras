@@ -1,131 +1,94 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LearnerRootStackParamList } from '../../types';
 import { LearnerScreenLayout } from './components/LearnerScreenLayout';
 import { learnerTheme } from './learnerTheme';
 import { useLearnerFlowData } from './learnerFlowData';
 import { useLearnerSession } from './learnerSessionContext';
+import type { LessonCompletionResult } from './learnerAccessPolicy.js';
 
 type Props = NativeStackScreenProps<LearnerRootStackParamList, 'LearnerLessonConclusion'>;
-
-// O Figma NÃO tem tela de conclusão por aula — só por etapa ("Etapa N -
-// Conclusão"). Esta rota é uma transição: grava o progresso da aula e
-// encaminha para a Conclusão de etapa (quando a etapa fechou) ou de volta
-// aos módulos, sem UI própria além de um breve indicador.
 const TRANSITION_DELAY_MS = 700;
 
 export function LearnerLessonConclusionView({ navigation, route }: Props) {
   const { moduleId, lessonId } = route.params;
-  const { getLesson, modules, completedLessonIds } = useLearnerFlowData();
+  const { getLesson } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
-
   const lesson = getLesson(moduleId, lessonId);
-  // Garante que o POST /progress e a navegação rodem uma única vez por
-  // entrada na tela, mesmo com múltiplos disparos do useFocusEffect.
   const completedRecordedRef = useRef<string | null>(null);
+  const completionResultRef = useRef<LessonCompletionResult | null>(null);
   const navigationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resolveNextStep = useCallback(() => {
-    if (!lesson) {
-      navigation.navigate('LearnerHome');
-      return;
-    }
-
-    const stageNumber = lesson.stageNumber;
-    if (stageNumber) {
-      const allLessonsInStage =
-        modules.find((m) => m.id === moduleId)?.lessons.filter((l) => l.stageNumber === stageNumber) ?? [];
-      const alreadyCompleted = new Set([...completedLessonIds, lesson.progressId]);
-      const stageFullyDone =
-        allLessonsInStage.length > 0 && allLessonsInStage.every((l) => alreadyCompleted.has(l.progressId));
-
-      if (stageFullyDone) {
-        navigation.replace('LearnerStageConclusion', {
-          stageNumber,
-          stageTitle: `Etapa ${stageNumber}`,
-        });
-        return;
-      }
-    }
-
-    if (navigation.canGoBack()) {
-      navigation.popToTop();
+  const resolveNextStep = useCallback((stageCompleted: boolean) => {
+    if (!lesson) { navigation.navigate('LearnerHome'); return; }
+    if (lesson.stageNumber && stageCompleted) {
+      navigation.replace('LearnerStageConclusion', {
+        stageNumber: lesson.stageNumber,
+        stageTitle: `Etapa ${lesson.stageNumber}`,
+        pointsEarned: completionResultRef.current?.totalPoints,
+      });
       return;
     }
     navigation.navigate('LearnerHome');
-  }, [completedLessonIds, lesson, moduleId, modules, navigation]);
+  }, [lesson, navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void learnerSession.syncCurrentState({
-        currentView: 'LearnerLessonConclusion',
-        currentActivityId: lessonId,
-        statePayload: {
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    void learnerSession.syncCurrentState({
+      currentView: 'LearnerLessonConclusion',
+      currentActivityId: lessonId,
+      statePayload: {
+        moduleId,
+        lessonId,
+        snapshot: {
           moduleId,
           lessonId,
-          // Snapshot parcial (Fase 1): sinaliza ao espelho do educador que o
-          // aprendiz concluiu a aula.
-          snapshot: {
-            moduleId,
-            lessonId,
-            lessonTitle: lesson?.title ?? null,
-            screenTitle: lesson?.conclusionTitle ?? 'Aula concluída',
-            totalScreens: lesson?.screens.length,
-            stage: lesson?.stageNumber ? String(lesson.stageNumber) : undefined,
-            screenTemplate: 'lesson-conclusion',
-          },
+          lessonTitle: lesson?.title ?? null,
+          screenTitle: lesson?.conclusionTitle ?? 'Aula concluída',
+          totalScreens: lesson?.screens.length,
+          stage: lesson?.stageNumber ? String(lesson.stageNumber) : undefined,
+          screenTemplate: 'lesson-conclusion',
         },
-      });
+      },
+    });
 
-      if (completedRecordedRef.current !== lessonId) {
-        completedRecordedRef.current = lessonId;
-        void learnerSession.recordProgress({
-          activityId: lesson?.progressId ?? lessonId,
-          status: 'COMPLETED',
-        });
-      }
+    const scheduleNavigation = (result: LessonCompletionResult | null) => {
+      if (cancelled) return;
+      completionResultRef.current = result;
+      navigationTimeoutRef.current = setTimeout(
+        () => resolveNextStep(result?.stageCompleted === true),
+        TRANSITION_DELAY_MS,
+      );
+    };
 
-      // (Re)arma a navegação em TODA execução do efeito: o registro do
-      // progresso atualiza o estado do fluxo, o efeito re-executa e o
-      // cleanup cancela o timeout anterior — sem rearmar aqui a tela
-      // ficava carregando para sempre.
-      navigationTimeoutRef.current = setTimeout(resolveNextStep, TRANSITION_DELAY_MS);
+    if (completedRecordedRef.current !== lessonId) {
+      completedRecordedRef.current = lessonId;
+      void learnerSession.recordProgress({
+        activityId: lesson?.progressId ?? lessonId,
+        status: 'COMPLETED',
+      }).then(scheduleNavigation);
+    } else {
+      scheduleNavigation(completionResultRef.current);
+    }
 
-      return () => {
-        if (navigationTimeoutRef.current) {
-          clearTimeout(navigationTimeoutRef.current);
-          navigationTimeoutRef.current = null;
-        }
-      };
-    }, [learnerSession, lesson, lessonId, moduleId, resolveNextStep]),
-  );
+    return () => {
+      cancelled = true;
+      if (navigationTimeoutRef.current) clearTimeout(navigationTimeoutRef.current);
+      navigationTimeoutRef.current = null;
+    };
+  }, [learnerSession, lesson, lessonId, moduleId, resolveNextStep]));
 
   if (!lesson) {
-    return (
-      <LearnerScreenLayout activeMenu="inicio" onMenuHome={() => navigation.navigate('LearnerHome')}>
-        <Text style={styles.error}>Conclusão indisponível.</Text>
-      </LearnerScreenLayout>
-    );
+    return <LearnerScreenLayout activeMenu="inicio" onMenuHome={() => navigation.navigate('LearnerHome')}><Text style={styles.error}>Conclusão indisponível.</Text></LearnerScreenLayout>;
   }
 
-  return (
-    <LearnerScreenLayout minimalChrome>
-      <View style={styles.wrapper}>
-        <ActivityIndicator color={learnerTheme.primary} size="large" />
-      </View>
-    </LearnerScreenLayout>
-  );
+  return <LearnerScreenLayout minimalChrome><View style={styles.wrapper}><ActivityIndicator color={learnerTheme.primary} size="large" /><Text style={styles.message}>Registrando a conclusão da aula...</Text></View></LearnerScreenLayout>;
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    marginTop: 120,
-    alignItems: 'center',
-  },
-  error: {
-    color: learnerTheme.danger,
-    fontSize: 14,
-  },
+  wrapper: { marginTop: 120, alignItems: 'center', gap: 14 },
+  message: { color: learnerTheme.text, fontSize: 14 },
+  error: { color: learnerTheme.danger, fontSize: 14 },
 });

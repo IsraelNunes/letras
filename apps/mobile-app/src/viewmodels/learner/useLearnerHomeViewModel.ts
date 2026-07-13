@@ -1,11 +1,32 @@
 import { LearnerScreenSnapshot, SocketIdentity } from '@letras/shared-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LearnerSessionRepositoryImpl } from '../../data/repositories/learner-session-repository.impl';
 import { useLearnerRealtime } from '../../hooks/useLearnerRealtime';
 import { httpClient } from '../../infra/api/http-client';
 import { SessionStorage } from '../../infra/storage/session-storage';
+import { createLearnerSyncOutbox } from '../../infra/storage/learner-sync-outbox.js';
+import type { LearnerSyncOutboxEntry } from '../../infra/storage/learner-sync-outbox';
+import { toUserFacingMessage } from '../../infra/api/user-facing-error.js';
+import type { LessonCompletionResult } from '../../views/learner/learnerAccessPolicy.js';
 
 const LOCAL_PROFILE_PREFIX = 'learner-local-profile';
+
+// Outbox de sincronizacao: escritas de progresso/conclusao que falharem por
+// rede sao enfileiradas aqui e reenviadas no bootstrap, ao voltar ao primeiro
+// plano e ao reconectar o realtime. A chave idempotente evita envio duplicado.
+const learnerSyncOutbox = createLearnerSyncOutbox({ storage: AsyncStorage });
+
+async function sendOutboxEntry(entry: LearnerSyncOutboxEntry): Promise<unknown> {
+  if (entry.method === 'PATCH') {
+    return httpClient.patch(entry.endpoint, entry.payload);
+  }
+  if (entry.method === 'PUT') {
+    return httpClient.put(entry.endpoint, entry.payload);
+  }
+  return httpClient.post(entry.endpoint, entry.payload);
+}
 
 interface SyncCurrentStateInput {
   currentView?: string;
@@ -99,6 +120,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
 
       const session = await repository.bootstrapPersistentSession();
       setLearnerProfileId(session.learnerProfileId);
+      httpClient.setLearnerIdentity(session.learnerProfileId);
       setDeviceId(session.deviceId);
 
       const identity: SocketIdentity = {
@@ -132,7 +154,15 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
       const isProvisioningWarning =
         normalized.includes('learner profile is not provisioned') ||
         normalized.includes('profile is not provisioned');
-      setErrorMessage(isProvisioningWarning ? null : message);
+      // Nunca expor mensagem tecnica/JSON/HTTP ao alfabetizando (RN de copy).
+      setErrorMessage(
+        isProvisioningWarning
+          ? null
+          : toUserFacingMessage(
+              error,
+              'Nao foi possivel abrir sua sessao agora. Toque em Atualizar para tentar de novo.',
+            ),
+      );
     } finally {
       setLoading(false);
     }
@@ -220,51 +250,113 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
   );
 
   const recordProgress = useCallback(
-    async ({ activityId, status, score, elapsedSeconds, attempts, errorsCount, maxAttempts, lockReason }: RecordProgressInput) => {
+    async ({ activityId, status, score, elapsedSeconds, attempts, errorsCount, maxAttempts, lockReason }: RecordProgressInput): Promise<LessonCompletionResult | null> => {
       if (!learnerProfileId || !activityId) {
-        return;
+        return null;
       }
 
       // Perfis locais (modo offline/fallback) nao tem registro no backend,
       // entao nao adianta tentar gravar progresso.
       if (learnerProfileId.startsWith('learner-local-profile-')) {
-        return;
+        return null;
       }
 
+      // Em producao o mobile aponta para o painel Express
+      // (painel.letras.cloud/api/v1), que expoe POST /painel/progress
+      // espelhando o contrato do POST /progress do backend NestJS.
+      const canonicalActivityId = resolveCanonicalActivityId(activityId);
+      if (!canonicalActivityId) {
+        return null;
+      }
+
+      // Descreve a escrita de forma serializavel para que, em caso de falha de
+      // rede, o mesmo payload possa ser reenviado pela outbox. A idempotencyKey
+      // e fixada por invocacao: retentativas usam a mesma chave e nao duplicam.
+      const idempotencyKey = `${status === 'COMPLETED' ? 'lesson' : 'progress'}:${learnerProfileId}:${canonicalActivityId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+
+      const outboxEntry: LearnerSyncOutboxEntry = status === 'COMPLETED'
+        ? {
+            idempotencyKey,
+            learnerId: learnerProfileId,
+            kind: 'completion',
+            endpoint: `/learner-activities/${canonicalActivityId}/complete`,
+            method: 'POST',
+            payload: {
+              studentId: learnerProfileId,
+              idempotencyKey,
+              score,
+              elapsedSeconds,
+              metadata: { attempts: attempts ?? 1 },
+              sourcePlatform: 'mobile',
+            },
+            createdAt: new Date().toISOString(),
+          }
+        : {
+            idempotencyKey,
+            learnerId: learnerProfileId,
+            kind: 'progress',
+            endpoint: '/painel/progress',
+            method: 'POST',
+            payload: {
+              learnerProfileId,
+              activityId: canonicalActivityId,
+              // O backend só aceita IN_PROGRESS e COMPLETED — LOCKED é local
+              status: status === 'LOCKED' ? 'IN_PROGRESS' : status,
+              ...(typeof score === 'number' ? { score } : {}),
+              ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
+              ...(typeof attempts === 'number' ? { attempts } : {}),
+              ...(typeof errorsCount === 'number' ? { errorsCount } : {}),
+              ...(typeof maxAttempts === 'number' ? { maxAttempts } : {}),
+              ...(typeof lockReason === 'string' && lockReason.trim() ? { lockReason } : {}),
+            },
+            createdAt: new Date().toISOString(),
+          };
+
       try {
-        // Em producao o mobile aponta para o painel Express
-        // (painel.letras.cloud/api/v1), que expoe POST /painel/progress
-        // espelhando o contrato do POST /progress do backend NestJS.
-        const canonicalActivityId = resolveCanonicalActivityId(activityId);
-        if (!canonicalActivityId) {
-          return;
+        if (status === 'COMPLETED') {
+          return await httpClient.post<LessonCompletionResult>(
+            outboxEntry.endpoint,
+            outboxEntry.payload,
+          );
         }
 
-        // O backend só aceita IN_PROGRESS e COMPLETED — LOCKED é estado local
-        const backendStatus = status === 'LOCKED' ? 'IN_PROGRESS' : status;
-        await httpClient.post('/painel/progress', {
-          learnerProfileId,
-          activityId: canonicalActivityId,
-          status: backendStatus,
-          ...(typeof score === 'number' ? { score } : {}),
-          ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
-          ...(typeof attempts === 'number' ? { attempts } : {}),
-          ...(typeof errorsCount === 'number' ? { errorsCount } : {}),
-          ...(typeof maxAttempts === 'number' ? { maxAttempts } : {}),
-          ...(typeof lockReason === 'string' && lockReason.trim() ? { lockReason } : {}),
-        });
+        await httpClient.post(outboxEntry.endpoint, outboxEntry.payload);
+        return null;
       } catch (error) {
-        // Falha de progresso nao deve quebrar a UI da aula. O proximo
-        // sync ou a proxima conclusao tentam de novo; o erro fica visivel
-        // no log para diagnostico.
+        // Falha de rede nao deve quebrar a UI da aula nem perder pontos: a
+        // escrita fica pendente na outbox e sera reenviada no proximo bootstrap,
+        // reconexao ou retorno ao primeiro plano.
+        try {
+          await learnerSyncOutbox.enqueue(outboxEntry);
+        } catch (enqueueError) {
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn('[learner] failed to enqueue progress in outbox', enqueueError);
+          }
+        }
         if (__DEV__) {
           // eslint-disable-next-line no-console
-          console.warn('[learner] failed to record progress', error);
+          console.warn('[learner] failed to record progress; enqueued for retry', error);
         }
+        return null;
       }
     },
     [learnerProfileId],
   );
+
+  const drainOutbox = useCallback(async () => {
+    if (!learnerProfileId || learnerProfileId.startsWith(`${LOCAL_PROFILE_PREFIX}-`)) {
+      return;
+    }
+    try {
+      await learnerSyncOutbox.drain(sendOutboxEntry, learnerProfileId);
+    } catch (error) {
+      if (__DEV__) {
+        // eslint-disable-next-line no-console
+        console.warn('[learner] failed to drain sync outbox', error);
+      }
+    }
+  }, [learnerProfileId]);
 
   const setSessionLocked = useCallback(
     async (isLocked: boolean) => {
@@ -276,6 +368,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
 
   const cleanup = useCallback(() => {
     disconnect();
+    httpClient.setLearnerIdentity(null);
   }, [disconnect]);
 
   useEffect(() => {
@@ -314,6 +407,24 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     if (realtime.isLocked) setPolledIsLocked(true);
   }, [realtime.isLocked]);
 
+  useEffect(() => {
+    // Drena a outbox assim que ha um perfil valido (bootstrap) e sempre que o
+    // app retorna ao primeiro plano — momentos tipicos de reconexao de rede.
+    if (!learnerProfileId || learnerProfileId.startsWith(`${LOCAL_PROFILE_PREFIX}-`)) {
+      return;
+    }
+
+    void drainOutbox();
+
+    const subscription = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        void drainOutbox();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [learnerProfileId, drainOutbox]);
+
   return {
     loading,
     errorMessage,
@@ -338,6 +449,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     syncCurrentState,
     requestHelp,
     recordProgress,
+    drainOutbox,
     setSessionLocked,
   };
 }

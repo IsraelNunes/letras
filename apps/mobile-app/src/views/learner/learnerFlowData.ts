@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpClient } from '../../infra/api/http-client';
+import { toUserFacingMessage } from '../../infra/api/user-facing-error.js';
 import {
   LearnerFlowLesson,
   LearnerFlowModule,
@@ -19,14 +20,53 @@ export type {
 
 let cachedModules: LearnerFlowModule[] | null = null;
 let cacheTimestamp = 0;
+let cachedLearnerProfileId: string | null = null;
 const CACHE_TTL_MS = 60_000;
 
-async function fetchLearnerModules(): Promise<LearnerFlowModule[]> {
+interface AccessCatalogLesson {
+  id: string;
+  accessStatus: 'locked' | 'available';
+  progressStatus: 'not_started' | 'in_progress' | 'completed';
+  attemptCount: number;
+  pointsAwarded: number;
+}
+
+interface AccessCatalogResponse {
+  themes: Array<{ stages: Array<{ modules: Array<{ lessons: AccessCatalogLesson[] }> }> }>;
+}
+
+function applyAccessCatalog(modules: LearnerFlowModule[], catalog: AccessCatalogResponse): LearnerFlowModule[] {
+  const accessByActivity = new Map(
+    catalog.themes.flatMap((theme) => theme.stages).flatMap((stage) => stage.modules)
+      .flatMap((moduleItem) => moduleItem.lessons).map((lesson) => [lesson.id, lesson]),
+  );
+  return modules.map((moduleItem) => ({
+    ...moduleItem,
+    lessons: moduleItem.lessons
+      .filter((lesson) => accessByActivity.has(lesson.progressId))
+      .map((lesson) => {
+        const access = accessByActivity.get(lesson.progressId)!;
+        return { ...lesson, accessStatus: access.accessStatus, progressStatus: access.progressStatus, attemptCount: access.attemptCount, pointsAwarded: access.pointsAwarded };
+      }),
+  })).filter((moduleItem) => moduleItem.lessons.length > 0);
+}
+
+async function fetchLearnerModules(learnerProfileId: string | null): Promise<LearnerFlowModule[]> {
   // published=true garante que rascunhos do CMS nao apareçam para o alfabetizando.
   const payload = await httpClient.get<PainelConteudoResponse>(
     '/painel/conteudo?scope=cms&published=true',
   );
-  return mapPainelToModules(payload);
+  const modules = mapPainelToModules(payload);
+  if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) return modules;
+  try {
+    const catalog = await httpClient.get<AccessCatalogResponse>(
+      `/learner-activities/catalog?studentId=${encodeURIComponent(learnerProfileId)}`,
+    );
+    return applyAccessCatalog(modules, catalog);
+  } catch {
+    // Compatibilidade enquanto a migration local ainda não foi aplicada.
+    return modules;
+  }
 }
 
 async function fetchCompletedProgressIds(learnerProfileId: string): Promise<Set<string>> {
@@ -133,7 +173,7 @@ export function useLearnerFlowData() {
   const load = useCallback(async () => {
     const now = Date.now();
     let activeModules: LearnerFlowModule[] = [];
-    if (cachedModules && now - cacheTimestamp < CACHE_TTL_MS) {
+    if (cachedModules && cachedLearnerProfileId === learnerProfileId && now - cacheTimestamp < CACHE_TTL_MS) {
       activeModules = cachedModules;
       setModules(cachedModules);
       setLoading(false);
@@ -141,16 +181,23 @@ export function useLearnerFlowData() {
       setLoading(true);
       setError(null);
       try {
-        const fetched = await fetchLearnerModules();
+        const fetched = await fetchLearnerModules(learnerProfileId);
         cachedModules = fetched;
+        cachedLearnerProfileId = learnerProfileId;
         cacheTimestamp = now;
         activeModules = fetched;
         setModules(fetched);
       } catch (fetchError) {
-        const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
+        // Mensagem amigavel (sem JSON/URL/HTTP) para o alfabetizando; o botao
+        // Atualizar refaz a busca quando a conexao/servidor voltar.
+        const message = toUserFacingMessage(
+          fetchError,
+          'Nao foi possivel carregar suas aulas agora. Toque em Atualizar para tentar de novo.',
+        );
         setError(message);
         setModules([]);
         cachedModules = [];
+        cachedLearnerProfileId = learnerProfileId;
         cacheTimestamp = now;
       } finally {
         setLoading(false);
