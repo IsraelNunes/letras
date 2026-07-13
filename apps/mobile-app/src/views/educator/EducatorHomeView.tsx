@@ -19,6 +19,7 @@ import { HelpAlert, useEducatorHomeRealtime } from '../../hooks/useEducatorHomeR
 import { EducatorRootStackParamList } from '../../types';
 import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 import { getCompletedTutorialCount, isTutorialUnlocked, sortTutorials, Tutorial } from './components/tutorialPresentation';
+import { colors } from '../../theme/appColors';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorHome'>;
 
@@ -34,6 +35,13 @@ interface LearnerItem {
   mirrorUnlocked?: boolean;
   currentStageNumber?: number;
   themeId?: string | null;
+  // Métricas de acompanhamento (Figma "Etapa N - Acompanhamento"). Ainda NÃO
+  // vêm do backend — a tela renderiza a estrutura e mostra "—" quando ausentes.
+  // Quando o backend passar a devolvê-las, os cartões preenchem automaticamente.
+  progressPercent?: number; // 0..100 (% concluído da etapa)
+  currentScreenIndex?: number; // tela atual (1-based)
+  screenCount?: number; // total de telas da etapa
+  inactiveDays?: number; // dias sem atividade
 }
 
 interface LockedSession {
@@ -59,6 +67,13 @@ const ICON_PHONE = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 
 const ICON_WHATSAPP = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#111111"/></svg>`;
 
+// Ícones do chip de gate (substituem o emoji 🔒), tingidos com os tokens da
+// paleta: cadeado em cinza neutro (estado passivo "ainda não liberado") e
+// check em verde de sucesso (Etapa 1 concluída).
+const ICON_LOCK = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm3 8H9V7a3 3 0 0 1 6 0v3z" fill="${colors.neutral}"/></svg>`;
+
+const ICON_CHECK = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="${colors.success}"/></svg>`;
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -82,8 +97,9 @@ function normalizeStageLabel(value: string | null | undefined) {
 function MirrorGateChip({ mirrorUnlocked }: { mirrorUnlocked?: boolean }) {
   return (
     <View style={[styles.gateChip, mirrorUnlocked ? styles.gateChipDone : styles.gateChipLocked]}>
+      <SvgXml xml={mirrorUnlocked ? ICON_CHECK : ICON_LOCK} width={12} height={12} />
       <Text style={[styles.gateChipText, mirrorUnlocked ? styles.gateChipTextDone : styles.gateChipTextLocked]}>
-        {mirrorUnlocked ? 'Etapa 1 concluída' : '🔒 Espelhamento bloqueado'}
+        {mirrorUnlocked ? 'Etapa 1 concluída' : 'Espelhamento bloqueado'}
       </Text>
     </View>
   );
@@ -386,14 +402,14 @@ export function EducatorHomeView({ navigation, route }: Props) {
   };
 
   const learnersInProgress = useMemo(() => {
-    const groups = new Map<string, { title: string; items: Array<{ id: string; name: string; learner: LearnerItem }> }>();
+    const groups = new Map<string, { title: string; stageLabel: string; groupName: string | null; items: Array<{ id: string; name: string; learner: LearnerItem }> }>();
 
     for (const learner of learners) {
       const groupName = normalizeGroupName(learner.grupo);
       const stageLabel = normalizeStageLabel(learner.etapa);
       const key = `${groupName ?? 'individual'}-${stageLabel}`;
       const title = groupName ? `${groupName} (${stageLabel})` : `Alfabetização individual (${stageLabel})`;
-      const current = groups.get(key) ?? { title, items: [] };
+      const current = groups.get(key) ?? { title, stageLabel, groupName, items: [] };
       current.items.push({ id: learner.id, name: learner.displayName, learner });
       groups.set(key, current);
     }
@@ -409,6 +425,78 @@ export function EducatorHomeView({ navigation, route }: Props) {
     : 'VIDEO 1';
   const highlightedTutorial = tutorials.find((tutorial, index) => isTutorialUnlocked(tutorials, index)) ?? tutorials[0] ?? null;
   const tutorialPreviewTitle = highlightedTutorial?.title ?? 'Tutoriais obrigatorios';
+
+  // Painel "Pedidos de apoio e bloqueios preventivos de tela" — reutilizado na
+  // aba Início e no topo da aba Acompanhar (Figma "Etapa N - Acompanhamento").
+  const renderNotifications = () => (
+    <>
+      <Text style={styles.notificationsTitle}>
+        Pedidos de apoio e bloqueios preventivos de tela:
+      </Text>
+
+      {notificationCount === 0 ? (
+        <View style={styles.notificationEmpty}>
+          <Text style={styles.notificationEmptyTitle}>Nenhum pedido agora</Text>
+          <Text style={styles.notificationEmptyText}>
+            Quando um alfabetizando precisar de apoio, o aviso aparece aqui.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {mergedHelpAlerts.map((item) => (
+            <NotificationRow
+              key={`help-${item.learnerId}`}
+              name={item.displayName}
+              date={formatDate(item.timestamp)}
+              title="Pedido de apoio"
+              desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
+              phoneDigits={item.phoneDigits}
+              onContactPress={() => handleClearHelpAlert(item.learnerId)}
+              onPress={() => {
+                handleClearHelpAlert(item.learnerId);
+                openLearnerById(item.learnerId, item.displayName);
+              }}
+            />
+          ))}
+
+          {visibleLockedSessions.map((item) => (
+            <NotificationRow
+              key={`lock-${item.id}`}
+              name={item.displayName}
+              date={item.session?.sessionState?.updatedAt
+                ? formatDate(item.session.sessionState.updatedAt)
+                : undefined}
+              title="Tela bloqueada"
+              desc="Toque em LIBERAR SESSAO para desbloquear, ou em Ver detalhes para acompanhar a tela."
+              phoneDigits={item.phoneDigits}
+              onContactPress={() => dismissLockedSession(item.id)}
+              onUnlockPress={() => { void handleUnlockSession(item.id); }}
+              onPress={() => openLearnerById(item.id, item.displayName)}
+            />
+          ))}
+
+          {pendingSessionRequests.map((req) => (
+            <Pressable
+              key={`session-req-${req.id}`}
+              style={styles.sessionRequestRow}
+              onPress={() => navigation.navigate('EducatorSessionConfirm', {
+                educatorId: educatorId ?? '',
+                fullName: educatorName,
+              })}
+            >
+              <View style={styles.sessionRequestDot} />
+              <View style={styles.sessionRequestBody}>
+                <Text style={styles.sessionRequestTitle}>Confirmação de sessão</Text>
+                <Text style={styles.sessionRequestName}>{req.learnerProfile.displayName}</Text>
+                <Text style={styles.sessionRequestHint}>Toque para confirmar ou recusar o acesso</Text>
+              </View>
+              <Text style={styles.sessionRequestChevron}>›</Text>
+            </Pressable>
+          ))}
+        </>
+      )}
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -439,71 +527,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
         {!shouldGateByTutorials && !isTrackListOpen && (
           <View style={styles.notificationsPanel}>
-            <Text style={styles.notificationsTitle}>
-              Pedidos de apoio e bloqueios preventivos de tela:
-            </Text>
-
-            {notificationCount === 0 ? (
-              <View style={styles.notificationEmpty}>
-                <Text style={styles.notificationEmptyTitle}>Nenhum pedido agora</Text>
-                <Text style={styles.notificationEmptyText}>
-                  Quando um alfabetizando precisar de apoio, o aviso aparece aqui.
-                </Text>
-              </View>
-            ) : (
-              <>
-                {mergedHelpAlerts.map((item) => (
-                  <NotificationRow
-                    key={`help-${item.learnerId}`}
-                    name={item.displayName}
-                    date={formatDate(item.timestamp)}
-                    title="Pedido de apoio"
-                    desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
-                    phoneDigits={item.phoneDigits}
-                    onContactPress={() => handleClearHelpAlert(item.learnerId)}
-                    onPress={() => {
-                      handleClearHelpAlert(item.learnerId);
-                      openLearnerById(item.learnerId, item.displayName);
-                    }}
-                  />
-                ))}
-
-                {visibleLockedSessions.map((item) => (
-                  <NotificationRow
-                    key={`lock-${item.id}`}
-                    name={item.displayName}
-                    date={item.session?.sessionState?.updatedAt
-                      ? formatDate(item.session.sessionState.updatedAt)
-                      : undefined}
-                    title="Tela bloqueada"
-                    desc="Toque em LIBERAR SESSAO para desbloquear, ou em Ver detalhes para acompanhar a tela."
-                    phoneDigits={item.phoneDigits}
-                    onContactPress={() => dismissLockedSession(item.id)}
-                    onUnlockPress={() => { void handleUnlockSession(item.id); }}
-                    onPress={() => openLearnerById(item.id, item.displayName)}
-                  />
-                ))}
-
-                {pendingSessionRequests.map((req) => (
-                  <Pressable
-                    key={`session-req-${req.id}`}
-                    style={styles.sessionRequestRow}
-                    onPress={() => navigation.navigate('EducatorSessionConfirm', {
-                      educatorId: educatorId ?? '',
-                      fullName: educatorName,
-                    })}
-                  >
-                    <View style={styles.sessionRequestDot} />
-                    <View style={styles.sessionRequestBody}>
-                      <Text style={styles.sessionRequestTitle}>Confirmação de sessão</Text>
-                      <Text style={styles.sessionRequestName}>{req.learnerProfile.displayName}</Text>
-                      <Text style={styles.sessionRequestHint}>Toque para confirmar ou recusar o acesso</Text>
-                    </View>
-                    <Text style={styles.sessionRequestChevron}>›</Text>
-                  </Pressable>
-                ))}
-              </>
-            )}
+            {renderNotifications()}
           </View>
         )}
 
@@ -537,8 +561,12 @@ export function EducatorHomeView({ navigation, route }: Props) {
             ) : null}
           </View>
         ) : isTrackListOpen ? (
-          <View style={styles.inProgressPanel}>
-            <Text style={styles.inProgressTitle}>Alfabetização em andamento:</Text>
+          // Aba "Acompanhar" (Figma "Etapa N - Acompanhamento"): pedidos de apoio
+          // no topo → divisória tracejada → status por etapa com barra de progresso.
+          <View style={styles.trackPanel}>
+            {renderNotifications()}
+
+            <View style={styles.trackDashedDivider} />
 
             {learnersInProgress.length === 0 ? (
               <View style={styles.inProgressEmptyWrap}>
@@ -549,23 +577,23 @@ export function EducatorHomeView({ navigation, route }: Props) {
               </View>
             ) : (
               learnersInProgress.map((group) => (
-                <View key={group.title} style={styles.inProgressGroup}>
-                  <Text style={styles.inProgressGroupTitle}>{group.title}</Text>
+                <View key={group.title} style={styles.trackGroup}>
+                  <Text style={styles.trackSectionTitle}>
+                    {`Status dos alfabetizandos na ${group.stageLabel}`.toUpperCase()}
+                  </Text>
+                  {group.groupName ? (
+                    <Text style={styles.trackGroupSubtitle}>{group.groupName}</Text>
+                  ) : null}
                   {group.items.map((item) => (
-                    <Pressable
+                    <LearnerStatusCard
                       key={item.id}
-                      style={styles.inProgressLearnerRow}
+                      name={item.name}
+                      progressPercent={item.learner.progressPercent}
+                      currentScreenIndex={item.learner.currentScreenIndex}
+                      screenCount={item.learner.screenCount}
+                      inactiveDays={item.learner.inactiveDays}
                       onPress={() => handleOpenLearner(item.learner)}
-                      android_ripple={{ color: 'rgba(0,0,0,0.06)', borderless: false }}
-                    >
-                      <View style={[
-                        styles.presenceDot,
-                        onlineLearnerIds.has(item.id) ? styles.presenceDotOnline : styles.presenceDotOffline,
-                      ]} />
-                      <Text style={styles.inProgressLearnerName}>{item.name}</Text>
-                      <MirrorGateChip mirrorUnlocked={item.learner.mirrorUnlocked} />
-                      <Text style={styles.inProgressChevron}>›</Text>
-                    </Pressable>
+                    />
                   ))}
                 </View>
               ))
@@ -719,6 +747,50 @@ function NotificationRow({
         </Pressable>
       </View>
     </View>
+  );
+}
+
+// Cartão de status por alfabetizando (Figma "Etapa N - Acompanhamento"):
+// nome + "Está na tela X de Y. Z% concluído." + inatividade + barra de progresso.
+// As métricas ainda não vêm do backend; quando ausentes mostra "—" e barra em 0.
+function LearnerStatusCard({
+  name,
+  progressPercent,
+  currentScreenIndex,
+  screenCount,
+  inactiveDays,
+  onPress,
+}: {
+  name: string;
+  progressPercent?: number;
+  currentScreenIndex?: number;
+  screenCount?: number;
+  inactiveDays?: number;
+  onPress: () => void;
+}) {
+  const pct = Math.max(0, Math.min(100, Math.round(progressPercent ?? 0)));
+  const screenText =
+    currentScreenIndex != null && screenCount != null
+      ? `${currentScreenIndex} de ${screenCount}`
+      : '—';
+  const pctText = progressPercent != null ? `${pct}%` : '—';
+  const inactiveText = inactiveDays != null ? String(inactiveDays) : '—';
+
+  return (
+    <Pressable
+      style={styles.statusCard}
+      onPress={onPress}
+      android_ripple={{ color: 'rgba(0,0,0,0.05)', borderless: false }}
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir acompanhamento de ${name}`}
+    >
+      <Text style={styles.statusName}>{name.toUpperCase()}</Text>
+      <Text style={styles.statusLine}>{`Está na tela ${screenText}. ${pctText} concluído.`}</Text>
+      <Text style={styles.statusLine}>{`Tempo de inatividade (em dias): ${inactiveText}`}</Text>
+      <View style={styles.statusBarTrack}>
+        <View style={[styles.statusBarFill, { width: `${pct}%` }]} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -1029,29 +1101,34 @@ const styles = StyleSheet.create({
     color: '#111111',
   },
   gateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 2,
+    paddingVertical: 3,
     paddingHorizontal: 8,
     marginLeft: 8,
   },
   gateChipDone: {
-    borderColor: '#2e7d32',
-    backgroundColor: '#eaf5eb',
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successBg,
   },
   gateChipLocked: {
-    borderColor: '#c98a1e',
-    backgroundColor: '#fdf3e2',
+    // Estado passivo "ainda não liberado" → neutro cinza (não compete com o
+    // verde de sucesso nem com a laranja de pedido de apoio).
+    borderColor: colors.neutralBorder,
+    backgroundColor: colors.neutralBg,
   },
   gateChipText: {
     fontSize: 11,
     fontWeight: '700',
   },
   gateChipTextDone: {
-    color: '#2e7d32',
+    color: colors.success,
   },
   gateChipTextLocked: {
-    color: '#a5670f',
+    color: colors.neutral,
   },
   presenceDot: {
     width: 8,
@@ -1066,15 +1143,58 @@ const styles = StyleSheet.create({
   presenceDotOffline: {
     backgroundColor: '#9ca3af',
   },
-  inProgressPanel: {
-    paddingTop: 12,
+  trackPanel: {
+    paddingTop: 4,
   },
-  inProgressTitle: {
-    color: '#111111',
-    fontSize: 26,
-    lineHeight: 34,
+  trackDashedDivider: {
+    borderBottomWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.ink,
+    marginTop: 14,
+    marginBottom: 22,
+  },
+  trackGroup: {
+    marginBottom: 26,
+  },
+  trackSectionTitle: {
+    color: colors.ink,
+    fontSize: 14,
     fontWeight: '700',
-    marginBottom: 24,
+    letterSpacing: 0.2,
+    marginBottom: 16,
+  },
+  trackGroupSubtitle: {
+    color: colors.inkMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: -10,
+    marginBottom: 14,
+  },
+  statusCard: {
+    marginBottom: 22,
+  },
+  statusName: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  statusLine: {
+    color: colors.ink,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  statusBarTrack: {
+    marginTop: 10,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border,
+    overflow: 'hidden',
+  },
+  statusBarFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.brandGreen,
   },
   inProgressEmptyWrap: {
     paddingTop: 8,
@@ -1084,42 +1204,6 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 13,
     lineHeight: 19,
-  },
-  inProgressGroup: {
-    marginBottom: 28,
-  },
-  inProgressGroupTitle: {
-    color: '#777777',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingBottom: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
-  },
-  inProgressLearnerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#eeeeee',
-    gap: 10,
-  },
-  inProgressLearnerName: {
-    flex: 1,
-    color: '#111111',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  inProgressChevron: {
-    color: '#9ca3af',
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '300',
   },
   emptyText: {
     color: '#666666',

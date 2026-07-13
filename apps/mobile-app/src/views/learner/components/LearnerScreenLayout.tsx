@@ -163,15 +163,11 @@ export function LearnerScreenLayout({
               <Text style={styles.alertErrorText}>{sessionErrorMessage}</Text>
             </View>
           ) : null}
-          {isSessionLocked ? (
-            <View style={styles.alertLock}>
-              <Text style={styles.alertLockText}>Sessão bloqueada pelo alfabetizador. Aguarde orientação.</Text>
-            </View>
-          ) : null}
-          {onRequestHelp && isHelpPending ? (
-            // Estado "tela bloqueada aguardando apoio". Banner grande
-            // vermelho com texto + X + telefone, ocupando a largura toda
-            // (Figma: Etapas 2 e 3 - Tela bloqueada).
+          {isSessionLocked || isHelpPending ? (
+            // Estado "tela bloqueada". Banner grande vermelho, visual (X +
+            // telefone), ocupando a largura toda (Figma: Etapas 2 e 3 - Tela
+            // bloqueada). O alfabetizando NÃO lê, então a tela travada é
+            // comunicada apenas por este banner — sem cartões de texto.
             <View style={styles.pendingBanner}>
               <Text style={styles.pendingBannerText}>
                 AGUARDANDO{"\n"}AJUDA
@@ -317,20 +313,6 @@ const styles = StyleSheet.create({
   alertErrorText: {
     color: '#8c1d1d',
     fontSize: 12,
-  },
-  alertLock: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: '#f2c387',
-    backgroundColor: '#fff7ea',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  alertLockText: {
-    color: '#7d4b07',
-    fontSize: 12,
-    fontWeight: '600',
   },
   helpRow: {
     marginTop: 10,

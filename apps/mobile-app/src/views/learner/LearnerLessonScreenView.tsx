@@ -727,10 +727,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     playErrorBeep();
     const nextAttempts = Math.max(exerciseAttempts, screen.exercise?.maxAttemptsBeforeLock ?? 1);
     setExerciseLocked(true);
-    setExerciseFeedback({
-      type: 'error',
-      message,
-    });
+    // Sem feedback de texto ao travar — o alfabetizando não lê. `setSessionLocked`
+    // aciona o banner visual "AGUARDANDO AJUDA"; `message` segue só como
+    // lockReason para o educador/registro de progresso.
+    setExerciseFeedback(null);
     void learnerSession.recordProgress({
       activityId: screen.id,
       status: 'LOCKED',
@@ -890,31 +890,22 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       return;
     }
 
-    if (learnerSession.isLocked) {
-      setExerciseFeedback({
-        type: 'error',
-        message: 'Sessão bloqueada pelo alfabetizador. Aguarde orientação para continuar.',
-      });
-      return;
-    }
-
-    if (isLockedByTemplate) {
-      setExerciseFeedback({
-        type: 'error',
-        message: resolveLockMessage(screen.lockReason, screen.lockMessage),
-      });
+    // Tela travada (sessão ou template "bloqueada"): sem feedback de texto —
+    // o alfabetizando não lê. O banner visual "AGUARDANDO AJUDA" já indica o
+    // estado; tocar AVANÇAR simplesmente não faz nada.
+    if (learnerSession.isLocked || isLockedByTemplate) {
       return;
     }
 
     if (screen.screenTemplate === 'exercise-match-letter') {
       if (!canAdvanceMatchExercise) {
-        setExerciseFeedback({
-          type: 'error',
-          message:
-            isInteractionLocked
-              ? resolveLockMessage(screen.lockReason, screen.lockMessage)
-              : 'Conclua todas as respostas para avançar.',
-        });
+        // Travado (banner "AGUARDANDO AJUDA" já visível) → sem texto de lock.
+        if (!isInteractionLocked) {
+          setExerciseFeedback({
+            type: 'error',
+            message: 'Conclua todas as respostas para avançar.',
+          });
+        }
         return;
       }
       goNextDefault();
@@ -1198,7 +1189,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
       onMenuProfile={() => navigation.navigate('LearnerProfile')}
       // Figma (Tela de Aula): header traz apenas logo + sino; o nome do
       // alfabetizando e a posição na etapa ficam no corpo (RN040).
-      isSessionLocked={learnerSession.isLocked}
+      // Sessão travada pelo educador OU tela do tipo "bloqueada" (template):
+      // ambas são comunicadas ao alfabetizando apenas pelo banner visual
+      // "AGUARDANDO AJUDA" no layout — sem texto, já que ele não lê.
+      isSessionLocked={learnerSession.isLocked || isLockedByTemplate}
       onRequestHelp={() => learnerSession.requestHelp('Preciso de ajuda para continuar nesta tela.', buildScreenSnapshot())}
       helpAcknowledgedAt={learnerSession.helpAcknowledgedAt}
       isHelpPending={learnerSession.isHelpPending}
@@ -1347,20 +1341,9 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {isLocked ? (
-          <View style={styles.lockCard}>
-            <Text style={styles.lockTitle}>Tela bloqueada</Text>
-            <Text style={styles.lockText}>{resolveLockMessage(screen.lockReason, screen.lockMessage)}</Text>
-            {screen.lockAudioUrl ? (
-              <Pressable
-                onPress={() => void playAudioUrl(screen.lockAudioUrl, resolveLockMessage(screen.lockReason, screen.lockMessage), 'lock')}
-                style={styles.lockAudioButton}
-              >
-                <Text style={styles.lockAudioButtonText}>Ouvir orientação</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : null}
+        {/* Tela bloqueada: o alfabetizando não lê, então o estado travado é
+            comunicado somente pelo banner visual "AGUARDANDO AJUDA" no
+            LearnerScreenLayout — sem cartão de texto aqui. */}
 
         {showReinforcement ? (
           <View style={styles.reinforcementCard}>
@@ -2009,38 +1992,6 @@ const styles = StyleSheet.create({
   markIndicatorSelected: {
     borderColor: learnerTheme.primary,
     backgroundColor: learnerTheme.primary,
-  },
-  lockCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#f5b0b0',
-    backgroundColor: '#fff2f2',
-    padding: 12,
-    gap: 4,
-  },
-  lockTitle: {
-    color: '#b91c1c',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  lockText: {
-    color: '#7f1d1d',
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  lockAudioButton: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#f2b2b2',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fff8f8',
-  },
-  lockAudioButtonText: {
-    color: '#9f1239',
-    fontSize: 12,
-    fontWeight: '700',
   },
   reinforcementCard: {
     borderRadius: 12,
