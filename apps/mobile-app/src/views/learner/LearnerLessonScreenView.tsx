@@ -154,6 +154,44 @@ function SoundWaveIcon({
   );
 }
 
+// Veredito da atividade SEM texto (o alfabetizando não lê): círculo verde com
+// ✓ para acerto/liberação, círculo vermelho com ✗ para erro/"ainda não".
+// Substitui a mensagem de texto do card de feedback — a orientação real vem
+// pelo áudio, não por leitura.
+function FeedbackVerdictIcon({ type }: { type: "ok" | "error" }) {
+  const isOk = type === "ok";
+  const color = isOk ? "#2fa536" : "#ef4444";
+  return (
+    <Svg width={40} height={40} viewBox="0 0 40 40" fill="none">
+      <Circle cx={20} cy={20} r={18} fill={color} />
+      {isOk ? (
+        <Path
+          d="M12 20.5L17.5 26L28 15"
+          stroke="#ffffff"
+          strokeWidth={3.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <>
+          <Path
+            d="M14 14L26 26"
+            stroke="#ffffff"
+            strokeWidth={3.4}
+            strokeLinecap="round"
+          />
+          <Path
+            d="M26 14L14 26"
+            stroke="#ffffff"
+            strokeWidth={3.4}
+            strokeLinecap="round"
+          />
+        </>
+      )}
+    </Svg>
+  );
+}
+
 function SpeakerButton({
   onPress,
   large = false,
@@ -1695,7 +1733,10 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
                 : styles.feedbackCardError,
             ]}
           >
-            <Text style={styles.feedbackText}>{exerciseFeedback.message}</Text>
+            {/* Sem texto — o alfabetizando não lê. Só o veredito visual
+                (✓ verde / ✗ vermelho). `message` segue como dado interno
+                (registro de progresso / visão do educador). */}
+            <FeedbackVerdictIcon type={exerciseFeedback.type} />
           </View>
         ) : null}
 
@@ -2367,6 +2408,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
   feedbackCardSuccess: {
     borderColor: "#9bc844",
@@ -2375,10 +2418,5 @@ const styles = StyleSheet.create({
   feedbackCardError: {
     borderColor: "#f5b0b0",
     backgroundColor: "#fff2f2",
-  },
-  feedbackText: {
-    color: "#1f2937",
-    fontSize: 13,
-    fontWeight: "600",
   },
 });
