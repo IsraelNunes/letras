@@ -1102,7 +1102,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
     const nextAttempts = exerciseAttempts + 1;
     setExerciseAttempts(nextAttempts);
-    if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
+    // Etapa 1 conduzida pelo educador: sem trava por tentativas — o
+    // alfabetizador está ao lado para orientar e o aluno tenta de novo.
+    if (
+      !learnerSession.isEducatorConducted &&
+      nextAttempts >= screen.exercise.maxAttemptsBeforeLock
+    ) {
       lockCurrentExercise(
         resolveLockMessage(screen.lockReason, screen.lockMessage),
       );
@@ -1241,7 +1246,12 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
 
       const nextAttempts = exerciseAttempts + 1;
       setExerciseAttempts(nextAttempts);
-      if (nextAttempts >= screen.exercise.maxAttemptsBeforeLock) {
+      // Etapa 1 conduzida pelo educador: sem trava por tentativas — o
+      // alfabetizador está ao lado para orientar e o aluno tenta de novo.
+      if (
+        !learnerSession.isEducatorConducted &&
+        nextAttempts >= screen.exercise.maxAttemptsBeforeLock
+      ) {
         lockCurrentExercise(
           resolveLockMessage(screen.lockReason, screen.lockMessage),
         );

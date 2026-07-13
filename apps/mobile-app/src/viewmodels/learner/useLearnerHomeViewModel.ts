@@ -444,6 +444,9 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
       helpRequestedAt &&
         (!realtime.helpAcknowledgedAt || realtime.helpAcknowledgedAt < helpRequestedAt),
     ),
+    // Runner da Etapa 1 (educador conduzindo no próprio celular): o alfabetizador
+    // está ao lado, então os exercícios não travam por tentativas erradas.
+    isEducatorConducted: Boolean(overrideLearnerProfileId),
     initialize,
     cleanup,
     syncCurrentState,
