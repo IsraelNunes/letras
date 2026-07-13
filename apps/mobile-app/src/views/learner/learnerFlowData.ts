@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpClient } from '../../infra/api/http-client';
+import { toUserFacingMessage } from '../../infra/api/user-facing-error.js';
 import {
   LearnerFlowLesson,
   LearnerFlowModule,
@@ -187,7 +188,12 @@ export function useLearnerFlowData() {
         activeModules = fetched;
         setModules(fetched);
       } catch (fetchError) {
-        const message = fetchError instanceof Error ? fetchError.message : 'Falha ao carregar conteudo.';
+        // Mensagem amigavel (sem JSON/URL/HTTP) para o alfabetizando; o botao
+        // Atualizar refaz a busca quando a conexao/servidor voltar.
+        const message = toUserFacingMessage(
+          fetchError,
+          'Nao foi possivel carregar suas aulas agora. Toque em Atualizar para tentar de novo.',
+        );
         setError(message);
         setModules([]);
         cachedModules = [];

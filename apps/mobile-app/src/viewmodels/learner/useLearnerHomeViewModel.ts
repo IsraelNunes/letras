@@ -8,6 +8,7 @@ import { httpClient } from '../../infra/api/http-client';
 import { SessionStorage } from '../../infra/storage/session-storage';
 import { createLearnerSyncOutbox } from '../../infra/storage/learner-sync-outbox.js';
 import type { LearnerSyncOutboxEntry } from '../../infra/storage/learner-sync-outbox';
+import { toUserFacingMessage } from '../../infra/api/user-facing-error.js';
 import type { LessonCompletionResult } from '../../views/learner/learnerAccessPolicy.js';
 
 const LOCAL_PROFILE_PREFIX = 'learner-local-profile';
@@ -153,7 +154,15 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
       const isProvisioningWarning =
         normalized.includes('learner profile is not provisioned') ||
         normalized.includes('profile is not provisioned');
-      setErrorMessage(isProvisioningWarning ? null : message);
+      // Nunca expor mensagem tecnica/JSON/HTTP ao alfabetizando (RN de copy).
+      setErrorMessage(
+        isProvisioningWarning
+          ? null
+          : toUserFacingMessage(
+              error,
+              'Nao foi possivel abrir sua sessao agora. Toque em Atualizar para tentar de novo.',
+            ),
+      );
     } finally {
       setLoading(false);
     }
