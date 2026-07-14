@@ -1,6 +1,6 @@
 # Deploy automático do app mobile (Expo web) em mobile.letras.cloud.
 #
-# Dispara em push nas branches de deploy ou manualmente (workflow_dispatch).
+# Dispara em push na branch de producao ou manualmente (workflow_dispatch).
 # Secrets necessários (Settings > Secrets and variables > Actions):
 #   DEPLOY_HOST      IP do VPS
 #   DEPLOY_USER      usuário SSH (root)
@@ -11,7 +11,6 @@ on:
   push:
     branches:
       - main
-      - fix/security-badges-corrections
   workflow_dispatch: {}
 
 concurrency:
