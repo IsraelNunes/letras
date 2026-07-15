@@ -196,13 +196,13 @@ export function LearnerLessonActivityView({ navigation, route }: Props) {
     });
   };
 
-  const onContinue = () => {
+  const onContinue = async () => {
     if (learnerSession.isLocked) {
       return;
     }
 
     if (activity?.id) {
-      void learnerSession.recordProgress({
+      await learnerSession.recordProgress({
         activityId: activity.id,
         status: 'COMPLETED',
       });

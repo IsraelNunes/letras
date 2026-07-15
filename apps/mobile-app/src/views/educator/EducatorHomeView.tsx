@@ -1,5 +1,5 @@
 import { useAssets } from 'expo-asset';
-import { createElement, useCallback, useEffect, useMemo, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -42,6 +42,8 @@ interface LearnerItem {
   currentScreenIndex?: number; // tela atual (1-based)
   screenCount?: number; // total de telas da etapa
   inactiveDays?: number; // dias sem atividade
+  progresso?: number;
+  ultimaAtividadeEm?: string | null;
 }
 
 interface LockedSession {
@@ -177,6 +179,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutorialsLoading, setTutorialsLoading] = useState(true);
   const [pendingSessionRequests, setPendingSessionRequests] = useState<Array<{ id: string; requestedAt: string; learnerProfile: { id: string; displayName: string } }>>([]);
+  const learnerRequestSequenceRef = useRef(0);
 
   useEffect(() => {
     if (educatorId) return;
@@ -191,8 +194,9 @@ export function EducatorHomeView({ navigation, route }: Props) {
   }, [educatorId]);
 
   const fetchLearners = useCallback(async () => {
+    const requestSequence = ++learnerRequestSequenceRef.current;
     if (!educatorId) {
-      setIsLoading(false);
+      if (requestSequence === learnerRequestSequenceRef.current) setIsLoading(false);
       return;
     }
 
@@ -202,11 +206,21 @@ export function EducatorHomeView({ navigation, route }: Props) {
         `/cadastros/alfabetizandos?educatorId=${educatorId}`,
       );
       const items = Array.isArray(raw) ? raw : (raw as { items?: LearnerItem[] }).items ?? [];
-      setLearners(items);
+      if (requestSequence === learnerRequestSequenceRef.current) {
+        setLearners(items.map((item) => ({
+          ...item,
+          progressPercent: item.progressPercent ?? item.progresso,
+          inactiveDays:
+            item.inactiveDays ??
+            (item.ultimaAtividadeEm
+              ? Math.max(0, Math.floor((Date.now() - new Date(item.ultimaAtividadeEm).getTime()) / 86_400_000))
+              : undefined),
+        })));
+      }
     } catch {
       // Mantem lista vazia.
     }
-    setIsLoading(false);
+    if (requestSequence === learnerRequestSequenceRef.current) setIsLoading(false);
   }, [educatorId]);
 
   const fetchLockedSessions = useCallback(async () => {
@@ -220,10 +234,26 @@ export function EducatorHomeView({ navigation, route }: Props) {
   }, [educatorId]);
 
   const fetchOpenHelpAlerts = useCallback(async () => {
-    // Help alerts chegam via realtime — este fetch HTTP é suplementar
-    // e foi removido pois o endpoint /painel/fila retorna TutorLearnerLink
-    // (vínculos pendentes) que não corresponde a pedidos de ajuda.
-  }, []);
+    if (!educatorId) return;
+    try {
+      const requests = await httpClient.get<Array<{
+        requestId: string;
+        learnerId: string;
+        message?: string | null;
+        timestamp: string;
+      }>>(`/painel/support-requests?tutorId=${encodeURIComponent(educatorId)}`);
+      setSeededAlerts(requests.map((request) => ({
+        requestId: request.requestId,
+        learnerId: request.learnerId,
+        displayName: request.learnerId,
+        phoneDigits: null,
+        message: request.message ?? undefined,
+        timestamp: request.timestamp,
+      })));
+    } catch {
+      // O socket continua sendo a via principal; esta leitura garante retomada.
+    }
+  }, [educatorId]);
 
   const fetchPendingSessionRequests = useCallback(async () => {
     if (!educatorId) return;
@@ -281,7 +311,10 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const { helpAlerts, clearHelpAlert, onlineLearnerIds } = useEducatorHomeRealtime({
     educatorId,
     getLearnerInfo: (id) => learnerMap.get(id),
-    onLockEvent: () => { void fetchLockedSessions(); },
+    onLockEvent: () => {
+      void fetchLockedSessions();
+      void fetchLearners();
+    },
   });
 
   const mergedHelpAlerts = useMemo(() => {
@@ -300,8 +333,11 @@ export function EducatorHomeView({ navigation, route }: Props) {
     for (const alert of helpAlerts) {
       const learnerInfo = learnerMap.get(alert.learnerId);
       if (!learnerInfo && learners.length > 0) continue;
+      const existing = merged.get(alert.learnerId);
       merged.set(alert.learnerId, {
+        ...existing,
         ...alert,
+        requestId: alert.requestId ?? existing?.requestId,
         displayName: learnerInfo?.displayName ?? alert.displayName,
         phoneDigits: learnerInfo?.phoneDigits ?? alert.phoneDigits,
       });
@@ -314,6 +350,21 @@ export function EducatorHomeView({ navigation, route }: Props) {
     clearHelpAlert(learnerId);
     setSeededAlerts((prev) => prev.filter((alert) => alert.learnerId !== learnerId));
   }, [clearHelpAlert]);
+
+  const handleResolveHelpAlert = useCallback(async (alert: HelpAlert) => {
+    if (!alert.requestId) return;
+    try {
+      await httpClient.patch(`/painel/fila/${alert.requestId}`, {
+        action: 'resolver',
+        decidedBy: educatorId,
+      });
+      handleClearHelpAlert(alert.learnerId);
+      void fetchLockedSessions();
+      void fetchLearners();
+    } catch {
+      // Mantém o alerta visível se o servidor não confirmou a resolução.
+    }
+  }, [educatorId, fetchLearners, fetchLockedSessions, handleClearHelpAlert]);
 
   function dismissLockedSession(sessionId: string) {
     setDismissedLockedIds((prev) => new Set([...prev, sessionId]));
@@ -451,11 +502,8 @@ export function EducatorHomeView({ navigation, route }: Props) {
               title="Pedido de apoio"
               desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
               phoneDigits={item.phoneDigits}
-              onContactPress={() => handleClearHelpAlert(item.learnerId)}
-              onPress={() => {
-                handleClearHelpAlert(item.learnerId);
-                openLearnerById(item.learnerId, item.displayName);
-              }}
+              onUnlockPress={item.requestId ? () => { void handleResolveHelpAlert(item); } : undefined}
+              onPress={() => openLearnerById(item.learnerId, item.displayName)}
             />
           ))}
 
@@ -627,7 +675,9 @@ export function EducatorHomeView({ navigation, route }: Props) {
               <View>
                 {learners.map((item) => (
                   <Pressable key={item.id} style={styles.learnerRow} onPress={() => handleOpenLearner(item)}>
-                    <View style={[styles.presenceDot, onlineLearnerIds.has(item.id) ? styles.presenceDotOnline : styles.presenceDotOffline]} />
+                    {item.mirrorUnlocked ? (
+                      <View style={[styles.presenceDot, onlineLearnerIds.has(item.id) ? styles.presenceDotOnline : styles.presenceDotOffline]} />
+                    ) : null}
                     <Text style={styles.learnerName}>
                       {item.displayName} ({normalizeStageLabel(item.etapa)})
                     </Text>

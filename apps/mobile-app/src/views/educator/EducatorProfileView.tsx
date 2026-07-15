@@ -3,6 +3,7 @@ import { useAssets } from 'expo-asset';
 import { EducatorBell } from '../shared/EducatorBell';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
+import { CommonActions } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
@@ -141,7 +142,11 @@ export function EducatorProfileView({ navigation }: Props) {
           httpClient.setAuthToken(storedToken);
         } else {
           // Sem token válido — redireciona para login
-          if (mounted) navigation.replace('EducatorLogin');
+          if (mounted) {
+            navigation.getParent()?.dispatch(
+              CommonActions.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] }),
+            );
+          }
           return;
         }
 
@@ -350,7 +355,9 @@ export function EducatorProfileView({ navigation }: Props) {
     } finally {
       await EducatorStorage.clearAuthSession();
       httpClient.setAuthToken(null);
-      navigation.replace('EducatorLogin');
+      navigation.getParent()?.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: 'UnifiedLogin' }] }),
+      );
     }
   };
 

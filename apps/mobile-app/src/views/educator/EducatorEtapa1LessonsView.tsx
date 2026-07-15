@@ -28,6 +28,7 @@ import { LearnerLessonIntroView } from '../learner/LearnerLessonIntroView';
 import { LearnerLessonScreenView } from '../learner/LearnerLessonScreenView';
 import { LearnerLessonActivityView } from '../learner/LearnerLessonActivityView';
 import { LearnerLessonConclusionView } from '../learner/LearnerLessonConclusionView';
+import { LearnerStageConclusionView } from '../learner/LearnerStageConclusionView';
 import { LearnerPhotoReviewView } from '../learner/LearnerPhotoReviewView';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorEtapa1Lessons'>;
@@ -180,25 +181,6 @@ function Etapa1LessonListScreen({
   );
 }
 
-// ── Interstício ao concluir a Etapa 1 (ocupa o slot "LearnerStageConclusion",
-// para onde a conclusão de aula navega quando a etapa fecha). ──
-function Etapa1DoneScreen(_: NativeStackScreenProps<LearnerRootStackParamList, 'LearnerStageConclusion'>) {
-  const runner = useRunner();
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.doneWrap}>
-        <Text style={styles.doneTitle}>Etapa 1 concluída!</Text>
-        <Text style={styles.doneText}>
-          Espelhamento e Etapa 2 liberados para {runner.learnerName}.
-        </Text>
-        <Pressable style={styles.doneBtn} onPress={runner.exitToHome}>
-          <Text style={styles.doneBtnText}>VOLTAR AO INÍCIO</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
-  );
-}
-
 // Slots do menu inferior das telas reaproveitadas: no modo educador não há
 // tutoriais/pontuação/perfil do aluno — apenas voltam para a lista da Etapa 1.
 function BackToListScreen({
@@ -303,7 +285,7 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
           <RunnerStack.Screen name="LearnerLessonScreen" component={LearnerLessonScreenView} />
           <RunnerStack.Screen name="LearnerLessonActivity" component={LearnerLessonActivityView} />
           <RunnerStack.Screen name="LearnerLessonConclusion" component={LearnerLessonConclusionView} />
-          <RunnerStack.Screen name="LearnerStageConclusion" component={Etapa1DoneScreen} />
+          <RunnerStack.Screen name="LearnerStageConclusion" component={LearnerStageConclusionView} />
           <RunnerStack.Screen name="LearnerPhotoReview" component={LearnerPhotoReviewView} />
           <RunnerStack.Screen name="LearnerTutorials" component={BackToListScreen} />
           <RunnerStack.Screen name="LearnerScore" component={BackToListScreen} />

@@ -25,7 +25,10 @@ import { LearnerActionButtons } from "./components/LearnerActionButtons";
 import { LearnerScreenLayout } from "./components/LearnerScreenLayout";
 import { learnerTheme } from "./learnerTheme";
 import { useLearnerFlowData } from "./learnerFlowData";
-import { LearnerExerciseConfig } from "./learnerFlowMapper";
+import {
+  LearnerExerciseConfig,
+  LearnerFlowLesson,
+} from "./learnerFlowMapper";
 import { useLearnerSession } from "./learnerSessionContext";
 import {
   loadLearnerLessonCheckpoint,
@@ -304,11 +307,40 @@ function cancelBrowserVoice() {
 }
 
 export function LearnerLessonScreenView({ navigation, route }: Props) {
+  const { moduleId, lessonId } = route.params;
+  const { getLesson, loading } = useLearnerFlowData();
+  const lesson = getLesson(moduleId, lessonId);
+
+  if (!lesson) {
+    return (
+      <LearnerScreenLayout
+        activeMenu="inicio"
+        onMenuHome={() => navigation.navigate("LearnerHome")}
+      >
+        <Text style={styles.error}>
+          {loading ? "Carregando aula..." : "Conteúdo não encontrado."}
+        </Text>
+      </LearnerScreenLayout>
+    );
+  }
+
+  return (
+    <LoadedLearnerLessonScreenView
+      navigation={navigation}
+      route={route}
+      lesson={lesson}
+    />
+  );
+}
+
+function LoadedLearnerLessonScreenView({
+  navigation,
+  route,
+  lesson,
+}: Props & { lesson: LearnerFlowLesson }) {
   const { moduleId, lessonId, screenIndex, moduleLabel, moduleTitle } =
     route.params;
-  const { getLesson } = useLearnerFlowData();
   const learnerSession = useLearnerSession();
-  const lesson = getLesson(moduleId, lessonId);
   const wrongSelectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -415,19 +447,14 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     selectedImageIds,
   ]);
 
-  if (!lesson) {
-    return (
-      <LearnerScreenLayout
-        activeMenu="inicio"
-        onMenuHome={() => navigation.navigate("LearnerHome")}
-      >
-        <Text style={styles.error}>Conteúdo não encontrado.</Text>
-      </LearnerScreenLayout>
-    );
-  }
-
   const totalScreens = lesson.screens.length;
-  const safeIndex = Math.min(Math.max(screenIndex, 0), totalScreens - 1);
+  const numericScreenIndex = Number.isFinite(Number(screenIndex))
+    ? Number(screenIndex)
+    : 0;
+  const safeIndex = Math.min(
+    Math.max(numericScreenIndex, 0),
+    totalScreens - 1,
+  );
   const screen = lesson.screens[safeIndex];
   const progressPercent = ((safeIndex + 1) / totalScreens) * 100;
   const completedMatchSet = useMemo(
@@ -925,8 +952,8 @@ export function LearnerLessonScreenView({ navigation, route }: Props) {
     });
   };
 
-  const goNextDefault = () => {
-    void learnerSession.recordProgress({
+  const goNextDefault = async () => {
+    await learnerSession.recordProgress({
       activityId: screen.id,
       status: "COMPLETED",
     });

@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
-import { Platform } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts, HinaMincho_400Regular } from '@expo-google-fonts/hina-mincho';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -52,6 +52,17 @@ const linking = {
           LearnerOnboardingStep1: 'novo-aluno/passo-1',
           LearnerOnboardingStep2: 'novo-aluno/passo-2',
           LearnerOnboardingConfirm: 'novo-aluno/confirmar',
+          EducatorEtapa1Lessons: {
+            path: 'etapa-1/:learnerId',
+            screens: {
+              LearnerHome: '',
+              LearnerLessonIntro: 'aula/:lessonId',
+              LearnerLessonScreen: 'aula/:lessonId/tela/:screenIndex',
+              LearnerLessonActivity: 'aula/:lessonId/atividade/:screenIndex',
+              LearnerLessonConclusion: 'aula/:lessonId/conclusao',
+              LearnerStageConclusion: 'conclusao',
+            },
+          },
         },
       },
       LearnerFlow: {
@@ -76,7 +87,14 @@ const linking = {
 export default Sentry.wrap(function App() {
   const [fontsLoaded] = useFonts({ HinaMincho_400Regular });
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#111111" />
+        <Text style={styles.loadingText}>Carregando Letras...</Text>
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -88,4 +106,18 @@ export default Sentry.wrap(function App() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+});
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#222222',
+    fontSize: 15,
+  },
 });
