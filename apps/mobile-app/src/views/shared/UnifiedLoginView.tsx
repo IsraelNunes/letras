@@ -221,14 +221,14 @@ export function UnifiedLoginView({ navigation }: Props) {
             )}
           </Pressable>
 
-          {/* Cadastro (só para o alfabetizando): o auto-cadastro do alfabetizando
-              existe em LearnerOnboardingStep1 (modo sem isEducatorFlow) e termina
-              em LearnerHome. Cair direto na tela de onboarding não dispara o bounce
-              da LearnerLoading (guard por rota do topo em LearnerLoadingView). O
-              alfabetizador não se cadastra pelo app — é feito na coordenação/painel. */}
+          {/* Cadastro na tela de login = SÓ alfabetizador. O alfabetizando é
+              cadastrado PELO alfabetizador (nunca se auto-cadastra). Leva ao
+              onboarding do educador (EducatorSplash). Entrar direto em
+              EducatorSplash não dispara o reset da EducatorLoading — ela tem
+              guard por rota do topo (espelha a LearnerLoadingView). */}
           <Pressable
             style={styles.registerLink}
-            onPress={() => navigation.navigate('LearnerFlow', { screen: 'LearnerOnboardingStep1' })}
+            onPress={() => navigation.navigate('EducatorFlow', { screen: 'EducatorSplash' })}
             accessibilityRole="button"
             accessibilityLabel="Primeiro acesso? Fazer cadastro"
           >
