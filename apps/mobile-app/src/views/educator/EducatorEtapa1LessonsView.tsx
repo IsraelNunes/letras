@@ -30,6 +30,7 @@ import { LearnerLessonActivityView } from '../learner/LearnerLessonActivityView'
 import { LearnerLessonConclusionView } from '../learner/LearnerLessonConclusionView';
 import { LearnerStageConclusionView } from '../learner/LearnerStageConclusionView';
 import { LearnerPhotoReviewView } from '../learner/LearnerPhotoReviewView';
+import { LearnerHintVideoOverlay } from '../learner/components/LearnerHintVideoOverlay';
 import {
   EducatorEtapa1AberturaScreen,
   EducatorEtapa1OrientacoesScreen,
@@ -118,7 +119,7 @@ function Etapa1LessonListScreen({
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Etapa 1 — {runner.learnerName}</Text>
+        <Text style={styles.title}>ALFABETIZAÇÃO - ETAPA 1</Text>
         <Text style={styles.subtitle}>
           Conduza cada aula presencialmente. O progresso é gravado no perfil do alfabetizando.
         </Text>
@@ -246,6 +247,12 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   // alfabetizador já estava no meio de uma aula, retoma direto e pula a intro —
   // senão a retomada seria anulada por duas telas de leitura a cada reabertura.
   const [introStep, setIntroStep] = useState<'orientacoes' | 'abertura' | 'done' | null>(null);
+  // Vídeo opcional da tela de Orientações (card "Tutorial da Etapa 1" — Figma:
+  // assistir NÃO é obrigatório). Vem do media_library (kind=intro-etapa) já
+  // incluído no bulk fetch de conteúdo; sem URL cadastrada, cai no fallback
+  // antigo de ir para a aba geral de tutoriais.
+  const { etapa1IntroVideoUrl } = useLearnerFlowData();
+  const [showIntroVideo, setShowIntroVideo] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,12 +286,23 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
 
   if (introStep === 'orientacoes') {
     return (
-      <EducatorEtapa1OrientacoesScreen
-        educatorId={educatorId}
-        menu={introMenu}
-        onIniciar={() => setIntroStep('abertura')}
-        onAbrirTutorial={educatorMenu.onTutorial}
-      />
+      <>
+        <EducatorEtapa1OrientacoesScreen
+          educatorId={educatorId}
+          menu={introMenu}
+          onIniciar={() => setIntroStep('abertura')}
+          onAbrirTutorial={() =>
+            etapa1IntroVideoUrl ? setShowIntroVideo(true) : educatorMenu.onTutorial()
+          }
+        />
+        {showIntroVideo && etapa1IntroVideoUrl ? (
+          <LearnerHintVideoOverlay
+            videoUrl={etapa1IntroVideoUrl}
+            title="Tutorial da Etapa 1"
+            onClose={() => setShowIntroVideo(false)}
+          />
+        ) : null}
+      </>
     );
   }
 

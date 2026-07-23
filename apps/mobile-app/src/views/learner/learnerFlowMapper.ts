@@ -520,10 +520,17 @@ function normalizeExerciseItem(
     targetLetter && label.length > 0
       ? label.toUpperCase().startsWith(targetLetter)
       : false;
+  // "isCorrect" é o nome de campo gravado pelo editor de blocos (schema
+  // letras-stage2-v1, ainda a maioria do conteúdo publicado); "isCorrectTarget"
+  // é o nome usado internamente aqui e no editor v2. Sem este fallback, todo
+  // item de exercise-mark-images cai no heurístico startsWithTarget — que é
+  // sempre falso nesse template (sem letraAlvo), travando o exercício inteiro.
   const explicitTarget =
     typeof item.isCorrectTarget === "boolean"
       ? item.isCorrectTarget
-      : startsWithTarget;
+      : typeof item.isCorrect === "boolean"
+        ? item.isCorrect
+        : startsWithTarget;
 
   const fallbackOptions =
     template === "exercise-match-letter"
@@ -1136,6 +1143,18 @@ function isPublishedActivity(
   value: { is_published?: boolean } | null | undefined,
 ): boolean {
   return value?.is_published !== false;
+}
+
+// Vídeo de orientação de abertura de etapa (kind=intro-etapa no CMS), buscado
+// direto no payload já carregado — sem round-trip extra. Usado pela tela
+// "Etapa 1 - Orientações" (card de vídeo opcional, RN do Figma: assistir NÃO é
+// obrigatório). slug é o identificador estável cadastrado no painel.
+export function resolveMediaUrlBySlug(
+  payload: PainelConteudoResponse,
+  slug: string,
+): string | null {
+  const media = (payload.mediaLibrary || []).find((item) => item.slug === slug);
+  return media ? media.public_url || media.storage_path || null : null;
 }
 
 function resolveHintVideoUrl(

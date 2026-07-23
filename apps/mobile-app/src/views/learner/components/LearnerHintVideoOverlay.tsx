@@ -6,9 +6,14 @@ import { learnerTheme } from '../learnerTheme';
 interface LearnerHintVideoOverlayProps {
   videoUrl: string;
   onClose: () => void;
+  title?: string;
 }
 
-export function LearnerHintVideoOverlay({ videoUrl, onClose }: LearnerHintVideoOverlayProps) {
+export function LearnerHintVideoOverlay({
+  videoUrl,
+  onClose,
+  title = 'Tutorial de Apoio',
+}: LearnerHintVideoOverlayProps) {
   const slideX = useRef(new Animated.Value(400)).current;
 
   useEffect(() => {
@@ -31,7 +36,7 @@ export function LearnerHintVideoOverlay({ videoUrl, onClose }: LearnerHintVideoO
   return (
     <Animated.View style={[styles.overlay, { transform: [{ translateX: slideX }] }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tutorial de Apoio</Text>
+        <Text style={styles.title}>{title}</Text>
         <Pressable
           onPress={handleClose}
           hitSlop={12}

@@ -6,8 +6,14 @@ import {
   LearnerFlowModule,
   mapPainelToModules,
   PainelConteudoResponse,
+  resolveMediaUrlBySlug,
 } from './learnerFlowMapper';
 import { useOptionalLearnerSession } from './learnerSessionContext';
+
+// Slug do vídeo "Etapa 1 – Como conduzir cada tela com o alfabetizando"
+// (kind=intro-etapa) cadastrado no painel — card opcional da tela de
+// Orientações da Etapa 1.
+const ETAPA1_INTRO_VIDEO_SLUG = 'etapa1-conduzir-tela';
 
 export type {
   LearnerFlowActivity,
@@ -19,6 +25,7 @@ export type {
 } from './learnerFlowMapper';
 
 let cachedModules: LearnerFlowModule[] | null = null;
+let cachedEtapa1IntroVideoUrl: string | null = null;
 let cacheTimestamp = 0;
 let cachedLearnerProfileId: string | null = null;
 const CACHE_TTL_MS = 60_000;
@@ -51,21 +58,29 @@ function applyAccessCatalog(modules: LearnerFlowModule[], catalog: AccessCatalog
   })).filter((moduleItem) => moduleItem.lessons.length > 0);
 }
 
-async function fetchLearnerModules(learnerProfileId: string | null): Promise<LearnerFlowModule[]> {
+interface FetchedLearnerFlow {
+  modules: LearnerFlowModule[];
+  etapa1IntroVideoUrl: string | null;
+}
+
+async function fetchLearnerModules(learnerProfileId: string | null): Promise<FetchedLearnerFlow> {
   // published=true garante que rascunhos do CMS nao apareçam para o alfabetizando.
   const payload = await httpClient.get<PainelConteudoResponse>(
     '/painel/conteudo?scope=cms&published=true',
   );
-  const modules = mapPainelToModules(payload);
-  if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) return modules;
+  const etapa1IntroVideoUrl = resolveMediaUrlBySlug(payload, ETAPA1_INTRO_VIDEO_SLUG);
+  const rawModules = mapPainelToModules(payload);
+  if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) {
+    return { modules: rawModules, etapa1IntroVideoUrl };
+  }
   try {
     const catalog = await httpClient.get<AccessCatalogResponse>(
       `/learner-activities/catalog?studentId=${encodeURIComponent(learnerProfileId)}`,
     );
-    return applyAccessCatalog(modules, catalog);
+    return { modules: applyAccessCatalog(rawModules, catalog), etapa1IntroVideoUrl };
   } catch {
     // Compatibilidade enquanto a migration local ainda não foi aplicada.
-    return modules;
+    return { modules: rawModules, etapa1IntroVideoUrl };
   }
 }
 
@@ -163,6 +178,9 @@ export function useLearnerFlowData() {
   const sessionThemeId = session?.themeId ?? null;
 
   const [modules, setModules] = useState<LearnerFlowModule[]>(cachedModules ?? []);
+  const [etapa1IntroVideoUrl, setEtapa1IntroVideoUrl] = useState<string | null>(
+    cachedEtapa1IntroVideoUrl,
+  );
   const [loading, setLoading] = useState(cachedModules === null);
   const [error, setError] = useState<string | null>(null);
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
@@ -182,11 +200,13 @@ export function useLearnerFlowData() {
       setError(null);
       try {
         const fetched = await fetchLearnerModules(learnerProfileId);
-        cachedModules = fetched;
+        cachedModules = fetched.modules;
+        cachedEtapa1IntroVideoUrl = fetched.etapa1IntroVideoUrl;
         cachedLearnerProfileId = learnerProfileId;
         cacheTimestamp = now;
-        activeModules = fetched;
-        setModules(fetched);
+        activeModules = fetched.modules;
+        setModules(fetched.modules);
+        setEtapa1IntroVideoUrl(fetched.etapa1IntroVideoUrl);
       } catch (fetchError) {
         // Mensagem amigavel (sem JSON/URL/HTTP) para o alfabetizando; o botao
         // Atualizar refaz a busca quando a conexao/servidor voltar.
@@ -263,6 +283,7 @@ export function useLearnerFlowData() {
 
   return {
     modules,
+    etapa1IntroVideoUrl,
     loading,
     error,
     completedLessonIds,
