@@ -78,6 +78,8 @@ interface LearnerHomeViewModelOptions {
 
 export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {}) {
   const { overrideLearnerProfileId, overrideLearnerName, overrideThemeId } = options;
+  // Runner da Etapa 1: o alfabetizador conduz sob o perfil do alfabetizando.
+  const isEducatorConducted = Boolean(overrideLearnerProfileId);
   const repository = useMemo(() => new LearnerSessionRepositoryImpl(), []);
   const realtime = useLearnerRealtime();
   const { connect, disconnect, sendStateUpdate, requestHelp: emitHelp } = realtime;
@@ -274,7 +276,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
       // e fixada por invocacao: retentativas usam a mesma chave e nao duplicam.
       const idempotencyKey = `${status === 'COMPLETED' ? 'lesson' : 'progress'}:${learnerProfileId}:${canonicalActivityId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
-      const outboxEntry: LearnerSyncOutboxEntry = status === 'COMPLETED'
+      const outboxEntry: LearnerSyncOutboxEntry = status === 'COMPLETED' && !isEducatorConducted
         ? {
             idempotencyKey,
             learnerId: learnerProfileId,
@@ -312,12 +314,44 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
             createdAt: new Date().toISOString(),
           };
 
+      // Conclusão pela via canônica (activity_progress) — é o que o gate de
+      // etapa lê (computeLearnerStageStatus) e o que a lista de aulas usa para
+      // marcar ✓. Serve de fallback quando a via por atribuição falha, e é a
+      // via ÚNICA da Etapa 1 conduzida pelo alfabetizador: a Etapa 1 não é
+      // semeada em learner_activity_access, então `/learner-activities/:id/
+      // complete` (que exige a aula atribuída) não conclui e o alfabetizando
+      // ficava refazendo o mesmo exercício para sempre.
+      const completeViaCanonicalProgress = async (): Promise<LessonCompletionResult | null> => {
+        const result = await httpClient.post<{ stageCompleted?: unknown }>('/painel/progress', {
+          learnerProfileId,
+          activityId: canonicalActivityId,
+          status: 'COMPLETED',
+          ...(typeof score === 'number' ? { score } : {}),
+          ...(typeof elapsedSeconds === 'number' ? { elapsedSeconds } : {}),
+          ...(typeof attempts === 'number' ? { attempts } : {}),
+        });
+        return { lessonCompleted: true, stageCompleted: Boolean(result?.stageCompleted) };
+      };
+
       try {
         if (status === 'COMPLETED') {
-          return await httpClient.post<LessonCompletionResult>(
-            outboxEntry.endpoint,
-            outboxEntry.payload,
-          );
+          if (isEducatorConducted) {
+            return await completeViaCanonicalProgress();
+          }
+          try {
+            return await httpClient.post<LessonCompletionResult>(
+              outboxEntry.endpoint,
+              outboxEntry.payload,
+            );
+          } catch (completionError) {
+            // Aula fora da fila de atribuição (trilha não propagada) ainda
+            // precisa ser registrada — senão a aula nunca fica concluída.
+            if (__DEV__) {
+              // eslint-disable-next-line no-console
+              console.warn('[learner] completion via assignment failed; using canonical progress', completionError);
+            }
+            return await completeViaCanonicalProgress();
+          }
         }
 
         await httpClient.post(outboxEntry.endpoint, outboxEntry.payload);
@@ -341,7 +375,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
         return null;
       }
     },
-    [learnerProfileId],
+    [learnerProfileId, isEducatorConducted],
   );
 
   const drainOutbox = useCallback(async () => {
@@ -446,7 +480,7 @@ export function useLearnerHomeViewModel(options: LearnerHomeViewModelOptions = {
     ),
     // Runner da Etapa 1 (educador conduzindo no próprio celular): o alfabetizador
     // está ao lado, então os exercícios não travam por tentativas erradas.
-    isEducatorConducted: Boolean(overrideLearnerProfileId),
+    isEducatorConducted,
     initialize,
     cleanup,
     syncCurrentState,
