@@ -22,6 +22,14 @@ export function EducatorLoadingView({ navigation }: Props) {
 
     const timer = setTimeout(() => {
       void (async () => {
+        // Guard: só age quando EducatorLoading é a rota do topo (splash de
+        // restauração de sessão). Se o usuário entrou no EducatorFlow direto
+        // numa tela acima — ex.: EducatorSplash (cadastro do alfabetizador
+        // vindo da tela de login) — não reseta para o login. Espelha o guard
+        // da LearnerLoadingView.
+        const { routes, index } = navigation.getState();
+        if (routes[index]?.name !== 'EducatorLoading') return;
+
         const token = await EducatorStorage.getAuthToken();
         const expiresAt = await EducatorStorage.getAuthSessionExpiry();
 
