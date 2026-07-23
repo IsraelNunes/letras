@@ -142,13 +142,23 @@ function VideoOverlay({ tutorial, educatorId, logoUri, onClose, onCompleted }: V
       <View style={styles.overlayFooter}>
         {markedCompleted ? (
           <View style={styles.overlayCompletedBadge}>
-            <Text style={styles.overlayCompletedText}>Tutorial concluído.</Text>
+            <Text style={styles.overlayCompletedText}>Tutorial concluído</Text>
           </View>
         ) : (
           <Pressable style={styles.overlayCompleteBtn} onPress={() => void markCompleted()}>
             <Text style={styles.overlayCompleteBtnText}>MARCAR COMO ASSISTIDO</Text>
           </Pressable>
         )}
+        {/* Saída explícita do vídeo: o overlay cobre o menu inferior, então sem um
+            botão rotulado o alfabetizador só tinha o ✕ (pouco intuitivo). */}
+        <Pressable
+          style={styles.overlayBackBtn}
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar aos tutoriais"
+        >
+          <Text style={styles.overlayBackBtnText}>VOLTAR AOS TUTORIAIS</Text>
+        </Pressable>
       </View>
     </Animated.View>
   );
@@ -363,6 +373,13 @@ export function TutoriaisContent({ educatorId, navigation }: TutoriaisContentPro
       <EducatorBottomMenu
         active="tutorial"
         onInicioPress={() => navigation?.goBack()}
+        // Sem handler o EducatorBottomMenu renderiza a aba com disabled=true — era
+        // por isso que "o clique no botão tutorial não funcionava". Na própria tela
+        // de Tutoriais, a aba leva de volta à lista (fecha o vídeo em reprodução).
+        onTutorialPress={() => {
+          setPlayingTutorial(null);
+          void fetchTutorials();
+        }}
         onAcompanharPress={() => navigation?.goBack()}
         onPontuacaoPress={() =>
           educatorId
@@ -618,6 +635,21 @@ const styles = StyleSheet.create({
   overlayFooter: {
     paddingHorizontal: 10,
     paddingBottom: 14,
+    gap: 10,
+  },
+  overlayBackBtn: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#111111',
+  },
+  overlayBackBtnText: {
+    color: '#111111',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   overlayCompleteBtn: {
     backgroundColor: '#111111',
