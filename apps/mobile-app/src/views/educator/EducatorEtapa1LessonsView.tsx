@@ -13,11 +13,13 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 import { EducatorRootStackParamList, LearnerRootStackParamList } from '../../types';
+import { httpClient } from '../../infra/api/http-client';
 import {
   EducatorChromeMenu,
   LearnerChromeContext,
   LearnerSessionProvider,
 } from '../learner/learnerSessionContext';
+import { EducatorBottomMenu } from './components/EducatorBottomMenu';
 import {
   clearEtapa1Position,
   getEtapa1Position,
@@ -42,10 +44,14 @@ type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorEtapa1L
 // Contexto interno do runner: os componentes próprios (lista da Etapa 1 e
 // interstício de conclusão) precisam do tema do aluno e de como sair de volta
 // ao EducatorHome; as telas reaproveitadas do learner não precisam de nada.
+// `themeId` é obrigatório: o runner só monta depois de resolver o tema do
+// alfabetizando (ver EducatorEtapa1LessonsView), para nunca listar aulas de
+// outro tema.
 interface RunnerContextValue {
   learnerId: string;
   learnerName: string;
-  themeId?: string;
+  themeId: string;
+  menu: EducatorChromeMenu;
   exitToHome: () => void;
 }
 
@@ -109,12 +115,19 @@ function Etapa1LessonListScreen({
   // fonte da verdade do painel), não a menor etapa com conteúdo. Assim, se a
   // Etapa 1 estiver vazia, o runner mostra o aviso "configure no painel" em vez
   // de rodar a Etapa 2 disfarçada de Etapa 1.
-  const etapa1Modules = useMemo(() => {
-    const scoped = modules.filter((m) => !runner.themeId || m.id === runner.themeId);
-    return scoped
-      .map((m) => ({ ...m, lessons: m.lessons.filter((l) => l.stageNumber === firstStage) }))
-      .filter((m) => m.lessons.length > 0);
-  }, [modules, runner.themeId, firstStage]);
+  // O escopo por tema é fail-CLOSED: cada LearnerFlowModule.id é o id do tema, e
+  // só o tema atribuído a ESTE alfabetizando entra na lista. (Antes o filtro era
+  // pulado quando o tema não vinha nos params — ex.: recarregar a página em
+  // /educador/etapa-1/:learnerId — e a lista misturava as aulas de todos os
+  // temas do painel.)
+  const etapa1Modules = useMemo(
+    () =>
+      modules
+        .filter((m) => m.id === runner.themeId)
+        .map((m) => ({ ...m, lessons: m.lessons.filter((l) => l.stageNumber === firstStage) }))
+        .filter((m) => m.lessons.length > 0),
+    [modules, runner.themeId, firstStage],
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -178,8 +191,32 @@ function Etapa1LessonListScreen({
             })}
           </View>
         ))}
+
+        <Pressable style={styles.exitBtn} onPress={runner.exitToHome}>
+          <Text style={styles.exitText}>SAIR DA ETAPA 1</Text>
+        </Pressable>
       </ScrollView>
+      {/* Única saída da lista: as telas de aula e as de intro já trazem a barra
+          de 5 abas (LearnerScreenLayout / EducatorEtapa1IntroViews), mas a lista
+          ficava sem menu nenhum — beco sem saída. */}
+      <RunnerBottomMenu />
     </SafeAreaView>
+  );
+}
+
+// Barra de 5 abas do alfabetizador com os handlers montados pelo runner (a
+// navigation do stack do educador vive fora do navegador aninhado).
+function RunnerBottomMenu() {
+  const { menu } = useRunner();
+  return (
+    <EducatorBottomMenu
+      active={menu.active}
+      onInicioPress={menu.onInicio}
+      onTutorialPress={menu.onTutorial}
+      onAcompanharPress={menu.onAcompanhar}
+      onPontuacaoPress={menu.onPontuacao}
+      onPerfilPress={menu.onPerfil}
+    />
   );
 }
 
@@ -201,16 +238,42 @@ function BackToListScreen({
 }
 
 export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
-  const { learnerId, learnerName, educatorId, themeId } = route.params;
+  const { learnerId, learnerName, educatorId, themeId: themeIdParam } = route.params;
+
+  // Tema do alfabetizando. O param é só um atalho: nem todo caminho até aqui o
+  // carrega (o CTA "IR PARA A ETAPA 1" do espelhamento, o deep link
+  // /educador/etapa-1/:learnerId — que é o que sobra ao recarregar a página no
+  // mobile web). Sem tema o runner não monta: cada alfabetizando vê apenas as
+  // aulas do tema escolhido para ele. `undefined` = ainda resolvendo.
+  const [themeId, setThemeId] = useState<string | null | undefined>(themeIdParam);
+
+  useEffect(() => {
+    if (themeIdParam) {
+      setThemeId(themeIdParam);
+      return;
+    }
+    let cancelled = false;
+    setThemeId(undefined);
+    void (async () => {
+      try {
+        // Mesma fonte da lista da home do alfabetizador (tema atribuído no
+        // cadastro, com fallback pelo progresso).
+        const detail = await httpClient.get<{ themeId?: string | null }>(
+          `/cadastros/alfabetizandos/${learnerId}`,
+        );
+        if (!cancelled) setThemeId(detail.themeId ?? null);
+      } catch {
+        if (!cancelled) setThemeId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [themeIdParam, learnerId]);
 
   const exitToHome = useCallback(() => {
     navigation.navigate('EducatorHome', { fullName: undefined, educatorId });
   }, [navigation, educatorId]);
-
-  const runnerValue = useMemo<RunnerContextValue>(
-    () => ({ learnerId, learnerName: learnerName ?? 'Alfabetizando', themeId, exitToHome }),
-    [learnerId, learnerName, themeId, exitToHome],
-  );
 
   // Barra de 5 abas do educador exibida nas telas da Etapa 1 (Figma). Cada aba
   // sai do runner de volta à área do educador; a posição já foi salva pelos
@@ -229,6 +292,17 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
       onPerfil: () => navigation.navigate('EducatorProfile'),
     }),
     [navigation, educatorId, learnerName],
+  );
+
+  const runnerValue = useMemo<RunnerContextValue>(
+    () => ({
+      learnerId,
+      learnerName: learnerName ?? 'Alfabetizando',
+      themeId: themeId ?? '',
+      menu: educatorMenu,
+      exitToHome,
+    }),
+    [learnerId, learnerName, themeId, educatorMenu, exitToHome],
   );
 
   const chromeValue = useMemo(
@@ -276,10 +350,52 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
     [educatorMenu],
   );
 
-  if (introStep === null) {
+  if (introStep === null || themeId === undefined) {
     return (
       <SafeAreaView style={styles.safe}>
         <ActivityIndicator style={styles.loader} color="#111" />
+      </SafeAreaView>
+    );
+  }
+
+  // Sem tema atribuído (ou falha ao resolver): escolher o tema antes de
+  // conduzir — mostrar as aulas de todos os temas seria pior que não mostrar
+  // nenhuma.
+  if (!themeId) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.title}>ALFABETIZAÇÃO - ETAPA 1</Text>
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Tema ainda não definido</Text>
+            <Text style={styles.emptyText}>
+              Escolha o tema deste alfabetizando para ver as aulas da Etapa 1 dele.
+            </Text>
+            <Pressable
+              style={styles.retryBtn}
+              onPress={() =>
+                navigation.navigate('LearnerThemeSelect', {
+                  learnerId,
+                  learnerName: learnerName ?? 'Alfabetizando',
+                  educatorId,
+                })
+              }
+            >
+              <Text style={styles.retryText}>ESCOLHER TEMA</Text>
+            </Pressable>
+          </View>
+          <Pressable style={styles.exitBtn} onPress={exitToHome}>
+            <Text style={styles.exitText}>SAIR DA ETAPA 1</Text>
+          </Pressable>
+        </ScrollView>
+        <EducatorBottomMenu
+          active="inicio"
+          onInicioPress={educatorMenu.onInicio}
+          onTutorialPress={educatorMenu.onTutorial}
+          onAcompanharPress={educatorMenu.onAcompanhar}
+          onPontuacaoPress={educatorMenu.onPontuacao}
+          onPerfilPress={educatorMenu.onPerfil}
+        />
       </SafeAreaView>
     );
   }
@@ -377,7 +493,8 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#ffffff' },
-  container: { padding: 20, paddingBottom: 60, gap: 14 },
+  // paddingBottom folgado: a barra de 5 abas flutua sobre o fim da lista.
+  container: { padding: 20, paddingBottom: 140, gap: 14 },
   title: { fontSize: 20, fontWeight: '700', color: '#111' },
   subtitle: { fontSize: 14, color: '#555', lineHeight: 20 },
   loader: { marginTop: 20 },
@@ -424,6 +541,16 @@ const styles = StyleSheet.create({
   dotOpen: { backgroundColor: '#1e3a5f' },
   dotMuted: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#c8c8c8' },
   chevron: { fontSize: 18, color: '#1e3a5f', fontWeight: '700' },
+  exitBtn: {
+    marginTop: 10,
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
+  },
+  exitText: { color: '#1e3a5f', fontWeight: '700', letterSpacing: 0.4 },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 16 },
   doneTitle: { fontSize: 22, fontWeight: '700', color: '#1e3a5f', textAlign: 'center' },
   doneText: { fontSize: 16, color: '#333', textAlign: 'center', lineHeight: 24 },
