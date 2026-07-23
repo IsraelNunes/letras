@@ -61,6 +61,7 @@ function VideoOverlay({ tutorial, educatorId, logoUri, onClose, onCompleted }: V
     setMarkedCompleted(true);
     try {
       await httpClient.post(`/painel/tutoriais/${tutorial.id}/progresso`, {
+        educatorId,
         markCompleted: true,
         positionSec: tutorial.duration_sec ?? 0,
       });
