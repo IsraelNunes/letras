@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -30,6 +30,11 @@ import { LearnerLessonActivityView } from '../learner/LearnerLessonActivityView'
 import { LearnerLessonConclusionView } from '../learner/LearnerLessonConclusionView';
 import { LearnerStageConclusionView } from '../learner/LearnerStageConclusionView';
 import { LearnerPhotoReviewView } from '../learner/LearnerPhotoReviewView';
+import {
+  EducatorEtapa1AberturaScreen,
+  EducatorEtapa1OrientacoesScreen,
+  EtapaIntroMenu,
+} from './EducatorEtapa1IntroViews';
 
 type Props = NativeStackScreenProps<EducatorRootStackParamList, 'EducatorEtapa1Lessons'>;
 
@@ -172,10 +177,6 @@ function Etapa1LessonListScreen({
             })}
           </View>
         ))}
-
-        <Pressable style={styles.exitBtn} onPress={runner.exitToHome}>
-          <Text style={styles.exitText}>SAIR DA ETAPA 1</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -239,6 +240,65 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   // aula. Só o segundo caso limpa a posição; assim o foco inicial não apaga o
   // ponto salvo antes de a retomada conseguir lê-lo.
   const visitedLessonRef = useRef(false);
+
+  // Entrada da Etapa 1 conforme o Figma: Orientações → Tela de Abertura → lista
+  // de aulas. `null` = ainda decidindo (leitura da posição salva). Se o
+  // alfabetizador já estava no meio de uma aula, retoma direto e pula a intro —
+  // senão a retomada seria anulada por duas telas de leitura a cada reabertura.
+  const [introStep, setIntroStep] = useState<'orientacoes' | 'abertura' | 'done' | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const pos = await getEtapa1Position(learnerId);
+      if (!cancelled) setIntroStep(pos ? 'done' : 'orientacoes');
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [learnerId]);
+
+  const introMenu = useMemo<EtapaIntroMenu>(
+    () => ({
+      onInicio: educatorMenu.onInicio,
+      onTutorial: educatorMenu.onTutorial,
+      onAcompanhar: educatorMenu.onAcompanhar,
+      onPontuacao: educatorMenu.onPontuacao,
+      onPerfil: educatorMenu.onPerfil,
+    }),
+    [educatorMenu],
+  );
+
+  if (introStep === null) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ActivityIndicator style={styles.loader} color="#111" />
+      </SafeAreaView>
+    );
+  }
+
+  if (introStep === 'orientacoes') {
+    return (
+      <EducatorEtapa1OrientacoesScreen
+        educatorId={educatorId}
+        menu={introMenu}
+        onIniciar={() => setIntroStep('abertura')}
+        onAbrirTutorial={educatorMenu.onTutorial}
+      />
+    );
+  }
+
+  if (introStep === 'abertura') {
+    return (
+      <EducatorEtapa1AberturaScreen
+        educatorId={educatorId}
+        learnerName={learnerName ?? 'Alfabetizando'}
+        menu={introMenu}
+        onVoltar={() => setIntroStep('orientacoes')}
+        onAvancar={() => setIntroStep('done')}
+      />
+    );
+  }
 
   return (
     <LearnerSessionProvider
@@ -346,16 +406,6 @@ const styles = StyleSheet.create({
   dotOpen: { backgroundColor: '#1e3a5f' },
   dotMuted: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#c8c8c8' },
   chevron: { fontSize: 18, color: '#1e3a5f', fontWeight: '700' },
-  exitBtn: {
-    marginTop: 16,
-    alignSelf: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 999,
-  },
-  exitText: { color: '#444', fontWeight: '700', letterSpacing: 0.4 },
   doneWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 16 },
   doneTitle: { fontSize: 22, fontWeight: '700', color: '#1e3a5f', textAlign: 'center' },
   doneText: { fontSize: 16, color: '#333', textAlign: 'center', lineHeight: 24 },
