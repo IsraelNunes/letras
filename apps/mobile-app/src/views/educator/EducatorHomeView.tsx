@@ -57,6 +57,14 @@ interface LockedSession {
 
 const ICON_YT_PLAY = `<svg viewBox="0 0 68 48" xmlns="http://www.w3.org/2000/svg"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="#FF0000"/><path d="M45.02 23.97L27.04 13.46v21.08z" fill="#FFFFFF"/></svg>`;
 
+// O alerta guarda o id do alfabetizando como nome quando o cadastro não pôde ser
+// resolvido (ex.: perfil excluído). Exibir o UUID cru não diz nada a quem lê.
+const UUID_ONLY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function displayNameOrFallback(name?: string | null) {
+  const value = String(name ?? '').trim();
+  return !value || UUID_ONLY.test(value) ? 'Alfabetizando' : value;
+}
+
 const ICON_BELL = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" fill="#111111"/></svg>`;
 
 const LOGO_THUMBNAIL = require('../../../assets/logo-letras-2.png');
@@ -174,6 +182,9 @@ export function EducatorHomeView({ navigation, route }: Props) {
   const [lockedSessions, setLockedSessions] = useState<LockedSession[]>([]);
   const [dismissedLockedIds, setDismissedLockedIds] = useState(new Set<string>());
   const [isLoading, setIsLoading] = useState(true);
+  // Falha ao buscar a lista não pode virar "nenhum alfabetizando cadastrado":
+  // o alfabetizador lia isso como perda de dados.
+  const [learnersFailed, setLearnersFailed] = useState(false);
   const [isTrackListOpen, setIsTrackListOpen] = useState(false);
   const [seededAlerts, setSeededAlerts] = useState<HelpAlert[]>([]);
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
@@ -217,8 +228,10 @@ export function EducatorHomeView({ navigation, route }: Props) {
               : undefined),
         })));
       }
+      if (requestSequence === learnerRequestSequenceRef.current) setLearnersFailed(false);
     } catch {
-      // Mantem lista vazia.
+      // Mantem lista vazia, mas sinaliza que a lista NÃO é confiável.
+      if (requestSequence === learnerRequestSequenceRef.current) setLearnersFailed(true);
     }
     if (requestSequence === learnerRequestSequenceRef.current) setIsLoading(false);
   }, [educatorId]);
@@ -319,10 +332,14 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
   const mergedHelpAlerts = useMemo(() => {
     const merged = new Map<string, HelpAlert>();
+    // Só dá para descartar alerta órfão (alfabetizando excluído) quando a lista
+    // veio de fato — com a busca falhando, `learners` está vazio por erro, não
+    // por não existir ninguém, e o alerta não pode ser descartado à toa.
+    const canResolveLearners = !learnersFailed && learners.length > 0;
 
     for (const alert of seededAlerts) {
       const learnerInfo = learnerMap.get(alert.learnerId);
-      if (!learnerInfo && learners.length > 0) continue;
+      if (!learnerInfo && canResolveLearners) continue;
       merged.set(alert.learnerId, {
         ...alert,
         displayName: learnerInfo?.displayName ?? alert.displayName,
@@ -332,7 +349,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
     for (const alert of helpAlerts) {
       const learnerInfo = learnerMap.get(alert.learnerId);
-      if (!learnerInfo && learners.length > 0) continue;
+      if (!learnerInfo && canResolveLearners) continue;
       const existing = merged.get(alert.learnerId);
       merged.set(alert.learnerId, {
         ...existing,
@@ -344,7 +361,7 @@ export function EducatorHomeView({ navigation, route }: Props) {
     }
 
     return [...merged.values()].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  }, [helpAlerts, learnerMap, learners.length, seededAlerts]);
+  }, [helpAlerts, learnerMap, learners.length, learnersFailed, seededAlerts]);
 
   const handleClearHelpAlert = useCallback((learnerId: string) => {
     clearHelpAlert(learnerId);
@@ -497,13 +514,13 @@ export function EducatorHomeView({ navigation, route }: Props) {
           {mergedHelpAlerts.map((item) => (
             <NotificationRow
               key={`help-${item.learnerId}`}
-              name={item.displayName}
+              name={displayNameOrFallback(item.displayName)}
               date={formatDate(item.timestamp)}
               title="Pedido de apoio"
               desc="Verifique a tela atual do alfabetizando e entre em contato se necessario."
               phoneDigits={item.phoneDigits}
               onUnlockPress={item.requestId ? () => { void handleResolveHelpAlert(item); } : undefined}
-              onPress={() => openLearnerById(item.learnerId, item.displayName)}
+              onPress={() => openLearnerById(item.learnerId, displayNameOrFallback(item.displayName))}
             />
           ))}
 
@@ -669,6 +686,12 @@ export function EducatorHomeView({ navigation, route }: Props) {
 
             {isLoading ? (
               <ActivityIndicator style={styles.loader} color="#111111" />
+            ) : learnersFailed ? (
+              <Pressable onPress={() => void fetchLearners()}>
+                <Text style={styles.emptyText}>
+                  Não foi possível carregar seus alfabetizandos. Toque para tentar de novo.
+                </Text>
+              </Pressable>
             ) : learners.length === 0 ? (
               <Text style={styles.emptyText}>Nenhum alfabetizando cadastrado ainda.</Text>
             ) : (
