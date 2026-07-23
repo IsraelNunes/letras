@@ -221,6 +221,20 @@ export function UnifiedLoginView({ navigation }: Props) {
             )}
           </Pressable>
 
+          {/* Cadastro (só para o alfabetizando): o auto-cadastro do alfabetizando
+              existe em LearnerOnboardingStep1 (modo sem isEducatorFlow) e termina
+              em LearnerHome. Cair direto na tela de onboarding não dispara o bounce
+              da LearnerLoading (guard por rota do topo em LearnerLoadingView). O
+              alfabetizador não se cadastra pelo app — é feito na coordenação/painel. */}
+          <Pressable
+            style={styles.registerLink}
+            onPress={() => navigation.navigate('LearnerFlow', { screen: 'LearnerOnboardingStep1' })}
+            accessibilityRole="button"
+            accessibilityLabel="Primeiro acesso? Fazer cadastro"
+          >
+            <Text style={styles.registerLinkText}>Primeiro acesso? Fazer cadastro</Text>
+          </Pressable>
+
           {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
         </View>
       </ScrollView>
@@ -303,6 +317,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 1.2,
+  },
+  registerLink: {
+    marginTop: 18,
+    alignSelf: 'center',
+  },
+  registerLinkText: {
+    color: '#1f2937',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   errorText: {
     marginTop: 14,
