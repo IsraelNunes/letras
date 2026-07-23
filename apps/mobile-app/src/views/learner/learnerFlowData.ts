@@ -28,6 +28,9 @@ let cachedModules: LearnerFlowModule[] | null = null;
 let cachedEtapa1IntroVideoUrl: string | null = null;
 let cacheTimestamp = 0;
 let cachedLearnerProfileId: string | null = null;
+// O catálogo de acesso muda o conteúdo do cache (filtra aulas), então faz parte
+// da chave — senão o runner do educador e a home do aluno se contaminam.
+let cachedSkipAccessCatalog = false;
 const CACHE_TTL_MS = 60_000;
 
 interface AccessCatalogLesson {
@@ -63,14 +66,23 @@ interface FetchedLearnerFlow {
   etapa1IntroVideoUrl: string | null;
 }
 
-async function fetchLearnerModules(learnerProfileId: string | null): Promise<FetchedLearnerFlow> {
+async function fetchLearnerModules(
+  learnerProfileId: string | null,
+  skipAccessCatalog: boolean,
+): Promise<FetchedLearnerFlow> {
   // published=true garante que rascunhos do CMS nao apareçam para o alfabetizando.
   const payload = await httpClient.get<PainelConteudoResponse>(
     '/painel/conteudo?scope=cms&published=true',
   );
   const etapa1IntroVideoUrl = resolveMediaUrlBySlug(payload, ETAPA1_INTRO_VIDEO_SLUG);
   const rawModules = mapPainelToModules(payload);
-  if (!learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) {
+  // A Etapa 1 é conduzida presencialmente pelo alfabetizador e NÃO passa pela
+  // fila de acesso do aluno (learner_activity_access): essa fila só é semeada
+  // para a jornada autônoma (Etapa 2+), e uma atividade de Etapa 1 publicada no
+  // painel mas ainda não propagada para a fila sumia da lista — deixando o
+  // alfabetizando travado na Etapa 1 ("Conteúdo não encontrado" ao entrar na
+  // aula, ou "Etapa 1 sem aulas publicadas").
+  if (skipAccessCatalog || !learnerProfileId || learnerProfileId.startsWith('learner-local-profile-')) {
     return { modules: rawModules, etapa1IntroVideoUrl };
   }
   try {
@@ -176,6 +188,7 @@ export function useLearnerFlowData() {
   const session = useOptionalLearnerSession();
   const learnerProfileId = session?.learnerProfileId ?? null;
   const sessionThemeId = session?.themeId ?? null;
+  const skipAccessCatalog = session?.isEducatorConducted === true;
 
   const [modules, setModules] = useState<LearnerFlowModule[]>(cachedModules ?? []);
   const [etapa1IntroVideoUrl, setEtapa1IntroVideoUrl] = useState<string | null>(
@@ -191,7 +204,12 @@ export function useLearnerFlowData() {
   const load = useCallback(async () => {
     const now = Date.now();
     let activeModules: LearnerFlowModule[] = [];
-    if (cachedModules && cachedLearnerProfileId === learnerProfileId && now - cacheTimestamp < CACHE_TTL_MS) {
+    if (
+      cachedModules &&
+      cachedLearnerProfileId === learnerProfileId &&
+      cachedSkipAccessCatalog === skipAccessCatalog &&
+      now - cacheTimestamp < CACHE_TTL_MS
+    ) {
       activeModules = cachedModules;
       setModules(cachedModules);
       setLoading(false);
@@ -199,10 +217,11 @@ export function useLearnerFlowData() {
       setLoading(true);
       setError(null);
       try {
-        const fetched = await fetchLearnerModules(learnerProfileId);
+        const fetched = await fetchLearnerModules(learnerProfileId, skipAccessCatalog);
         cachedModules = fetched.modules;
         cachedEtapa1IntroVideoUrl = fetched.etapa1IntroVideoUrl;
         cachedLearnerProfileId = learnerProfileId;
+        cachedSkipAccessCatalog = skipAccessCatalog;
         cacheTimestamp = now;
         activeModules = fetched.modules;
         setModules(fetched.modules);
@@ -218,6 +237,7 @@ export function useLearnerFlowData() {
         setModules([]);
         cachedModules = [];
         cachedLearnerProfileId = learnerProfileId;
+        cachedSkipAccessCatalog = skipAccessCatalog;
         cacheTimestamp = now;
       } finally {
         setLoading(false);
@@ -256,7 +276,7 @@ export function useLearnerFlowData() {
         setRemoteRollup(null);
       }
     }
-  }, [learnerProfileId, sessionThemeId]);
+  }, [learnerProfileId, sessionThemeId, skipAccessCatalog]);
 
   useEffect(() => {
     void load();

@@ -32,10 +32,8 @@ import { LearnerLessonActivityView } from '../learner/LearnerLessonActivityView'
 import { LearnerLessonConclusionView } from '../learner/LearnerLessonConclusionView';
 import { LearnerStageConclusionView } from '../learner/LearnerStageConclusionView';
 import { LearnerPhotoReviewView } from '../learner/LearnerPhotoReviewView';
-import { LearnerHintVideoOverlay } from '../learner/components/LearnerHintVideoOverlay';
 import {
   EducatorEtapa1AberturaScreen,
-  EducatorEtapa1OrientacoesScreen,
   EtapaIntroMenu,
 } from './EducatorEtapa1IntroViews';
 
@@ -73,44 +71,6 @@ function Etapa1LessonListScreen({
   const runner = useRunner();
   const { modules, loading, error, completedLessonIds, refresh, firstStage } = useLearnerFlowData();
 
-  // Retomada (one-shot): ao montar o runner, se houver posição salva para este
-  // alfabetizando, reconstrói o histórico lista → aula → tela para o VOLTAR
-  // funcionar e retomar exatamente de onde parou. Roda só uma vez por montagem.
-  const resumedRef = useRef(false);
-  useEffect(() => {
-    if (resumedRef.current) return;
-    resumedRef.current = true;
-    let cancelled = false;
-    void (async () => {
-      const pos = await getEtapa1Position(runner.learnerId);
-      if (cancelled || !pos) return;
-      const p = pos.params as {
-        moduleId?: string;
-        lessonId?: string;
-        moduleLabel?: string;
-        moduleTitle?: string;
-        screenIndex?: number;
-      };
-      if (!p.moduleId || !p.lessonId) return;
-      const introParams = {
-        moduleId: p.moduleId,
-        lessonId: p.lessonId,
-        moduleLabel: p.moduleLabel ?? '',
-        moduleTitle: p.moduleTitle ?? '',
-      };
-      navigation.navigate('LearnerLessonIntro', introParams);
-      if (pos.routeName !== 'LearnerLessonIntro') {
-        navigation.push(pos.routeName as 'LearnerLessonScreen', {
-          ...introParams,
-          screenIndex: typeof p.screenIndex === 'number' ? p.screenIndex : 0,
-        });
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigation, runner.learnerId]);
-
   // A "Etapa 1" conduzida pelo educador = menor etapa-ENTIDADE do tema (mesma
   // fonte da verdade do painel), não a menor etapa com conteúdo. Assim, se a
   // Etapa 1 estiver vazia, o runner mostra o aviso "configure no painel" em vez
@@ -128,6 +88,72 @@ function Etapa1LessonListScreen({
         .filter((m) => m.lessons.length > 0),
     [modules, runner.themeId, firstStage],
   );
+
+  // Fila da trilha: a próxima aula a conduzir é a primeira não concluída (as
+  // aulas já vêm na ordem da trilha do painel); se todas estiverem concluídas,
+  // não há o que abrir e a lista fica visível com os ✓.
+  const nextLesson = useMemo(() => {
+    for (const moduleItem of etapa1Modules) {
+      const index = moduleItem.lessons.findIndex(
+        (lesson) => !completedLessonIds.has(lesson.progressId),
+      );
+      if (index >= 0) return { moduleItem, lesson: moduleItem.lessons[index], index };
+    }
+    return null;
+  }, [etapa1Modules, completedLessonIds]);
+
+  // Entrada direta na aula (one-shot por montagem do runner). O alfabetizador
+  // veio da tela de abertura e espera cair no exercício — a lista fica só como
+  // alvo do VOLTAR e da conclusão de aula. Se havia uma aula em andamento,
+  // retoma exatamente onde parou; senão, abre a próxima da fila já na 1ª tela
+  // (sem passar pela tela de intro da aula, que repetia a de abertura).
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (openedRef.current || loading) return;
+    let cancelled = false;
+    void (async () => {
+      const pos = await getEtapa1Position(runner.learnerId);
+      if (cancelled || openedRef.current) return;
+      const p = (pos?.params ?? {}) as {
+        moduleId?: string;
+        lessonId?: string;
+        moduleLabel?: string;
+        moduleTitle?: string;
+        screenIndex?: number;
+      };
+      // Só retoma uma posição que ainda existe na Etapa 1 deste tema — posição
+      // velha (outro tema, aula despublicada) cairia em "Conteúdo não encontrado".
+      const saved =
+        p.moduleId && p.lessonId
+          ? etapa1Modules
+              .find((m) => m.id === p.moduleId)
+              ?.lessons.find((l) => l.id === p.lessonId)
+          : undefined;
+      if (saved) {
+        openedRef.current = true;
+        navigation.navigate('LearnerLessonScreen', {
+          moduleId: p.moduleId!,
+          lessonId: p.lessonId!,
+          moduleLabel: p.moduleLabel ?? saved.moduleLabel,
+          moduleTitle: p.moduleTitle ?? '',
+          screenIndex: typeof p.screenIndex === 'number' ? p.screenIndex : 0,
+        });
+        return;
+      }
+      if (!nextLesson) return;
+      openedRef.current = true;
+      navigation.navigate('LearnerLessonScreen', {
+        moduleId: nextLesson.moduleItem.id,
+        lessonId: nextLesson.lesson.id,
+        moduleLabel: nextLesson.lesson.moduleLabel,
+        moduleTitle: nextLesson.moduleItem.title,
+        screenIndex: 0,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, runner.learnerId, loading, etapa1Modules, nextLesson]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -246,30 +272,42 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   // mobile web). Sem tema o runner não monta: cada alfabetizando vê apenas as
   // aulas do tema escolhido para ele. `undefined` = ainda resolvendo.
   const [themeId, setThemeId] = useState<string | null | undefined>(themeIdParam);
+  // Falha ao CONSULTAR o tema ≠ alfabetizando sem tema. Só o segundo caso pode
+  // oferecer "escolher tema" — oferecer isso numa queda de rede levaria o
+  // alfabetizador a reatribuir por engano o tema de quem já tem um.
+  const [themeLookupFailed, setThemeLookupFailed] = useState(false);
+
+  // O deep link também não carrega o nome; aproveitamos a mesma consulta para
+  // não exibir "Alfabetizando" genérico nas telas da aula.
+  const [fetchedName, setFetchedName] = useState<string | null>(null);
+
+  const loadTheme = useCallback(async () => {
+    setThemeId(undefined);
+    setThemeLookupFailed(false);
+    try {
+      // Mesma fonte da lista da home do alfabetizador (tema atribuído no
+      // cadastro, com fallback pelo progresso).
+      const detail = await httpClient.get<{ themeId?: string | null; displayName?: string }>(
+        `/cadastros/alfabetizandos/${learnerId}`,
+      );
+      setThemeId(detail.themeId ?? null);
+      setFetchedName(detail.displayName?.trim() || null);
+    } catch {
+      setThemeLookupFailed(true);
+      setThemeId(null);
+    }
+  }, [learnerId]);
 
   useEffect(() => {
     if (themeIdParam) {
       setThemeId(themeIdParam);
+      setThemeLookupFailed(false);
       return;
     }
-    let cancelled = false;
-    setThemeId(undefined);
-    void (async () => {
-      try {
-        // Mesma fonte da lista da home do alfabetizador (tema atribuído no
-        // cadastro, com fallback pelo progresso).
-        const detail = await httpClient.get<{ themeId?: string | null }>(
-          `/cadastros/alfabetizandos/${learnerId}`,
-        );
-        if (!cancelled) setThemeId(detail.themeId ?? null);
-      } catch {
-        if (!cancelled) setThemeId(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [themeIdParam, learnerId]);
+    void loadTheme();
+  }, [themeIdParam, loadTheme]);
+
+  const effectiveName = learnerName ?? fetchedName ?? undefined;
 
   const exitToHome = useCallback(() => {
     navigation.navigate('EducatorHome', { fullName: undefined, educatorId });
@@ -302,7 +340,7 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
       menu: educatorMenu,
       exitToHome,
     }),
-    [learnerId, learnerName, themeId, educatorMenu, exitToHome],
+    [learnerId, effectiveName, themeId, educatorMenu, exitToHome],
   );
 
   const chromeValue = useMemo(
@@ -316,23 +354,18 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   // ponto salvo antes de a retomada conseguir lê-lo.
   const visitedLessonRef = useRef(false);
 
-  // Entrada da Etapa 1 conforme o Figma: Orientações → Tela de Abertura → lista
-  // de aulas. `null` = ainda decidindo (leitura da posição salva). Se o
-  // alfabetizador já estava no meio de uma aula, retoma direto e pula a intro —
-  // senão a retomada seria anulada por duas telas de leitura a cada reabertura.
-  const [introStep, setIntroStep] = useState<'orientacoes' | 'abertura' | 'done' | null>(null);
-  // Vídeo opcional da tela de Orientações (card "Tutorial da Etapa 1" — Figma:
-  // assistir NÃO é obrigatório). Vem do media_library (kind=intro-etapa) já
-  // incluído no bulk fetch de conteúdo; sem URL cadastrada, cai no fallback
-  // antigo de ir para a aba geral de tutoriais.
-  const { etapa1IntroVideoUrl } = useLearnerFlowData();
-  const [showIntroVideo, setShowIntroVideo] = useState(false);
+  // Entrada da Etapa 1: Tela de Abertura → aula. A tela de "Orientações"
+  // (texto + card "Tutorial da Etapa 1") era conteúdo FIXO no código, não vinha
+  // do painel — removida por decisão do Israel (2026-07-23) até existir uma
+  // origem real para esse vídeo por etapa. `null` = ainda lendo a posição
+  // salva: quem já estava no meio de uma aula pula a abertura e retoma direto.
+  const [introStep, setIntroStep] = useState<'abertura' | 'done' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const pos = await getEtapa1Position(learnerId);
-      if (!cancelled) setIntroStep(pos ? 'done' : 'orientacoes');
+      if (!cancelled) setIntroStep(pos ? 'done' : 'abertura');
     })();
     return () => {
       cancelled = true;
@@ -367,21 +400,29 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
         <ScrollView contentContainerStyle={styles.container}>
           <Text style={styles.title}>ALFABETIZAÇÃO - ETAPA 1</Text>
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Tema ainda não definido</Text>
+            <Text style={styles.emptyTitle}>
+              {themeLookupFailed ? 'Não foi possível carregar o tema' : 'Tema ainda não definido'}
+            </Text>
             <Text style={styles.emptyText}>
-              Escolha o tema deste alfabetizando para ver as aulas da Etapa 1 dele.
+              {themeLookupFailed
+                ? 'Verifique a conexão e tente de novo.'
+                : 'Escolha o tema deste alfabetizando para ver as aulas da Etapa 1 dele.'}
             </Text>
             <Pressable
               style={styles.retryBtn}
               onPress={() =>
-                navigation.navigate('LearnerThemeSelect', {
-                  learnerId,
-                  learnerName: learnerName ?? 'Alfabetizando',
-                  educatorId,
-                })
+                themeLookupFailed
+                  ? void loadTheme()
+                  : navigation.navigate('LearnerThemeSelect', {
+                      learnerId,
+                      learnerName: effectiveName ?? 'Alfabetizando',
+                      educatorId,
+                    })
               }
             >
-              <Text style={styles.retryText}>ESCOLHER TEMA</Text>
+              <Text style={styles.retryText}>
+                {themeLookupFailed ? 'TENTAR DE NOVO' : 'ESCOLHER TEMA'}
+              </Text>
             </Pressable>
           </View>
           <Pressable style={styles.exitBtn} onPress={exitToHome}>
@@ -400,35 +441,13 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
     );
   }
 
-  if (introStep === 'orientacoes') {
-    return (
-      <>
-        <EducatorEtapa1OrientacoesScreen
-          educatorId={educatorId}
-          menu={introMenu}
-          onIniciar={() => setIntroStep('abertura')}
-          onAbrirTutorial={() =>
-            etapa1IntroVideoUrl ? setShowIntroVideo(true) : educatorMenu.onTutorial()
-          }
-        />
-        {showIntroVideo && etapa1IntroVideoUrl ? (
-          <LearnerHintVideoOverlay
-            videoUrl={etapa1IntroVideoUrl}
-            title="Tutorial da Etapa 1"
-            onClose={() => setShowIntroVideo(false)}
-          />
-        ) : null}
-      </>
-    );
-  }
-
   if (introStep === 'abertura') {
     return (
       <EducatorEtapa1AberturaScreen
         educatorId={educatorId}
-        learnerName={learnerName ?? 'Alfabetizando'}
+        learnerName={effectiveName ?? 'Alfabetizando'}
         menu={introMenu}
-        onVoltar={() => setIntroStep('orientacoes')}
+        onVoltar={exitToHome}
         onAvancar={() => setIntroStep('done')}
       />
     );
@@ -437,7 +456,7 @@ export function EducatorEtapa1LessonsView({ navigation, route }: Props) {
   return (
     <LearnerSessionProvider
       overrideLearnerProfileId={learnerId}
-      overrideLearnerName={learnerName}
+      overrideLearnerName={effectiveName}
       overrideThemeId={themeId}
     >
       <LearnerChromeContext.Provider value={chromeValue}>
